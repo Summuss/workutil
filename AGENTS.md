@@ -12,6 +12,13 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 
 Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+## Project docs
+
+- `docs/requirements.md` — what workutil should do and why. No technical details.
+- `docs/design.md` — how it's built: architecture, stack, module layout, milestones.
+
+Keep the split: requirements describe observable behavior, design describes implementation. When a change affects both, update both.
+
 ## Git workflow
 
 After every code change, commit it to this git repository: stage the affected files and create a commit with a concise message describing the change. Do not batch unrelated changes into one commit — commit each logical change as it's made.
