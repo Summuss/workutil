@@ -65,14 +65,17 @@
 
 ```
 backend/app/
-  core/            配置、DB、平台操作抽象层
+  core/            config.py(数据目录与监听地址)  db.py  deps.py
+                   平台操作抽象层在 F3 时加入这里
+  migrations/      Alembic;版本文件在 versions/,随服务启动自动执行
   modules/
+    registry.py    功能清单 —— 新增一个功能在这里加一行
     memo/          router.py  models.py  service.py  schemas.py
     todo/
     bookmark/
     script/
     evidence/
-  main.py          注册各模块 router、托管前端产物
+  main.py          create_app():迁移、挂载各模块 router、托管前端产物
 frontend/src/
   features/
     memo/  todo/  bookmark/  script/  evidence/
@@ -85,12 +88,13 @@ frontend/src/
 
 TDD 只打在事先约定的接缝上,不追求覆盖率。
 
+**主接缝是 HTTP API**:用测试客户端驱动真实应用,配合临时数据目录。只测外部可观察的行为 —— 重构模块内部而不改变对外契约时,测试不应该失败。
+
 | 位置 | 测? | 理由 |
 | --- | --- | --- |
-| `service.py` 业务逻辑 | ✅ | 不依赖 FastAPI,纯函数式调用 |
-| 搜索:子串匹配 + 片段提取 | ✅ **重点** | 中日文边界最容易错,且**英文用例发现不了**(见 ADR-0002 的教训) |
-| 图片存储:落盘与删除 | ✅ | 用临时目录测,涉及不可逆的删除逻辑 |
-| `router.py` | ❌ | 太薄,只做转发 |
+| HTTP API | ✅ **主接缝** | 一个接缝覆盖增删改查、搜索、图片的落盘与级联清理。临时数据目录使其与真实数据隔离 |
+| 搜索:片段提取纯函数 | ✅ **重点** | 唯一低于主接缝的测试点。它无 I/O,而边界矩阵很大(中日文按字符截断、英文按词截断、多处命中、命中在首尾),走 HTTP 会冗长难读。中日文最容易错,且**英文用例发现不了**(见 ADR-0002 的教训) |
+| `service.py` / `router.py` 单独测试 | ❌ | 已被主接缝覆盖;router 太薄,只做转发。直接访问 DB 仅用于安排 API 表达不了的前置状态(如「这条是 2020 年写的」),断言仍走 API |
 | 前端 UI | ❌ 第一版 | 此阶段 UI 快速变形,测试会比被测代码更早过期。代价是回归靠手动 —— 可接受,因为页面少且每天在用 |
 
 ## 5. 数据设计
