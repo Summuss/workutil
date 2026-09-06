@@ -21,5 +21,8 @@ Keep the split: requirements describe observable behavior, design describes impl
 
 ## Git workflow
 
-After every code change, commit it to this git repository: stage the affected files and create a commit with a concise message describing the change. Do not batch unrelated changes into one commit — commit each logical change as it's made.
+Commit granularity depends on the phase:
+
+- **During `/implement`**: one commit per ticket, made once the whole ticket is done — every acceptance criterion met, tests green, `/code-review` clean. Name the ticket number in the message.
+- **All other work** (docs, config, standalone fixes): one commit per logical change, made as you go.
 
