@@ -158,7 +158,7 @@ TDD 只打在事先约定的接缝上,不追求覆盖率。
 - 一个 image Block 装一张图。一次粘 3 张 = 3 个 Block,各自可加 label、可单独排序
 - Case 与 Block 的顺序靠 `order` 字段;交互是**上下移动 + 置顶 / 置底按钮,不做拖拽** —— Block 是边做边追加的,重排基本是就近修正,拖拽换来的依赖和键盘可达性成本不值
 
-**图片链路与 Memo 共享,但代码要先下沉**:`_decode_image` / `_save_images` / `count_images` / `_discard_images` 目前长在 `modules/memo/service.py` 里,M2 的第一步是把它们提到 `core/images.py`,参数化「目录 + URL 前缀」。这是 ADR-0001 那句「共享机制、不共享概念」的具体落点。
+**图片链路与 Memo 共享,代码已下沉**:解码、落盘、计数、清理原本长在 `modules/memo/service.py` 里,M2 第一步把它们提到了 `core/images.py`(`count` / `discard` / `save_and_link`),按「目录 + URL 前缀」参数化。这是 ADR-0001 那句「共享机制、不共享概念」的具体落点 —— 共享的是这条链路,**不是**一个「有图片的东西」的公共基类。「哪个目录属于谁」留在各自的模块里(memo 的在 `memo/service.py` 的 `memo_images_dir`)。
 
 #### 表格
 

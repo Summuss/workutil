@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse
 
+from app.core import images
 from app.core.deps import SessionDep, SettingsDep
 from app.modules.memo import service
 from app.modules.memo.schemas import MemoCreate, MemoRead, MemoUpdate
@@ -22,7 +23,7 @@ def create_memo(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(empty)
         ) from empty
-    except service.InvalidImage as invalid:
+    except images.InvalidImage as invalid:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)
         ) from invalid
@@ -70,7 +71,7 @@ def update_memo(
         ) from empty
     except service.MemoNotFound as not_found:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found
-    except service.InvalidImage as invalid:
+    except images.InvalidImage as invalid:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)
         ) from invalid
@@ -90,7 +91,7 @@ def get_memo_image(memo_id: int, filename: str, settings: SettingsDep) -> FileRe
     if ".." in filename or "/" in filename or "\\" in filename:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "image not found")
 
-    image_path = settings.images_dir / str(memo_id) / filename
+    image_path = service.memo_images_dir(settings.images_dir, memo_id) / filename
     if not image_path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "image not found")
 

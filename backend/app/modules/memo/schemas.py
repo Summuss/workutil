@@ -3,20 +3,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.images import ImageUpload
 from app.modules.memo.models import Memo
-
-
-class ImageUpload(BaseModel):
-    """A screenshot on its way in, still only a data URL and a placeholder.
-
-    `id` is the token standing in for the image in the body; the server swaps
-    it for the saved image's URL. Body and images arrive in one request, so an
-    image is never on disk without the memo that names it (spec 图片).
-    """
-
-    id: str
-    data: str
-    filename: str = "image.png"
 
 
 class MemoCreate(BaseModel):

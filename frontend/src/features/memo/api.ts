@@ -1,5 +1,6 @@
 import { del, get, patch, post } from "../../shared/api";
-import type { ImageUpload, Memo } from "./types";
+import type { ImageUpload } from "../../shared/images";
+import type { Memo } from "./types";
 
 export function listMemos(query?: string): Promise<Memo[]> {
   const params =

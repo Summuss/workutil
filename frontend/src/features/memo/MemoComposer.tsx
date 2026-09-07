@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import type { ImageUpload } from "../../shared/images";
 import { useImageAttachments } from "../../shared/useImageAttachments";
-import type { ImageUpload } from "./types";
 
 interface MemoComposerProps {
   onSave: (body: string, images?: ImageUpload[]) => Promise<void>;

@@ -14,10 +14,3 @@ export interface Memo {
   /** How many places matched — can exceed what `snippets` shows. */
   snippet_total?: number;
 }
-
-export interface ImageUpload {
-  id: string;
-  data: string;
-  filename: string;
-}
-

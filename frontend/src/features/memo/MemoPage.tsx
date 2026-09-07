@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { messageOf } from "../../shared/api";
+import type { ImageUpload } from "../../shared/images";
 import { createMemo, listMemos } from "./api";
 import { MemoComposer } from "./MemoComposer";
 import { MemoList } from "./MemoList";
 import { MemoSearchBar } from "./MemoSearchBar";
-import type { ImageUpload, Memo } from "./types";
+import type { Memo } from "./types";
 
 /** One page: the box on top, search bar in between, what you have written below it. */
 export function MemoPage() {

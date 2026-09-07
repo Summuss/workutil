@@ -6,7 +6,7 @@ import {
   type RefObject,
 } from "react";
 
-import type { ImageUpload } from "../features/memo/types";
+import type { ImageUpload } from "./images";
 
 interface PendingImage {
   id: string;

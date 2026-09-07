@@ -643,7 +643,7 @@ def test_a_pasted_svg_is_never_served_as_a_document(client: TestClient) -> None:
 
 
 def test_an_oversized_image_is_refused(client: TestClient) -> None:
-    from app.modules.memo.service import MAX_IMAGE_BYTES
+    from app.core.images import MAX_IMAGE_BYTES
 
     huge = base64.b64encode(b"\x00" * (MAX_IMAGE_BYTES + 1)).decode()
     response = client.post(
