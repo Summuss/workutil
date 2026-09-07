@@ -123,6 +123,24 @@ def list_memos(session: Session) -> Sequence[Memo]:
     ).all()
 
 
+def search_memos(session: Session, query: str) -> Sequence[Memo]:
+    """Search memos matching query as substring (LIKE '%q%').
+
+    Ordered by creation newest first, matching the list order.
+    Does NOT use FTS5 (ADR-0002: FTS5 tokenizers fail on CJK 2-char queries).
+    """
+    q = query.strip()
+    if not q:
+        return []
+
+    escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return session.scalars(
+        select(Memo)
+        .where(Memo.body.like(f"%{escaped}%", escape="\\"))
+        .order_by(Memo.created_at.desc(), Memo.id.desc())
+    ).all()
+
+
 def get_memo(session: Session, memo_id: int) -> Memo:
     memo = session.get(Memo, memo_id)
     if memo is None:

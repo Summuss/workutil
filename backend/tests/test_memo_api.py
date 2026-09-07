@@ -508,3 +508,100 @@ def test_removing_image_reference_from_body_keeps_image_file_on_disk(
 def test_deleting_a_memo_without_images_succeeds(client: TestClient) -> None:
     created = client.post("/api/memos", json={"body": "无图记录"}).json()
     assert client.delete(f"/api/memos/{created['id']}").status_code == 204
+
+
+def test_search_cjk_keywords_guardrail_adr_0002(client: TestClient) -> None:
+    """ADR-0002 guardrail tests for CJK substring search.
+
+    These must pass with LIKE '%q%' and would fail on SQLite FTS5 unicode61/trigram.
+    """
+    client.post("/api/memos", json={"body": "今日任务\n完成バグ修正工作"})
+    client.post("/api/memos", json={"body": "技术预研\n中文分词测试"})
+    client.post("/api/memos", json={"body": "客户支持\n障害対応中，排查完毕"})
+    client.post("/api/memos", json={"body": "无关记录\n普通日常记事"})
+
+    # 1. 搜索 バグ 能命中含「バグ修正」的 Memo
+    res1 = client.get("/api/memos", params={"q": "バグ"}).json()
+    assert len(res1) == 1
+    assert "バグ修正" in res1[0]["body"]
+    assert any("バグ" in s for s in res1[0]["snippets"])
+
+    # 2. 搜索 中文 能命中含「中文分词」的 Memo
+    res2 = client.get("/api/memos", params={"q": "中文"}).json()
+    assert len(res2) == 1
+    assert "中文分词" in res2[0]["body"]
+    assert any("中文分词" in s for s in res2[0]["snippets"])
+
+    # 3. 搜索 対応 能命中含该词的 Memo
+    res3 = client.get("/api/memos", params={"q": "対応"}).json()
+    assert len(res3) == 1
+    assert "対応中" in res3[0]["body"]
+    assert any("対応" in s for s in res3[0]["snippets"])
+
+
+def test_search_matches_arbitrary_position_and_returns_snippets(
+    client: TestClient,
+) -> None:
+    """The match can happen anywhere (e.g. line 5), and results carry snippets."""
+    body = (
+        "今天调登录系统\n"
+        + "第二行没有关键词\n"
+        + "第三行依然没有\n"
+        + "第四行还是没有\n"
+        + "第五行终于出现了 authentication token 的生成逻辑"
+    )
+    client.post("/api/memos", json={"body": body})
+
+    # Search for token
+    res = client.get("/api/memos", params={"q": "token"}).json()
+    assert len(res) == 1
+    item = res[0]
+    # First line is what list shows as title, body is the full content
+    assert item["body"].startswith("今天调登录系统")
+    # Snippet reveals why this memo was matched
+    assert len(item["snippets"]) >= 1
+    assert "token" in item["snippets"][0]
+
+    # English case-insensitivity: TOKEN matches token
+    res_upper = client.get("/api/memos", params={"q": "TOKEN"}).json()
+    assert len(res_upper) == 1
+    assert res_upper[0]["id"] == item["id"]
+
+
+def test_search_multiple_hits_in_one_memo(client: TestClient) -> None:
+    body = (
+        "Line 1: error occurred during startup.\n"
+        + "Unrelated paragraph ...\n" * 4
+        + "Line 10: another critical error detected."
+    )
+    client.post("/api/memos", json={"body": body})
+    res = client.get("/api/memos", params={"q": "error"}).json()
+    assert len(res) == 1
+    # Distant matches should give multiple snippets
+    assert len(res[0]["snippets"]) == 2
+
+
+def test_clearing_search_restores_complete_reverse_chronological_list(
+    client: TestClient,
+) -> None:
+    client.post("/api/memos", json={"body": "第一条记录 alpha"})
+    client.post("/api/memos", json={"body": "第二条记录 beta"})
+    client.post("/api/memos", json={"body": "第三条记录 gamma"})
+
+    # Search converges
+    filtered = client.get("/api/memos", params={"q": "beta"}).json()
+    assert len(filtered) == 1
+    assert "beta" in filtered[0]["body"]
+
+    # Empty string or omitted q returns all items
+    all_empty_q = client.get("/api/memos", params={"q": ""}).json()
+    all_no_q = client.get("/api/memos").json()
+    assert len(all_empty_q) == 3
+    assert len(all_no_q) == 3
+    assert all_empty_q[0]["id"] == all_no_q[0]["id"]
+
+
+def test_search_no_results_returns_empty_list(client: TestClient) -> None:
+    client.post("/api/memos", json={"body": "一些内容"})
+    res = client.get("/api/memos", params={"q": "nonexistent_term_404"}).json()
+    assert res == []

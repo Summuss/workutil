@@ -4,12 +4,14 @@ import { messageOf } from "../../shared/api";
 import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
+import { HighlightText } from "./HighlightText";
 import { MemoMarkdown } from "./MemoMarkdown";
 import type { Memo } from "./types";
 
 interface MemoItemProps {
   memo: Memo;
   isExpanded: boolean;
+  searchQuery?: string;
   onToggleExpand: () => void;
   onUpdate: (updated: Memo) => void;
   onDelete: (id: number) => void;
@@ -48,6 +50,7 @@ function formatTime(iso: string): string {
 export function MemoItem({
   memo,
   isExpanded,
+  searchQuery,
   onToggleExpand,
   onUpdate,
   onDelete,
@@ -156,19 +159,34 @@ export function MemoItem({
         <button
           type="button"
           onClick={onToggleExpand}
-          className="group flex w-full cursor-pointer items-center justify-between py-2.5 text-left font-mono text-sm text-slate-700 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          className="group flex w-full cursor-pointer flex-col py-2.5 text-left font-mono text-slate-700 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
         >
-          <div className="flex items-center gap-2 truncate">
-            <span className="truncate">{firstLine(memo.body)}</span>
-            {memo.image_count > 0 && (
-              <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-sans text-slate-500">
-                含 {memo.image_count} 张图
-              </span>
-            )}
+          <div className="flex w-full items-center justify-between">
+            <div className="flex items-center gap-2 truncate text-sm">
+              <span className="truncate">{firstLine(memo.body)}</span>
+              {memo.image_count > 0 && (
+                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-sans text-slate-500">
+                  含 {memo.image_count} 张图
+                </span>
+              )}
+            </div>
+            <span className="ml-2 shrink-0 text-xs text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+              {isUnsaved ? "未保存" : "展开"}
+            </span>
           </div>
-          <span className="ml-2 shrink-0 text-xs text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-            {isUnsaved ? "未保存" : "展开"}
-          </span>
+
+          {memo.snippets && memo.snippets.length > 0 && (
+            <div className="mt-1.5 flex w-full flex-col gap-1 border-l-2 border-slate-200 pl-2.5">
+              {memo.snippets.map((snippet, idx) => (
+                <div
+                  key={idx}
+                  className="truncate text-xs leading-relaxed text-slate-500"
+                >
+                  <HighlightText text={snippet} query={searchQuery ?? ""} />
+                </div>
+              ))}
+            </div>
+          )}
         </button>
       </li>
     );

@@ -10,6 +10,7 @@ export interface Memo {
   created_at: string;
   updated_at: string;
   image_count: number;
+  snippets?: string[];
 }
 
 export interface ImageUpload {

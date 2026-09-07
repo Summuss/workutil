@@ -7,6 +7,7 @@ interface MemoListProps {
   memos: Memo[];
   loading: boolean;
   error: string | null;
+  searchQuery?: string;
   onUpdate: (updated: Memo) => void;
   onDelete: (id: number) => void;
 }
@@ -20,6 +21,7 @@ export function MemoList({
   memos,
   loading,
   error,
+  searchQuery,
   onUpdate,
   onDelete,
 }: MemoListProps) {
@@ -44,6 +46,13 @@ export function MemoList({
     if (loading) {
       return <Placeholder>载入中…</Placeholder>;
     }
+    if (searchQuery && searchQuery.trim() !== "") {
+      return (
+        <Placeholder>
+          {`没有找到匹配「${searchQuery.trim()}」的 Memo。`}
+        </Placeholder>
+      );
+    }
     return <Placeholder>还没有记录。写点什么,按 Ctrl+Enter。</Placeholder>;
   }
 
@@ -58,6 +67,7 @@ export function MemoList({
             key={memo.id}
             memo={memo}
             isExpanded={expandedIds.has(memo.id)}
+            searchQuery={searchQuery}
             onToggleExpand={() => toggleExpand(memo.id)}
             onUpdate={onUpdate}
             onDelete={onDelete}

@@ -4,13 +4,28 @@ import { messageOf } from "../../shared/api";
 import { createMemo, listMemos } from "./api";
 import { MemoComposer } from "./MemoComposer";
 import { MemoList } from "./MemoList";
+import { MemoSearchBar } from "./MemoSearchBar";
 import type { ImageUpload, Memo } from "./types";
 
-/** One page: the box on top, what you have written below it. */
+/** One page: the box on top, search bar in between, what you have written below it. */
 export function MemoPage() {
   const [memos, setMemos] = useState<Memo[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const fetchMemos = useCallback(async (query: string) => {
+    setLoading(true);
+    try {
+      const loaded = await listMemos(query);
+      setMemos(loaded);
+      setError(null);
+    } catch (cause: unknown) {
+      setError(messageOf(cause, "载入失败"));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     let abandoned = false;
@@ -47,6 +62,14 @@ export function MemoPage() {
     };
   }, []);
 
+  const handleSearch = useCallback(
+    (query: string) => {
+      setSearchQuery(query);
+      void fetchMemos(query);
+    },
+    [fetchMemos],
+  );
+
   // The saved memo goes straight to the top — no refetch, so it lands the
   // instant the request returns.
   const save = useCallback(async (body: string, images?: ImageUpload[]) => {
@@ -54,7 +77,6 @@ export function MemoPage() {
     setMemos((current) => [saved, ...current]);
     setError(null);
   }, []);
-
 
   const update = useCallback((updated: Memo) => {
     setMemos((current) =>
@@ -69,14 +91,15 @@ export function MemoPage() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
       <MemoComposer onSave={save} />
+      <MemoSearchBar value={searchQuery} onChange={handleSearch} />
       <MemoList
         memos={memos}
         loading={loading}
         error={error}
+        searchQuery={searchQuery}
         onUpdate={update}
         onDelete={remove}
       />
     </main>
   );
-
 }

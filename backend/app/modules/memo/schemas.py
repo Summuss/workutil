@@ -32,3 +32,4 @@ class MemoRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     image_count: int = 0
+    snippets: list[str] = []

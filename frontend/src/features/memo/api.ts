@@ -1,8 +1,10 @@
 import { del, get, patch, post } from "../../shared/api";
 import type { ImageUpload, Memo } from "./types";
 
-export function listMemos(): Promise<Memo[]> {
-  return get<Memo[]>("/memos");
+export function listMemos(query?: string): Promise<Memo[]> {
+  const params =
+    query && query.trim() ? `?q=${encodeURIComponent(query.trim())}` : "";
+  return get<Memo[]>(`/memos${params}`);
 }
 
 export function createMemo(

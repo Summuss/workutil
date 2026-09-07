@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse
 from app.core.deps import SessionDep, SettingsDep
 from app.modules.memo import service
 from app.modules.memo.schemas import MemoCreate, MemoRead, MemoUpdate
+from app.modules.memo.snippets import extract_snippets
 
 router = APIRouter(prefix="/memos", tags=["memo"])
 
@@ -38,7 +39,26 @@ def create_memo(
 
 
 @router.get("", response_model=list[MemoRead])
-def list_memos(session: SessionDep, settings: SettingsDep) -> list[MemoRead]:
+def list_memos(
+    session: SessionDep,
+    settings: SettingsDep,
+    q: str | None = None,
+) -> list[MemoRead]:
+    query = q.strip() if q is not None else ""
+    if query:
+        memos = service.search_memos(session, query)
+        return [
+            MemoRead(
+                id=memo.id,
+                body=memo.body,
+                created_at=memo.created_at,
+                updated_at=memo.updated_at,
+                image_count=service.count_images(settings.images_dir, memo.id),
+                snippets=extract_snippets(memo.body, query),
+            )
+            for memo in memos
+        ]
+
     return [
         MemoRead(
             id=memo.id,
@@ -46,6 +66,7 @@ def list_memos(session: SessionDep, settings: SettingsDep) -> list[MemoRead]:
             created_at=memo.created_at,
             updated_at=memo.updated_at,
             image_count=service.count_images(settings.images_dir, memo.id),
+            snippets=[],
         )
         for memo in service.list_memos(session)
     ]
