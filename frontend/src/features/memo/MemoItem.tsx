@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
 import { MemoMarkdown } from "./MemoMarkdown";
@@ -57,6 +58,7 @@ export function MemoItem({
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // What the textarea holds right now, readable from inside an await. State
   // alone would be the value captured when the request went out.
@@ -67,12 +69,21 @@ export function MemoItem({
     setDraft(next);
   }
 
+  const {
+    handlePaste,
+    handleDrop,
+    handleDragOver,
+    getImagesForSave,
+    clearPendingImages,
+  } = useImageAttachments(textareaRef, changeDraft);
+
   // Both stamps come from one clock reading when a memo is written, so they
   // are equal until an edit lands.
   const isModified = memo.updated_at !== memo.created_at;
   const isUnsaved = draft !== memo.body;
 
   const focusEnd = useCallback((element: HTMLTextAreaElement | null) => {
+    textareaRef.current = element;
     element?.focus();
     element?.setSelectionRange(element.value.length, element.value.length);
   }, []);
@@ -83,16 +94,19 @@ export function MemoItem({
       return;
     }
 
+    const imagesToSave = getImagesForSave(pending);
+
     setSaving(true);
     setError(null);
     try {
-      const updated = await updateMemo(memo.id, pending.trim());
+      const updated = await updateMemo(memo.id, pending.trim(), imagesToSave);
       onUpdate(updated);
       // Keystrokes landed while the request was in flight are still worth
       // saving, so leave them — and stay in the editor with them.
       if (latestDraft.current === pending) {
         changeDraft(updated.body);
         setEditing(false);
+        clearPendingImages();
       }
     } catch (cause) {
       setError(messageOf(cause, "保存失败"));
@@ -100,6 +114,7 @@ export function MemoItem({
       setSaving(false);
     }
   }
+
 
   async function handleDelete() {
     if (deleting) {
@@ -143,7 +158,14 @@ export function MemoItem({
           onClick={onToggleExpand}
           className="group flex w-full cursor-pointer items-center justify-between py-2.5 text-left font-mono text-sm text-slate-700 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
         >
-          <span className="truncate">{firstLine(memo.body)}</span>
+          <div className="flex items-center gap-2 truncate">
+            <span className="truncate">{firstLine(memo.body)}</span>
+            {memo.image_count > 0 && (
+              <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-sans text-slate-500">
+                含 {memo.image_count} 张图
+              </span>
+            )}
+          </div>
           <span className="ml-2 shrink-0 text-xs text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
             {isUnsaved ? "未保存" : "展开"}
           </span>
@@ -159,6 +181,7 @@ export function MemoItem({
           <div className="flex items-center gap-2">
             <span>创建于 {formatTime(memo.created_at)}</span>
             {isModified && <span>· 修改于 {formatTime(memo.updated_at)}</span>}
+            {memo.image_count > 0 && <span>· 含 {memo.image_count} 张图</span>}
             {isUnsaved && <span className="text-amber-600">· 未保存</span>}
           </div>
           <div className="flex items-center gap-3">
@@ -189,7 +212,6 @@ export function MemoItem({
           </div>
         </div>
 
-
         {editing ? (
           <div className="mt-3">
             <textarea
@@ -197,11 +219,15 @@ export function MemoItem({
               value={draft}
               onChange={(event) => changeDraft(event.target.value)}
               onKeyDown={handleEditorKeyDown}
+              onPaste={handlePaste}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
               rows={Math.min(20, Math.max(3, draft.split("\n").length))}
               spellCheck={false}
-              placeholder="修改内容…"
+              placeholder="修改内容… (可直接粘贴或拖拽截图)"
               className="w-full resize-y rounded-md border border-slate-200 bg-slate-50/50 p-2.5 font-mono text-xs leading-relaxed text-slate-900 outline-none focus:border-slate-400 focus:bg-white focus:ring-1 focus:ring-slate-300"
             />
+
             <div className="mt-2 flex min-h-5 items-center justify-between text-xs">
               <span className="text-red-600">{error}</span>
               <div className="flex items-center gap-3">

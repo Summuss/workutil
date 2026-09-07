@@ -4,7 +4,7 @@ import { messageOf } from "../../shared/api";
 import { createMemo, listMemos } from "./api";
 import { MemoComposer } from "./MemoComposer";
 import { MemoList } from "./MemoList";
-import type { Memo } from "./types";
+import type { ImageUpload, Memo } from "./types";
 
 /** One page: the box on top, what you have written below it. */
 export function MemoPage() {
@@ -49,11 +49,12 @@ export function MemoPage() {
 
   // The saved memo goes straight to the top — no refetch, so it lands the
   // instant the request returns.
-  const save = useCallback(async (body: string) => {
-    const saved = await createMemo(body);
+  const save = useCallback(async (body: string, images?: ImageUpload[]) => {
+    const saved = await createMemo(body, images);
     setMemos((current) => [saved, ...current]);
     setError(null);
   }, []);
+
 
   const update = useCallback((updated: Memo) => {
     setMemos((current) =>

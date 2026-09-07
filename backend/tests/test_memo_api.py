@@ -5,6 +5,7 @@ against a temporary data directory, and say nothing about how the module is
 organised inside.
 """
 
+import base64
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -287,3 +288,161 @@ def test_deleted_memo_remains_gone_after_restart(data_dir: Path) -> None:
         assert [m["body"] for m in after.get("/api/memos").json()] == ["survives"]
         assert after.get(f"/api/memos/{m2['id']}").status_code == 404
         assert after.get(f"/api/memos/{m1['id']}").status_code == 200
+
+
+SAMPLE_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00"
+    b"\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+SAMPLE_PNG_2 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x02\x00\x00\x00\x02"
+    b"\x08\x06\x00\x00\x00v\x28\xb5g\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00"
+    b"\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def test_a_memo_can_be_created_with_an_image(client: TestClient) -> None:
+    b64 = "data:image/png;base64," + base64.b64encode(SAMPLE_PNG).decode()
+    created = client.post(
+        "/api/memos",
+        json={
+            "body": "报错堆栈截图:\n\n![screenshot](temp:img_1)\n\n复现命令如上",
+            "images": [
+                {
+                    "id": "temp:img_1",
+                    "data": b64,
+                    "filename": "error.png",
+                }
+            ],
+        },
+    ).json()
+
+    memo_id = created["id"]
+    assert created["image_count"] == 1
+    expected_image_url = f"/api/memos/{memo_id}/images/img_1.png"
+    assert expected_image_url in created["body"]
+    assert "temp:img_1" not in created["body"]
+
+    # List endpoint returns image count, not image content
+    listed = client.get("/api/memos").json()
+    assert listed[0]["image_count"] == 1
+    assert "images" not in listed[0]
+
+    # Image can be read back verbatim
+    img_resp = client.get(expected_image_url)
+    assert img_resp.status_code == 200
+    assert img_resp.content == SAMPLE_PNG
+    assert "image/png" in img_resp.headers["content-type"]
+
+
+def test_a_memo_can_contain_multiple_images(client: TestClient) -> None:
+    b64_1 = base64.b64encode(SAMPLE_PNG).decode()
+    b64_2 = base64.b64encode(SAMPLE_PNG_2).decode()
+
+    created = client.post(
+        "/api/memos",
+        json={
+            "body": "图一:\n![one](temp:1)\n\n图二:\n![two](temp:2)",
+            "images": [
+                {"id": "temp:1", "data": b64_1, "filename": "one.png"},
+                {"id": "temp:2", "data": b64_2, "filename": "two.png"},
+            ],
+        },
+    ).json()
+
+    memo_id = created["id"]
+    assert created["image_count"] == 2
+    assert f"/api/memos/{memo_id}/images/img_1.png" in created["body"]
+    assert f"/api/memos/{memo_id}/images/img_2.png" in created["body"]
+
+    img1 = client.get(f"/api/memos/{memo_id}/images/img_1.png")
+    assert img1.status_code == 200
+    assert img1.content == SAMPLE_PNG
+
+    img2 = client.get(f"/api/memos/{memo_id}/images/img_2.png")
+    assert img2.status_code == 200
+    assert img2.content == SAMPLE_PNG_2
+
+
+def test_an_existing_memo_can_have_new_images_appended(client: TestClient) -> None:
+    b64_1 = base64.b64encode(SAMPLE_PNG).decode()
+    b64_2 = base64.b64encode(SAMPLE_PNG_2).decode()
+
+    created = client.post(
+        "/api/memos",
+        json={
+            "body": "原始说明:\n![img](temp:old)",
+            "images": [{"id": "temp:old", "data": b64_1, "filename": "old.png"}],
+        },
+    ).json()
+    memo_id = created["id"]
+    assert created["image_count"] == 1
+
+    # Update by appending a second screenshot
+    new_body = created["body"] + "\n\n追加的截图:\n![new](temp:new)"
+    updated = client.patch(
+        f"/api/memos/{memo_id}",
+        json={
+            "body": new_body,
+            "images": [{"id": "temp:new", "data": b64_2, "filename": "new.png"}],
+        },
+    ).json()
+
+    assert updated["image_count"] == 2
+    assert f"/api/memos/{memo_id}/images/img_1.png" in updated["body"]
+    assert f"/api/memos/{memo_id}/images/img_2.png" in updated["body"]
+
+    # Both images are readable
+    assert client.get(f"/api/memos/{memo_id}/images/img_1.png").content == SAMPLE_PNG
+    assert client.get(f"/api/memos/{memo_id}/images/img_2.png").content == SAMPLE_PNG_2
+
+
+def test_images_are_stored_under_memo_id_directory(
+    client: TestClient, data_dir: Path
+) -> None:
+    b64 = base64.b64encode(SAMPLE_PNG).decode()
+    created = client.post(
+        "/api/memos",
+        json={
+            "body": "目录测试\n![img](temp:1)",
+            "images": [{"id": "temp:1", "data": b64, "filename": "test.png"}],
+        },
+    ).json()
+    memo_id = created["id"]
+
+    saved_file = data_dir / "images" / str(memo_id) / "img_1.png"
+    assert saved_file.is_file()
+    assert saved_file.read_bytes() == SAMPLE_PNG
+
+
+def test_reading_nonexistent_or_invalid_image_path_is_handled(
+    client: TestClient,
+) -> None:
+    created = client.post("/api/memos", json={"body": "无图记录"}).json()
+    memo_id = created["id"]
+
+    # Nonexistent image returns 404
+    assert client.get(f"/api/memos/{memo_id}/images/not_found.png").status_code == 404
+
+    # Traversal attempt returns 404
+    assert client.get(f"/api/memos/{memo_id}/images/..%2Fhack.png").status_code == 404
+
+
+def test_images_survive_restart(data_dir: Path) -> None:
+    b64 = base64.b64encode(SAMPLE_PNG).decode()
+
+    with workutil_at(data_dir) as before:
+        created = before.post(
+            "/api/memos",
+            json={
+                "body": "持久化测试\n![img](temp:1)",
+                "images": [{"id": "temp:1", "data": b64, "filename": "shot.png"}],
+            },
+        ).json()
+        memo_id = created["id"]
+
+    with workutil_at(data_dir) as after:
+        res = after.get(f"/api/memos/{memo_id}/images/img_1.png")
+        assert res.status_code == 200
+        assert res.content == SAMPLE_PNG

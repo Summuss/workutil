@@ -9,4 +9,12 @@ export interface Memo {
   body: string;
   created_at: string;
   updated_at: string;
+  image_count: number;
 }
+
+export interface ImageUpload {
+  id: string;
+  data: string;
+  filename: string;
+}
+

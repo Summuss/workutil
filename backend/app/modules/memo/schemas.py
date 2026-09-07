@@ -3,12 +3,20 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
+class ImageUpload(BaseModel):
+    id: str
+    data: str
+    filename: str = "image.png"
+
+
 class MemoCreate(BaseModel):
     body: str
+    images: list[ImageUpload] = []
 
 
 class MemoUpdate(BaseModel):
     body: str
+    images: list[ImageUpload] = []
 
 
 class MemoRead(BaseModel):
@@ -23,3 +31,4 @@ class MemoRead(BaseModel):
     body: str
     created_at: datetime
     updated_at: datetime
+    image_count: int = 0

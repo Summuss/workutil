@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import { useImageAttachments } from "../../shared/useImageAttachments";
+import type { ImageUpload } from "./types";
 
 interface MemoComposerProps {
-  onSave: (body: string) => Promise<void>;
+  onSave: (body: string, images?: ImageUpload[]) => Promise<void>;
 }
 
 /**
@@ -18,6 +20,14 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
   const [error, setError] = useState<string | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
 
+  const {
+    handlePaste,
+    handleDrop,
+    handleDragOver,
+    getImagesForSave,
+    clearPendingImages,
+  } = useImageAttachments(textarea, setBody);
+
   useEffect(() => {
     textarea.current?.focus();
   }, []);
@@ -28,15 +38,18 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
       return;
     }
 
+    const imagesToSave = getImagesForSave(pending);
+
     setSaving(true);
     setError(null);
     try {
-      await onSave(pending);
+      await onSave(pending, imagesToSave);
       // What was saved goes; anything typed while the save was in flight
       // stays, so those keystrokes are neither lost nor saved twice.
       setBody((current) =>
         current.startsWith(pending) ? current.slice(pending.length) : "",
       );
+      clearPendingImages();
     } catch (cause) {
       setError(messageOf(cause, "保存失败"));
     } finally {
@@ -60,9 +73,12 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
         value={body}
         onChange={(event) => setBody(event.target.value)}
         onKeyDown={handleKeyDown}
+        onPaste={handlePaste}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
         rows={5}
         spellCheck={false}
-        placeholder="随手记点什么…"
+        placeholder="随手记点什么… (可直接粘贴或拖拽截图)"
         className="w-full resize-y rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm leading-relaxed text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
       />
       <div className="flex min-h-5 items-center justify-between text-xs">
@@ -74,3 +90,4 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
     </div>
   );
 }
+
