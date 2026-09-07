@@ -45,3 +45,11 @@ def update_memo(memo_id: int, payload: MemoUpdate, session: SessionDep) -> Memo:
         ) from empty
     except service.MemoNotFound as not_found:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found
+
+
+@router.delete("/{memo_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_memo(memo_id: int, session: SessionDep) -> None:
+    try:
+        service.delete_memo(session, memo_id)
+    except service.MemoNotFound as not_found:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found

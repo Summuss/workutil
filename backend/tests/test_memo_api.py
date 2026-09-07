@@ -244,3 +244,46 @@ def test_a_memo_stores_and_returns_html_verbatim(client: TestClient) -> None:
     updated = client.patch(f"/api/memos/{memo_id}", json={"body": updated_html}).json()
     assert updated["body"] == updated_html
     assert client.get(f"/api/memos/{memo_id}").json()["body"] == updated_html
+
+
+def test_a_memo_can_be_deleted(client: TestClient) -> None:
+    created = client.post("/api/memos", json={"body": "要被删除的记录"}).json()
+    memo_id = created["id"]
+
+    response = client.delete(f"/api/memos/{memo_id}")
+    assert response.status_code == 204
+
+    assert client.get(f"/api/memos/{memo_id}").status_code == 404
+    assert client.get("/api/memos").json() == []
+
+
+def test_deleting_a_nonexistent_memo_returns_404(client: TestClient) -> None:
+    response = client.delete("/api/memos/999999")
+    assert response.status_code == 404
+
+
+def test_deleting_a_memo_leaves_other_memos_and_their_order_intact(
+    client: TestClient,
+) -> None:
+    for body in ("first", "second", "third"):
+        client.post("/api/memos", json={"body": body})
+
+    listed = client.get("/api/memos").json()
+    second_id = [m["id"] for m in listed if m["body"] == "second"][0]
+
+    assert client.delete(f"/api/memos/{second_id}").status_code == 204
+
+    remaining = client.get("/api/memos").json()
+    assert [m["body"] for m in remaining] == ["third", "first"]
+
+
+def test_deleted_memo_remains_gone_after_restart(data_dir: Path) -> None:
+    with workutil_at(data_dir) as before:
+        m1 = before.post("/api/memos", json={"body": "survives"}).json()
+        m2 = before.post("/api/memos", json={"body": "to delete"}).json()
+        assert before.delete(f"/api/memos/{m2['id']}").status_code == 204
+
+    with workutil_at(data_dir) as after:
+        assert [m["body"] for m in after.get("/api/memos").json()] == ["survives"]
+        assert after.get(f"/api/memos/{m2['id']}").status_code == 404
+        assert after.get(f"/api/memos/{m1['id']}").status_code == 200

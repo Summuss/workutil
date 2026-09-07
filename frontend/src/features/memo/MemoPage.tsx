@@ -61,6 +61,10 @@ export function MemoPage() {
     );
   }, []);
 
+  const remove = useCallback((id: number) => {
+    setMemos((current) => current.filter((memo) => memo.id !== id));
+  }, []);
+
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
       <MemoComposer onSave={save} />
@@ -69,7 +73,9 @@ export function MemoPage() {
         loading={loading}
         error={error}
         onUpdate={update}
+        onDelete={remove}
       />
     </main>
   );
+
 }

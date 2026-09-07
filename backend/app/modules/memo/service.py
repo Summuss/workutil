@@ -69,3 +69,13 @@ def update_memo(session: Session, memo_id: int, body: str) -> Memo:
     memo.updated_at = utc_now()
     session.commit()
     return memo
+
+
+def delete_memo(session: Session, memo_id: int) -> None:
+    """Permanently delete a memo.
+
+    Direct deletion without soft-delete or version history (spec Out of Scope).
+    """
+    memo = get_memo(session, memo_id)
+    session.delete(memo)
+    session.commit()

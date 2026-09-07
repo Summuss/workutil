@@ -20,6 +20,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     throw new ApiError(response.status, `请求失败(${response.status})`);
   }
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return (await response.json()) as T;
 }
 
@@ -47,3 +50,10 @@ export function patch<T>(path: string, payload: unknown): Promise<T> {
     body: JSON.stringify(payload),
   });
 }
+
+export function del(path: string): Promise<void> {
+  return request<void>(path, {
+    method: "DELETE",
+  });
+}
+

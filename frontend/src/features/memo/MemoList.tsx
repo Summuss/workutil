@@ -8,6 +8,7 @@ interface MemoListProps {
   loading: boolean;
   error: string | null;
   onUpdate: (updated: Memo) => void;
+  onDelete: (id: number) => void;
 }
 
 function Placeholder({ children }: { children: string }) {
@@ -15,7 +16,13 @@ function Placeholder({ children }: { children: string }) {
 }
 
 /** The memos, newest first — the order the backend sends them in. */
-export function MemoList({ memos, loading, error, onUpdate }: MemoListProps) {
+export function MemoList({
+  memos,
+  loading,
+  error,
+  onUpdate,
+  onDelete,
+}: MemoListProps) {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   function toggleExpand(id: number) {
@@ -53,6 +60,7 @@ export function MemoList({ memos, loading, error, onUpdate }: MemoListProps) {
             isExpanded={expandedIds.has(memo.id)}
             onToggleExpand={() => toggleExpand(memo.id)}
             onUpdate={onUpdate}
+            onDelete={onDelete}
           />
         ))}
       </ul>

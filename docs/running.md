@@ -103,7 +103,9 @@ cd ~/Code/summus-workutil && make build && make run
 | 改几个字 `Ctrl+Enter` | 存下,退回渲染态,头部出现「修改于」 |
 | 改完按 `Esc` | 退回渲染态但**草稿还在**,头部标「未保存」,点回去还是那些字 |
 | 编辑一条旧的再存 | 它**留在原位**,不会被顶到最上面 |
+| 点头部的「删除」并确认 | 该条从列表中消失,刷新后依然不在 |
 | 正文里写 `<script>alert(1)</script>` | 原样显示成文字,不弹窗 |
+
 
 macOS 上 `Cmd+Enter` 等价于 `Ctrl+Enter`。
 
@@ -174,11 +176,12 @@ cd backend && uv run alembic revision --autogenerate -m "描述"
 WORKUTIL_DATA_DIR=/tmp/workutil-scratch make run
 ```
 
-**删除功能还没做**(票 03),所以现在清掉试出来的记录只能删库文件:
+清掉试出来的单条记录可以直接在展开的卡片头部点「删除」;如果要整库重置,删库文件即可:
 
 ```sh
 rm ~/.local/share/workutil/workutil.db     # 下次启动会自动重建
 ```
+
 
 ## 出问题时
 

@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 
 import { messageOf } from "../../shared/api";
-import { updateMemo } from "./api";
+import { deleteMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
 import { MemoMarkdown } from "./MemoMarkdown";
 import type { Memo } from "./types";
@@ -11,6 +11,7 @@ interface MemoItemProps {
   isExpanded: boolean;
   onToggleExpand: () => void;
   onUpdate: (updated: Memo) => void;
+  onDelete: (id: number) => void;
 }
 
 /**
@@ -48,11 +49,14 @@ export function MemoItem({
   isExpanded,
   onToggleExpand,
   onUpdate,
+  onDelete,
 }: MemoItemProps) {
   const [draft, setDraft] = useState(memo.body);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
 
   // What the textarea holds right now, readable from inside an await. State
   // alone would be the value captured when the request went out.
@@ -94,6 +98,25 @@ export function MemoItem({
       setError(messageOf(cause, "保存失败"));
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (deleting) {
+      return;
+    }
+    if (!window.confirm("确定删除这条 Memo 吗？")) {
+      return;
+    }
+
+    setDeleting(true);
+    setError(null);
+    try {
+      await deleteMemo(memo.id);
+      onDelete(memo.id);
+    } catch (cause) {
+      setError(messageOf(cause, "删除失败"));
+      setDeleting(false);
     }
   }
 
@@ -150,6 +173,14 @@ export function MemoItem({
             )}
             <button
               type="button"
+              onClick={() => void handleDelete()}
+              disabled={deleting}
+              className="cursor-pointer text-slate-400 hover:text-red-600 disabled:opacity-50"
+            >
+              {deleting ? "删除中…" : "删除"}
+            </button>
+            <button
+              type="button"
               onClick={onToggleExpand}
               className="cursor-pointer text-slate-400 hover:text-slate-600"
             >
@@ -157,6 +188,7 @@ export function MemoItem({
             </button>
           </div>
         </div>
+
 
         {editing ? (
           <div className="mt-3">
@@ -191,6 +223,7 @@ export function MemoItem({
           // Nothing here reacts to a click: dragging across a stack trace to
           // copy it must stay a selection.
           <div className="mt-3">
+            {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
             <MemoMarkdown content={memo.body} />
           </div>
         )}

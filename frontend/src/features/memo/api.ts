@@ -1,4 +1,4 @@
-import { get, patch, post } from "../../shared/api";
+import { del, get, patch, post } from "../../shared/api";
 import type { Memo } from "./types";
 
 export function listMemos(): Promise<Memo[]> {
@@ -12,3 +12,8 @@ export function createMemo(body: string): Promise<Memo> {
 export function updateMemo(id: number, body: string): Promise<Memo> {
   return patch<Memo>(`/memos/${id}`, { body });
 }
+
+export function deleteMemo(id: number): Promise<void> {
+  return del(`/memos/${id}`);
+}
+
