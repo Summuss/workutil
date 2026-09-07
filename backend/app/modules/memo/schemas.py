@@ -7,6 +7,10 @@ class MemoCreate(BaseModel):
     body: str
 
 
+class MemoUpdate(BaseModel):
+    body: str
+
+
 class MemoRead(BaseModel):
     """A memo as the list and the editor see it.
 

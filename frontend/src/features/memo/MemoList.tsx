@@ -1,10 +1,13 @@
-import { firstLine } from "./firstLine";
+import { useState } from "react";
+
+import { MemoItem } from "./MemoItem";
 import type { Memo } from "./types";
 
 interface MemoListProps {
   memos: Memo[];
   loading: boolean;
   error: string | null;
+  onUpdate: (updated: Memo) => void;
 }
 
 function Placeholder({ children }: { children: string }) {
@@ -12,7 +15,21 @@ function Placeholder({ children }: { children: string }) {
 }
 
 /** The memos, newest first — the order the backend sends them in. */
-export function MemoList({ memos, loading, error }: MemoListProps) {
+export function MemoList({ memos, loading, error, onUpdate }: MemoListProps) {
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  function toggleExpand(id: number) {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
   if (memos.length === 0) {
     if (error !== null) {
       return <p className="py-8 text-center text-sm text-red-600">{error}</p>;
@@ -30,14 +47,16 @@ export function MemoList({ memos, loading, error }: MemoListProps) {
       {error !== null && <p className="pb-2 text-sm text-red-600">{error}</p>}
       <ul className="divide-y divide-slate-200">
         {memos.map((memo) => (
-          <li
+          <MemoItem
             key={memo.id}
-            className="truncate py-2.5 font-mono text-sm text-slate-700"
-          >
-            {firstLine(memo.body)}
-          </li>
+            memo={memo}
+            isExpanded={expandedIds.has(memo.id)}
+            onToggleExpand={() => toggleExpand(memo.id)}
+            onUpdate={onUpdate}
+          />
         ))}
       </ul>
     </>
   );
 }
+

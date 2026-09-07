@@ -55,10 +55,22 @@ export function MemoPage() {
     setError(null);
   }, []);
 
+  const update = useCallback((updated: Memo) => {
+    setMemos((current) =>
+      current.map((memo) => (memo.id === updated.id ? updated : memo)),
+    );
+  }, []);
+
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
       <MemoComposer onSave={save} />
-      <MemoList memos={memos} loading={loading} error={error} />
+      <MemoList
+        memos={memos}
+        loading={loading}
+        error={error}
+        onUpdate={update}
+      />
     </main>
   );
+
 }
