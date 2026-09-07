@@ -24,5 +24,29 @@ export interface EvidenceDetail extends Evidence {
   cases: Case[];
 }
 
-/** Where a case is being sent. Four buttons, no dragging (design.md §6 F5). */
-export type CaseMove = "up" | "down" | "top" | "bottom";
+/** Where a case or a block is being sent. Four buttons, no dragging (design.md §6 F5). */
+export type Move = "up" | "down" | "top" | "bottom";
+
+/** The three things a case is made of. A log is `text`, not a kind of its own. */
+export type BlockKind = "text" | "image" | "table";
+
+/**
+ * One piece of a case: a paragraph, a screenshot, a query result.
+ *
+ * The pieces of a case stand side by side rather than 1→2→3 (ADR-0003) —
+ * `label` is the optional small heading that says what a piece is, and most
+ * blocks do without one.
+ * `text` is the payload of `text` blocks and empty for the other kinds.
+ */
+export interface Block {
+  id: number;
+  kind: BlockKind;
+  order: number;
+  label: string | null;
+  text: string;
+}
+
+/** One case with what is in it — a case at a time, not the whole workbook. */
+export interface CaseDetail extends Case {
+  blocks: Block[];
+}

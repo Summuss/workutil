@@ -10,7 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.core import images
 from app.core.db import utc_now
-from app.modules.evidence.models import Evidence, EvidenceCase
+from app.modules.evidence.models import (
+    BlockKind,
+    Evidence,
+    EvidenceBlock,
+    EvidenceCase,
+    Ordered,
+)
 
 #: The list shows the recent past, not the whole archive — there is no paging
 #: and, deliberately, no search: ADR-0001 gives "find it again by searching" to
@@ -28,12 +34,13 @@ SHEET_NAME_MAX_LENGTH = 31
 ILLEGAL_SHEET_NAME_CHARACTERS = frozenset(":\\/?*[]")
 
 
-class CaseMove(StrEnum):
-    """Where a case is being sent. Not a drag: just the four buttons.
+class Move(StrEnum):
+    """Where a row is being sent among its siblings. Not a drag: four buttons.
 
     Up and down are the everyday correction; top and bottom exist because
-    walking a case up eight places one click at a time is not reordering, it is
-    clicking (design.md §6 F5).
+    walking something up eight places one click at a time is not reordering, it
+    is clicking (design.md §6 F5). Cases and blocks are reordered the same way,
+    so they are sent the same four words.
     """
 
     UP = "up"
@@ -59,6 +66,14 @@ class InvalidTitle(ValueError):
 
 class InvalidCaseName(ValueError):
     """A case name Excel could not carry as a sheet name."""
+
+
+class BlockNotFound(LookupError):
+    """No block has that id — or it belongs to a different case."""
+
+
+class EmptyBlockText(ValueError):
+    """A text block with nothing in it."""
 
 
 class EvidenceListing(NamedTuple):
@@ -288,7 +303,7 @@ def delete_case(session: Session, evidence_id: int, case_id: int) -> None:
 
 
 def move_case(
-    session: Session, evidence_id: int, case_id: int, to: CaseMove
+    session: Session, evidence_id: int, case_id: int, to: Move
 ) -> list[EvidenceCase]:
     """Move a case among its siblings and hand back the whole new order.
 
@@ -297,24 +312,190 @@ def move_case(
     work out from the request it sent.
     """
     case = get_case(session, evidence_id, case_id)
-    cases = _cases_in_order(session, evidence_id)
-
-    was = cases.index(case)
-    now = {
-        CaseMove.UP: was - 1,
-        CaseMove.DOWN: was + 1,
-        CaseMove.TOP: 0,
-        CaseMove.BOTTOM: len(cases) - 1,
-    }[to]
-    if not 0 <= now < len(cases):
-        return cases
-
-    cases.insert(now, cases.pop(was))
-    _renumber(cases)
+    cases = _reordered(_cases_in_order(session, evidence_id), case, to)
     session.commit()
     return cases
 
 
-def _renumber(cases: Sequence[EvidenceCase]) -> None:
-    for position, case in enumerate(cases):
-        case.order = position
+def _reordered[RowT: Ordered](rows: list[RowT], row: RowT, to: Move) -> list[RowT]:
+    """`rows` with `row` sent where `to` says, renumbered from 0.
+
+    A move off either end is not an error and not a different kind of answer:
+    the row was already there, so this is the same list back.
+    """
+    was = rows.index(row)
+    now = {
+        Move.UP: was - 1,
+        Move.DOWN: was + 1,
+        Move.TOP: 0,
+        Move.BOTTOM: len(rows) - 1,
+    }[to]
+    if 0 <= now < len(rows):
+        rows.insert(now, rows.pop(was))
+        _renumber(rows)
+    return rows
+
+
+def _renumber(rows: Sequence[Ordered]) -> None:
+    for position, row in enumerate(rows):
+        row.order = position
+
+
+# --- Blocks -----------------------------------------------------------------
+#
+# The bottom layer: what is actually inside a case. Only `TEXT` exists so far;
+# image and table blocks arrive in tickets 05 and 06 and reuse everything here
+# except the payload they carry.
+
+
+class CaseContent(NamedTuple):
+    """One case and what is in it, in the order it will be written down."""
+
+    case: EvidenceCase
+    blocks: list[EvidenceBlock]
+
+
+def _clean_block_text(text: str) -> str:
+    """The text as it was pasted, minus the blank edges a paste brings.
+
+    Blank lines at either end go, whether they are empty or only look it, and
+    so does trailing space. The indent of the first line that has something on
+    it stays: a plain `strip()` would take that indent off line one alone and
+    leave every line under it hanging, and a log is a text block rather than a
+    kind of its own (design.md §6 F5).
+    """
+    lines = text.rstrip().splitlines()
+    while lines and not lines[0].strip():
+        del lines[0]
+    if not lines:
+        raise EmptyBlockText("这一段是空的 —— 不要的话删掉它")
+    return "\n".join(lines)
+
+
+def _clean_label(label: str | None) -> str | None:
+    """A small heading, or nothing at all.
+
+    Blank and absent are the same thing: an empty label would export as a blank
+    line above the block, which is not what clearing a heading means.
+    """
+    text = (label or "").strip()
+    return text or None
+
+
+def _blocks_in_order(session: Session, case_id: int) -> list[EvidenceBlock]:
+    return list(
+        session.scalars(
+            select(EvidenceBlock)
+            .where(EvidenceBlock.case_id == case_id)
+            .order_by(EvidenceBlock.order, EvidenceBlock.id)
+        ).all()
+    )
+
+
+def open_case(session: Session, evidence_id: int, case_id: int) -> CaseContent:
+    """One case with its blocks — what the content area shows.
+
+    Read a case at a time rather than with the whole evidence: only the open
+    case is on screen, and a workbook's other cases can be carrying every
+    screenshot of a day's verification.
+    """
+    case = get_case(session, evidence_id, case_id)
+    return CaseContent(case, _blocks_in_order(session, case.id))
+
+
+def get_block(
+    session: Session, evidence_id: int, case_id: int, block_id: int
+) -> EvidenceBlock:
+    """One block of this case of this evidence.
+
+    Both halves of the path are checked, so a block is never reachable through
+    another case's URL — the same rule `get_case` holds one level up.
+    """
+    case = get_case(session, evidence_id, case_id)
+    block = session.get(EvidenceBlock, block_id)
+    if block is None or block.case_id != case.id:
+        raise BlockNotFound(f"block {block_id} not found in case {case_id}")
+    return block
+
+
+def add_text_block(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    text: str,
+    label: str | None = None,
+) -> EvidenceBlock:
+    """Append a paragraph of text to a case, after what is already there."""
+    # The case is found first: a request naming one that is not there is a 404
+    # whatever its payload turns out to say.
+    case = get_case(session, evidence_id, case_id)
+    content = _clean_block_text(text)
+
+    block = EvidenceBlock(
+        case_id=case.id,
+        kind=BlockKind.TEXT,
+        text=content,
+        label=_clean_label(label),
+        order=len(_blocks_in_order(session, case.id)),
+    )
+    session.add(block)
+    session.commit()
+    return block
+
+
+def set_block_text(
+    session: Session, evidence_id: int, case_id: int, block_id: int, text: str
+) -> EvidenceBlock:
+    """Rewrite what a text block says.
+
+    Text is the payload of one kind. Image and table blocks carry their own,
+    edited their own way, and neither comes through here.
+    """
+    block = get_block(session, evidence_id, case_id, block_id)
+    block.text = _clean_block_text(text)
+    session.commit()
+    return block
+
+
+def set_block_label(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    label: str | None,
+) -> EvidenceBlock:
+    """Give a block its small heading, or take it away.
+
+    Unlike the payload, this belongs to every kind: it is what tells the reader
+    of the delivered sheet which part of the case they are looking at.
+    """
+    block = get_block(session, evidence_id, case_id, block_id)
+    block.label = _clean_label(label)
+    session.commit()
+    return block
+
+
+def delete_block(
+    session: Session, evidence_id: int, case_id: int, block_id: int
+) -> None:
+    """Drop a block, closing the gap it leaves in the order."""
+    block = get_block(session, evidence_id, case_id, block_id)
+    session.delete(block)
+    session.flush()
+    _renumber(_blocks_in_order(session, case_id))
+    session.commit()
+
+
+def move_block(
+    session: Session, evidence_id: int, case_id: int, block_id: int, to: Move
+) -> list[EvidenceBlock]:
+    """Move a block among the others and hand back the whole new order.
+
+    Reordering here is nearly always a nudge — blocks are appended as the work
+    happens — with top and bottom for the screenshot that was taken last and
+    belongs first.
+    """
+    block = get_block(session, evidence_id, case_id, block_id)
+    blocks = _reordered(_blocks_in_order(session, case_id), block, to)
+    session.commit()
+    return blocks

@@ -1,5 +1,12 @@
-import { del, get, patch, post } from "../../shared/api";
-import type { Case, CaseMove, Evidence, EvidenceDetail } from "./types";
+import { del, get, patch, post, put } from "../../shared/api";
+import type {
+  Block,
+  Case,
+  CaseDetail,
+  Evidence,
+  EvidenceDetail,
+  Move,
+} from "./types";
 
 export function listEvidence(): Promise<Evidence[]> {
   return get<Evidence[]>("/evidence");
@@ -41,7 +48,67 @@ export function deleteCase(evidenceId: number, caseId: number): Promise<void> {
 export function moveCase(
   evidenceId: number,
   caseId: number,
-  to: CaseMove,
+  to: Move,
 ): Promise<Case[]> {
   return post<Case[]>(`/evidence/${evidenceId}/cases/${caseId}/move`, { to });
+}
+
+function blocksAt(evidenceId: number, caseId: number): string {
+  return `/evidence/${evidenceId}/cases/${caseId}/blocks`;
+}
+
+/** One case and its blocks. Loaded a case at a time: only one is on screen. */
+export function getCase(
+  evidenceId: number,
+  caseId: number,
+): Promise<CaseDetail> {
+  return get<CaseDetail>(`/evidence/${evidenceId}/cases/${caseId}`);
+}
+
+export function addTextBlock(
+  evidenceId: number,
+  caseId: number,
+  text: string,
+): Promise<Block> {
+  return post<Block>(blocksAt(evidenceId, caseId), { kind: "text", text });
+}
+
+export function editBlockText(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  text: string,
+): Promise<Block> {
+  return patch<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}`, { text });
+}
+
+/** Sets the small heading, or clears it — a blank one is no heading. */
+export function setBlockLabel(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  label: string,
+): Promise<Block> {
+  return put<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/label`, {
+    label,
+  });
+}
+
+export function deleteBlock(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+): Promise<void> {
+  return del(`${blocksAt(evidenceId, caseId)}/${blockId}`);
+}
+
+export function moveBlock(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  to: Move,
+): Promise<Block[]> {
+  return post<Block[]>(`${blocksAt(evidenceId, caseId)}/${blockId}/move`, {
+    to,
+  });
 }

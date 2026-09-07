@@ -10,12 +10,12 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `evidence_block` 表:`case_id` / `order` / `kind` / `label`(可空)+ 文字内容,以及 Alembic 迁移
-- [ ] `kind` 的取值域是 `text` / `image` / `table`,本 ticket 只实现 `text`
-- [ ] 在一个 Case 里加 / 改 / 删文字 Block
-- [ ] 给 Block 加 / 改 / 清空 label
-- [ ] 排序:上移 / 下移 / 置顶 / 置底,顺序在刷新后保持
-- [ ] 删 Case 时它名下的 Block 一并消失
-- [ ] HTTP 主接缝测试覆盖增删改与排序(含首尾边界:第一个上移、最后一个下移)
+- [x] `evidence_block` 表:`case_id` / `order` / `kind` / `label`(可空)+ 文字内容,以及 Alembic 迁移
+- [x] `kind` 的取值域是 `text` / `image` / `table`,本 ticket 只实现 `text`
+- [x] 在一个 Case 里加 / 改 / 删文字 Block
+- [x] 给 Block 加 / 改 / 清空 label
+- [x] 排序:上移 / 下移 / 置顶 / 置底,顺序在刷新后保持
+- [x] 删 Case 时它名下的 Block 一并消失
+- [x] HTTP 主接缝测试覆盖增删改与排序(含首尾边界:第一个上移、最后一个下移)

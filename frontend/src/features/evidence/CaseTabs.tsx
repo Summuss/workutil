@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 import { InlineEdit } from "../../shared/InlineEdit";
-import type { Case, CaseMove } from "./types";
+import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
+import type { Case, Move } from "./types";
 
 interface CaseTabsProps {
   cases: Case[];
@@ -12,40 +13,18 @@ interface CaseTabsProps {
   onAdd: (name: string) => Promise<boolean>;
   onRename: (caseId: number, name: string) => Promise<boolean>;
   onDelete: (caseId: number) => Promise<void>;
-  onMove: (caseId: number, to: CaseMove) => Promise<void>;
+  onMove: (caseId: number, to: Move) => Promise<void>;
 }
 
 type Editing = { kind: "add" } | { kind: "rename"; caseId: number } | null;
 
-/**
- * The four ordering buttons, each with the position that leaves it nowhere to
- * go. Not a drag — see design.md §6 F5. The backend treats a move past either
- * end as a no-op regardless; greying them out is only so the buttons say so.
- */
-const MOVES: {
-  to: CaseMove;
-  glyph: string;
-  title: string;
-  stuck: (at: number, count: number) => boolean;
-}[] = [
-  { to: "top", glyph: "⇤", title: "移到最前", stuck: (at) => at === 0 },
-  { to: "up", glyph: "←", title: "前移一位", stuck: (at) => at === 0 },
-  {
-    to: "down",
-    glyph: "→",
-    title: "后移一位",
-    stuck: (at, count) => at === count - 1,
-  },
-  {
-    to: "bottom",
-    glyph: "⇥",
-    title: "移到最后",
-    stuck: (at, count) => at === count - 1,
-  },
-];
-
-const TOOL_BUTTON =
-  "cursor-pointer rounded px-1.5 py-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-default disabled:opacity-40";
+/** The tabs run left to right, so the four moves do too. */
+const MOVE_LABELS: MoveLabels = {
+  top: { glyph: "⇤", title: "移到最前" },
+  up: { glyph: "←", title: "前移一位" },
+  down: { glyph: "→", title: "后移一位" },
+  bottom: { glyph: "⇥", title: "移到最后" },
+};
 
 const NAME_FIELD =
   "w-28 rounded-md border border-slate-400 bg-white px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300";
@@ -161,16 +140,16 @@ export function CaseTabs({
           <span className="mr-1 text-slate-400">
             第 {at + 1} / {cases.length} 个用例
           </span>
-          {MOVES.map(({ to, glyph, title, stuck }) => (
+          {MOVES.map(({ to, stuck }) => (
             <button
               key={to}
               type="button"
-              title={title}
+              title={MOVE_LABELS[to].title}
               disabled={busy || stuck(at, cases.length)}
               onClick={() => void onMove(selected.id, to)}
               className={TOOL_BUTTON}
             >
-              {glyph}
+              {MOVE_LABELS[to].glyph}
             </button>
           ))}
           <button

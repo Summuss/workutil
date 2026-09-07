@@ -70,6 +70,14 @@ export function patch<T>(path: string, payload: unknown): Promise<T> {
   });
 }
 
+export function put<T>(path: string, payload: unknown): Promise<T> {
+  return request<T>(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export function del(path: string): Promise<void> {
   return request<void>(path, {
     method: "DELETE",
