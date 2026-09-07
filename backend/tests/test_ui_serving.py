@@ -51,6 +51,16 @@ def test_a_frontend_route_survives_a_reload(client: TestClient) -> None:
     assert response.text == INDEX_HTML
 
 
+def test_a_nested_frontend_route_survives_a_reload(client: TestClient) -> None:
+    """Ticket 03 puts one evidence behind `/evidence/3`, which is where you sit
+    while working — so it is the URL most likely to be reloaded or bookmarked,
+    and it has no file behind it either."""
+    response = client.get("/evidence/3")
+
+    assert response.status_code == 200
+    assert response.text == INDEX_HTML
+
+
 def test_a_reload_survives_a_404_page_in_the_build(
     data_dir: Path, tmp_path: Path
 ) -> None:

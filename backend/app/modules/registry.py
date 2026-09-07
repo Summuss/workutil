@@ -7,6 +7,7 @@ the whole cost, and keeping it that way is this project's first constraint
 
 from fastapi import APIRouter
 
+from app.modules.evidence import evidence_router
 from app.modules.memo import memo_router
 
-ROUTERS: tuple[APIRouter, ...] = (memo_router,)
+ROUTERS: tuple[APIRouter, ...] = (memo_router, evidence_router)

@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import { formatTime } from "../../shared/time";
 import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
@@ -15,27 +16,6 @@ interface MemoItemProps {
   onToggleExpand: () => void;
   onUpdate: (updated: Memo) => void;
   onDelete: (id: number) => void;
-}
-
-/**
- * When a memo was written, year included.
- *
- * "I wrote that around last month" is how things get found here (spec 浏览),
- * and a bare 9/7 makes last year look like this year.
- */
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) {
-    return iso;
-  }
-  return date.toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
 }
 
 /**

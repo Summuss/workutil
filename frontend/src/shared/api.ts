@@ -9,6 +9,25 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Why the server said no, in its own words.
+ *
+ * Evidence rejects a case name at the moment it is typed rather than cleaning
+ * it up at export, and that only helps if the reason reaches the field the
+ * author is looking at. FastAPI's own validation errors put a list of objects
+ * in `detail`; those have nothing to say to a person, so they fall back.
+ */
+async function refusalFrom(response: Response): Promise<string> {
+  const generic = `请求失败(${response.status})`;
+  try {
+    const body: unknown = await response.json();
+    const detail = (body as { detail?: unknown }).detail;
+    return typeof detail === "string" && detail.trim() !== "" ? detail : generic;
+  } catch {
+    return generic;
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
   try {
@@ -18,7 +37,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
-    throw new ApiError(response.status, `请求失败(${response.status})`);
+    throw new ApiError(response.status, await refusalFrom(response));
   }
   if (response.status === 204) {
     return undefined as T;

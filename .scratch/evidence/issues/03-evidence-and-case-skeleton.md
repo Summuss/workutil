@@ -8,13 +8,13 @@ Evidence 列表创建时间倒序、固定上限,**不做搜索**:ADR-0001 把�
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `evidence` 与 `evidence_case` 两张表 + Alembic 迁移
-- [ ] Evidence:建 / 改名 / 删 / 列表(创建时间倒序,固定上限,列表里显示 Case 数)
-- [ ] Case:建 / 改名 / 删 / 调整先后(上下移动 + 置顶 / 置底)
-- [ ] sheet 名校验:空、>31 字符、含 `: \ / ? * [ ]`、同 Evidence 内重名 —— 全部在录入接口被拒
-- [ ] `2~5` 这样的名字能正常保存
-- [ ] 删 Evidence 时它的图片目录 `images/evidence/<id>/` 一并删掉,**删不掉文件不算失败**
-- [ ] 前端:`/evidence` 列表页、`/evidence/:id` 详情页(Case 标签栏,内容区先留空)
-- [ ] HTTP 主接缝测试覆盖上述增删改与全部校验分支
+- [x] `evidence` 与 `evidence_case` 两张表 + Alembic 迁移
+- [x] Evidence:建 / 改名 / 删 / 列表(创建时间倒序,固定上限,列表里显示 Case 数)
+- [x] Case:建 / 改名 / 删 / 调整先后(上下移动 + 置顶 / 置底)
+- [x] sheet 名校验:空、>31 字符、含 `: \ / ? * [ ]`、同 Evidence 内重名 —— 全部在录入接口被拒
+- [x] `2~5` 这样的名字能正常保存
+- [x] 删 Evidence 时它的图片目录 `images/evidence/<id>/` 一并删掉,**删不掉文件不算失败**
+- [x] 前端:`/evidence` 列表页、`/evidence/:id` 详情页(Case 标签栏,内容区先留空)
+- [x] HTTP 主接缝测试覆盖上述增删改与全部校验分支

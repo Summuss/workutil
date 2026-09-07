@@ -1,7 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router";
 
 import { AppNav } from "./AppNav";
-import { EvidencePage } from "./features/evidence/EvidencePage";
+import { EvidenceDetailPage } from "./features/evidence/EvidenceDetailPage";
+import { EvidenceListPage } from "./features/evidence/EvidenceListPage";
 import { MemoPage } from "./features/memo/MemoPage";
 
 /**
@@ -22,7 +23,8 @@ export function App() {
         <AppNav />
         <Routes>
           <Route path="/" element={<MemoPage />} />
-          <Route path="/evidence" element={<EvidencePage />} />
+          <Route path="/evidence" element={<EvidenceListPage />} />
+          <Route path="/evidence/:evidenceId" element={<EvidenceDetailPage />} />
           {/* A mistyped URL lands on the thing you open this tool for. */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
