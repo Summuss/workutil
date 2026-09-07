@@ -6,15 +6,18 @@ organised inside.
 """
 
 import base64
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import utc_now
 from app.modules.memo.models import Memo
+from app.modules.memo.service import RECENT_MEMO_LIMIT
 
 from .conftest import workutil_at
 
@@ -605,3 +608,160 @@ def test_search_no_results_returns_empty_list(client: TestClient) -> None:
     client.post("/api/memos", json={"body": "一些内容"})
     res = client.get("/api/memos", params={"q": "nonexistent_term_404"}).json()
     assert res == []
+
+
+def test_a_pasted_svg_is_never_served_as_a_document(client: TestClient) -> None:
+    """An SVG is a scriptable document, and it would come from our own origin.
+
+    Rendering raw HTML is blocked in the markdown renderer, but a memo can link
+    to its own image, and following that link would open a page able to call
+    this backend — the chain design.md §6 F1 exists to cut. Screenshots are
+    never SVG, so nothing is lost by refusing the name.
+    """
+    svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
+    created = client.post(
+        "/api/memos",
+        json={
+            "body": "看图 ![x](temp:svg)",
+            "images": [
+                {
+                    "id": "temp:svg",
+                    "data": base64.b64encode(svg).decode(),
+                    "filename": "evil.svg",
+                }
+            ],
+        },
+    ).json()
+
+    assert ".svg" not in created["body"]
+
+    url = f"/api/memos/{created['id']}/images/img_1.png"
+    assert url in created["body"]
+    response = client.get(url)
+    assert "svg" not in response.headers["content-type"]
+    assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_an_oversized_image_is_refused(client: TestClient) -> None:
+    from app.modules.memo.service import MAX_IMAGE_BYTES
+
+    huge = base64.b64encode(b"\x00" * (MAX_IMAGE_BYTES + 1)).decode()
+    response = client.post(
+        "/api/memos",
+        json={
+            "body": "巨图 ![x](temp:big)",
+            "images": [{"id": "temp:big", "data": huge, "filename": "big.png"}],
+        },
+    )
+    assert response.status_code == 422
+    assert client.get("/api/memos").json() == []
+
+
+def test_a_refused_save_leaves_no_images_behind(
+    client: TestClient, data_dir: Path
+) -> None:
+    """One bad image fails the whole save, and takes its siblings with it.
+
+    Half a memo's screenshots on disk with no memo naming them is the state the
+    single-request design exists to make impossible (spec 图片).
+    """
+    good = base64.b64encode(SAMPLE_PNG).decode()
+    response = client.post(
+        "/api/memos",
+        json={
+            "body": "两张图 ![a](temp:a) ![b](temp:b)",
+            "images": [
+                {"id": "temp:a", "data": good, "filename": "a.png"},
+                {"id": "temp:b", "data": "!!! not base64 !!!", "filename": "b.png"},
+            ],
+        },
+    )
+
+    assert response.status_code == 422
+    assert client.get("/api/memos").json() == []
+    images_dir = data_dir / "images"
+    assert [path.name for path in images_dir.iterdir()] == []
+
+
+def test_a_new_memo_never_inherits_images_left_by_an_earlier_one(
+    client: TestClient, data_dir: Path
+) -> None:
+    """SQLite hands out the id of a memo that is gone, directory and all.
+
+    If a screenshot could not be deleted — a viewer has it open, which is
+    ordinary on Windows — the next memo to take that id must not adopt it and
+    announce 「含 1 张图」 over someone else's picture.
+    """
+    stale = data_dir / "images" / "1"
+    stale.mkdir(parents=True)
+    (stale / "img_1.png").write_bytes(SAMPLE_PNG)
+
+    created = client.post("/api/memos", json={"body": "全新的一条,从没放过图"}).json()
+    assert created["id"] == 1
+    assert created["image_count"] == 0
+    assert client.get("/api/memos").json()[0]["image_count"] == 0
+
+
+def test_deleting_a_memo_succeeds_even_if_its_images_will_not_go(
+    client: TestClient, data_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The memo is gone the moment the row is; the files are housekeeping.
+
+    Reporting a failure would say the memo is still there, and it is not.
+    """
+    b64 = base64.b64encode(SAMPLE_PNG).decode()
+    created = client.post(
+        "/api/memos",
+        json={
+            "body": "有图 ![x](temp:x)",
+            "images": [{"id": "temp:x", "data": b64, "filename": "x.png"}],
+        },
+    ).json()
+
+    def locked(path: Path, ignore_errors: bool = False, **kwargs: object) -> None:
+        """`shutil.rmtree` meeting a file it cannot unlink.
+
+        Left as it is when asked to ignore errors, raising otherwise — so this
+        test fails if the deletion stops asking.
+        """
+        if not ignore_errors:
+            raise PermissionError("[WinError 32] the file is open in another program")
+
+    monkeypatch.setattr(shutil, "rmtree", locked)
+
+    assert client.delete(f"/api/memos/{created['id']}").status_code == 204
+    assert client.get("/api/memos").json() == []
+    assert client.get(f"/api/memos/{created['id']}").status_code == 404
+    assert (data_dir / "images" / str(created["id"])).is_dir()
+
+
+def test_search_answers_from_the_same_window_the_list_shows(
+    client: TestClient, session: Session
+) -> None:
+    """A query cannot return more rows than browsing does."""
+    session.add_all(
+        Memo(
+            body=f"批量记录 {n} 都含有 keyword",
+            created_at=datetime(2020, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2020, 1, 1, tzinfo=UTC),
+        )
+        for n in range(RECENT_MEMO_LIMIT + 20)
+    )
+    session.commit()
+
+    assert len(client.get("/api/memos").json()) == RECENT_MEMO_LIMIT
+    found = client.get("/api/memos", params={"q": "keyword"}).json()
+    assert len(found) == RECENT_MEMO_LIMIT
+
+
+def test_a_memo_matching_many_times_says_how_many(client: TestClient) -> None:
+    """Seeing five hits and assuming that is all of them is a wrong answer."""
+    filler = "\n" + "这一行没有关键词,只是把两处命中隔得足够远\n" * 10
+    client.post(
+        "/api/memos",
+        json={"body": filler.join(f"第 {n} 处 timeout" for n in range(9))},
+    )
+
+    found = client.get("/api/memos", params={"q": "timeout"}).json()[0]
+    assert len(found["snippets"]) == 5
+    assert found["snippet_total"] == 9

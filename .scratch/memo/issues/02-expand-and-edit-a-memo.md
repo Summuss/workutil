@@ -70,3 +70,9 @@ Memo 内容大量来自外部粘贴(网页、Slack、错误页面),因此渲染�
 导航点击数仍然是零。已把这个理由写进 design.md §6 F1 与 spec.md,免得以后又被改回去。
 
 键盘路径相应改为:`Tab` 到某条 → `Enter` 展开 → `Tab` 到「编辑」→ `Enter` 进编辑。
+
+---
+
+**Review 02~06 时的连带修正**
+
+`router.py` 的 docstring 写着「Forwarding only」,但到票 06 为止它已经手工拼了 5 次 `MemoRead`,还自己调 `count_images` 和 `extract_snippets` —— 而 spec 说「HTTP 路由层不单独测试,它只做转发」,于是这些逻辑没有任何直接测试覆盖。已把组装收进 `MemoRead.of()`、把列表与搜索合并成 `service.list_memos(session, images_dir, query)`,路由重新变回一行转发。这个模块是后面四个功能要照抄的模板,所以这条值得改。

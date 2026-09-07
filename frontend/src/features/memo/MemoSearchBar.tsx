@@ -1,38 +1,44 @@
-import { useEffect, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 interface MemoSearchBarProps {
-  value: string;
   onChange: (query: string) => void;
 }
 
-export function MemoSearchBar({ value, onChange }: MemoSearchBarProps) {
-  const [internalValue, setInternalValue] = useState(value);
+/**
+ * The box that narrows the list below it.
+ *
+ * The text belongs to this component alone. Handing it down again from above
+ * would mean a round trip through the parent on every keystroke, and anything
+ * typed while that trip was in the air would be overwritten on the way back.
+ */
+export function MemoSearchBar({ onChange }: MemoSearchBarProps) {
+  const [query, setQuery] = useState("");
+  const searched = useRef("");
 
+  // Searching on every keystroke refetches in the middle of a word.
   useEffect(() => {
-    setInternalValue(value);
-  }, [value]);
-
-  // Debounce search input by 150ms to keep typing responsive
-  useEffect(() => {
+    if (query === searched.current) {
+      return;
+    }
     const timer = setTimeout(() => {
-      if (internalValue !== value) {
-        onChange(internalValue);
-      }
+      searched.current = query;
+      onChange(query);
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [internalValue, value, onChange]);
+  }, [query, onChange]);
 
-  function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === "Escape") {
-      setInternalValue("");
-      onChange("");
-    }
+  // Getting out of a search is not something to wait 150ms for.
+  function clear() {
+    setQuery("");
+    searched.current = "";
+    onChange("");
   }
 
-  function handleClear() {
-    setInternalValue("");
-    onChange("");
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Escape") {
+      clear();
+    }
   }
 
   return (
@@ -52,16 +58,16 @@ export function MemoSearchBar({ value, onChange }: MemoSearchBarProps) {
       </svg>
       <input
         type="text"
-        value={internalValue}
-        onChange={(e) => setInternalValue(e.target.value)}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="搜索 Memo… (关键词、正文任意位置，按 Esc 清空)"
         className="w-full rounded-md border border-slate-200 bg-white py-2 pr-8 pl-9 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
       />
-      {internalValue.trim() !== "" && (
+      {query.trim() !== "" && (
         <button
           type="button"
-          onClick={handleClear}
+          onClick={clear}
           title="清空搜索 (Esc)"
           className="absolute right-2.5 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600"
         >

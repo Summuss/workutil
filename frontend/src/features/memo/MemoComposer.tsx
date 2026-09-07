@@ -25,7 +25,7 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
     handleDrop,
     handleDragOver,
     getImagesForSave,
-    clearPendingImages,
+    forgetSavedImages,
   } = useImageAttachments(textarea, setBody);
 
   useEffect(() => {
@@ -49,7 +49,7 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
       setBody((current) =>
         current.startsWith(pending) ? current.slice(pending.length) : "",
       );
-      clearPendingImages();
+      forgetSavedImages(pending);
     } catch (cause) {
       setError(messageOf(cause, "保存失败"));
     } finally {

@@ -11,6 +11,8 @@ export interface Memo {
   updated_at: string;
   image_count: number;
   snippets?: string[];
+  /** How many places matched — can exceed what `snippets` shows. */
+  snippet_total?: number;
 }
 
 export interface ImageUpload {

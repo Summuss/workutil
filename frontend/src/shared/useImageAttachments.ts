@@ -1,7 +1,6 @@
 import {
   useCallback,
   useRef,
-  useState,
   type ClipboardEvent,
   type DragEvent,
   type RefObject,
@@ -25,19 +24,21 @@ function fileToDataUrl(file: File): Promise<string> {
 }
 
 /**
- * Handles pasting and dragging screenshots into a textarea.
+ * Screenshots pasted or dragged into a textarea.
  *
- * Images are kept as data URLs in client memory with unique temp tokens
- * (e.g. `![image](temp:img_...)`) inserted at the cursor position. When
- * saving, only images whose tokens remain in the text are submitted.
+ * A pasted image stays in memory as a data URL behind a `temp:` placeholder
+ * dropped at the cursor. Nothing reaches the disk until the body and every
+ * image it still names go up in one request, so there is never an image on
+ * the server belonging to a memo that was never written (spec 图片).
+ *
+ * These images are never rendered from here, so they live in a ref: they are
+ * cargo for the next save, not state the screen is showing.
  */
 export function useImageAttachments(
   textareaRef: RefObject<HTMLTextAreaElement | null>,
   onChangeText: (next: string) => void,
 ) {
-  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
-  const pendingImagesRef = useRef<PendingImage[]>([]);
-  pendingImagesRef.current = pendingImages;
+  const pendingImages = useRef<PendingImage[]>([]);
 
   const insertImages = useCallback(
     async (files: File[]) => {
@@ -45,36 +46,35 @@ export function useImageAttachments(
         return;
       }
 
+      // Read the files before looking at the textarea. A big screenshot takes
+      // long enough to type into, and where the cursor was when the paste
+      // landed is not where it is when the bytes arrive.
+      const loaded: PendingImage[] = await Promise.all(
+        files.map(async (file, index) => ({
+          id: `temp:img_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 7)}`,
+          file,
+          dataUrl: await fileToDataUrl(file),
+        })),
+      );
+
       const element = textareaRef.current;
-      const currentVal = element ? element.value : "";
-      const start = element ? element.selectionStart : currentVal.length;
-      const end = element ? element.selectionEnd : currentVal.length;
+      const text = element ? element.value : "";
+      const start = element ? element.selectionStart : text.length;
+      const end = element ? element.selectionEnd : text.length;
 
-      const newPending: PendingImage[] = [];
-      let insertMarkdown = "";
+      const onOwnLine = start === 0 || text.slice(0, start).endsWith("\n");
+      const insert =
+        (onOwnLine ? "" : "\n") +
+        loaded.map((image) => `![image](${image.id})\n`).join("\n");
 
-      for (const [i, file] of files.entries()) {
-        const tempId = `temp:img_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`;
-        const dataUrl = await fileToDataUrl(file);
-        newPending.push({ id: tempId, file, dataUrl });
-
-        const prefix =
-          start > 0 && !currentVal.slice(0, start).endsWith("\n") ? "\n" : "";
-        insertMarkdown += `${prefix}![image](${tempId})\n`;
-      }
-
-      setPendingImages((prev) => [...prev, ...newPending]);
-
-      const before = currentVal.slice(0, start);
-      const after = currentVal.slice(end);
-      const nextVal = before + insertMarkdown + after;
-      onChangeText(nextVal);
+      pendingImages.current = [...pendingImages.current, ...loaded];
+      onChangeText(text.slice(0, start) + insert + text.slice(end));
 
       requestAnimationFrame(() => {
         if (element) {
           element.focus();
-          const nextPos = start + insertMarkdown.length;
-          element.setSelectionRange(nextPos, nextPos);
+          const caret = start + insert.length;
+          element.setSelectionRange(caret, caret);
         }
       });
     },
@@ -83,21 +83,10 @@ export function useImageAttachments(
 
   const handlePaste = useCallback(
     (event: ClipboardEvent<HTMLTextAreaElement>) => {
-      const items = event.clipboardData?.items;
-      if (!items) {
-        return;
-      }
-
-      const files: File[] = [];
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) {
-            files.push(file);
-          }
-        }
-      }
-
+      const files = Array.from(event.clipboardData?.items ?? [])
+        .filter((item) => item.type.startsWith("image/"))
+        .map((item) => item.getAsFile())
+        .filter((file): file is File => file !== null);
 
       if (files.length > 0) {
         event.preventDefault();
@@ -109,8 +98,8 @@ export function useImageAttachments(
 
   const handleDrop = useCallback(
     (event: DragEvent<HTMLTextAreaElement>) => {
-      const files = Array.from(event.dataTransfer?.files || []).filter((f) =>
-        f.type.startsWith("image/"),
+      const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
+        file.type.startsWith("image/"),
       );
       if (files.length > 0) {
         event.preventDefault();
@@ -121,7 +110,7 @@ export function useImageAttachments(
   );
 
   const handleDragOver = useCallback((event: DragEvent<HTMLTextAreaElement>) => {
-    const hasImage = Array.from(event.dataTransfer?.items || []).some((item) =>
+    const hasImage = Array.from(event.dataTransfer?.items ?? []).some((item) =>
       item.type.startsWith("image/"),
     );
     if (hasImage) {
@@ -129,19 +118,29 @@ export function useImageAttachments(
     }
   }, []);
 
-  const getImagesForSave = useCallback((textToSave: string): ImageUpload[] => {
-    return pendingImagesRef.current
-      .filter((img) => textToSave.includes(img.id))
-      .map((img) => ({
-        id: img.id,
-        data: img.dataUrl,
-        filename: img.file.name || "screenshot.png",
-      }));
-  }, []);
+  /** The images this text still names — the ones the save has to carry. */
+  const getImagesForSave = useCallback(
+    (textToSave: string): ImageUpload[] =>
+      pendingImages.current
+        .filter((image) => textToSave.includes(image.id))
+        .map((image) => ({
+          id: image.id,
+          data: image.dataUrl,
+          filename: image.file.name || "screenshot.png",
+        })),
+    [],
+  );
 
-  const clearPendingImages = useCallback(() => {
-    setPendingImages([]);
-    pendingImagesRef.current = [];
+  /**
+   * Forget the images that just went to the server, and only those.
+   *
+   * Anything pasted while the save was in flight is still only in memory, and
+   * dropping it would leave its placeholder in the body pointing at nothing.
+   */
+  const forgetSavedImages = useCallback((savedText: string) => {
+    pendingImages.current = pendingImages.current.filter(
+      (image) => !savedText.includes(image.id),
+    );
   }, []);
 
   return {
@@ -149,6 +148,6 @@ export function useImageAttachments(
     handleDrop,
     handleDragOver,
     getImagesForSave,
-    clearPendingImages,
+    forgetSavedImages,
   };
 }

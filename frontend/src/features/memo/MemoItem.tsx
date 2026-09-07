@@ -77,7 +77,7 @@ export function MemoItem({
     handleDrop,
     handleDragOver,
     getImagesForSave,
-    clearPendingImages,
+    forgetSavedImages,
   } = useImageAttachments(textareaRef, changeDraft);
 
   // Both stamps come from one clock reading when a memo is written, so they
@@ -104,12 +104,12 @@ export function MemoItem({
     try {
       const updated = await updateMemo(memo.id, pending.trim(), imagesToSave);
       onUpdate(updated);
+      forgetSavedImages(pending);
       // Keystrokes landed while the request was in flight are still worth
       // saving, so leave them — and stay in the editor with them.
       if (latestDraft.current === pending) {
         changeDraft(updated.body);
         setEditing(false);
-        clearPendingImages();
       }
     } catch (cause) {
       setError(messageOf(cause, "保存失败"));
@@ -154,40 +154,45 @@ export function MemoItem({
   }
 
   if (!isExpanded) {
+    const snippets = memo.snippets ?? [];
+    const unshown = (memo.snippet_total ?? snippets.length) - snippets.length;
+
     return (
-      <li>
+      <li className="py-2.5">
         <button
           type="button"
           onClick={onToggleExpand}
-          className="group flex w-full cursor-pointer flex-col py-2.5 text-left font-mono text-slate-700 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          className="group flex w-full cursor-pointer items-center justify-between text-left font-mono text-sm text-slate-700 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
         >
-          <div className="flex w-full items-center justify-between">
-            <div className="flex items-center gap-2 truncate text-sm">
-              <span className="truncate">{firstLine(memo.body)}</span>
-              {memo.image_count > 0 && (
-                <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-xs font-sans text-slate-500">
-                  含 {memo.image_count} 张图
-                </span>
-              )}
-            </div>
-            <span className="ml-2 shrink-0 text-xs text-slate-400 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-              {isUnsaved ? "未保存" : "展开"}
-            </span>
-          </div>
-
-          {memo.snippets && memo.snippets.length > 0 && (
-            <div className="mt-1.5 flex w-full flex-col gap-1 border-l-2 border-slate-200 pl-2.5">
-              {memo.snippets.map((snippet, idx) => (
-                <div
-                  key={idx}
-                  className="truncate text-xs leading-relaxed text-slate-500"
-                >
-                  <HighlightText text={snippet} query={searchQuery ?? ""} />
-                </div>
-              ))}
-            </div>
-          )}
+          <span className="flex items-center gap-2 truncate">
+            <span className="truncate">{firstLine(memo.body)}</span>
+            {memo.image_count > 0 && (
+              <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-sans text-xs text-slate-500">
+                含 {memo.image_count} 张图
+              </span>
+            )}
+          </span>
+          <span className="ml-2 shrink-0 text-xs text-slate-400 opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100">
+            {isUnsaved ? "未保存" : "展开"}
+          </span>
         </button>
+
+        {/* Outside the button on purpose: a snippet is the line you came to
+            copy, and text inside a button cannot be dragged over. */}
+        {snippets.length > 0 && (
+          <div className="mt-1.5 flex flex-col gap-1 border-l-2 border-slate-200 pl-2.5 font-mono">
+            {snippets.map((snippet, index) => (
+              <div key={index} className="truncate text-xs leading-relaxed text-slate-500">
+                <HighlightText text={snippet} query={searchQuery ?? ""} />
+              </div>
+            ))}
+            {unshown > 0 && (
+              <div className="text-xs text-slate-400">
+                还有 {unshown} 处命中未显示,展开可看全文
+              </div>
+            )}
+          </div>
+        )}
       </li>
     );
   }

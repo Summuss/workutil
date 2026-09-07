@@ -12,42 +12,40 @@ def _is_word_char(char: str) -> bool:
 
 
 def _adjust_left_boundary(body: str, left: int, match_start: int) -> int:
-    """Adjust left boundary to respect English word boundaries, while preserving
+    """Where to start the snippet: `left`, backed up to a word boundary.
 
-    CJK characters by slicing directly at character positions.
-    Always stays <= match_start.
+    English is cut between words, so "rem|ember" becomes "remember"; CJK runs
+    have no such boundary and are cut where they are. The result is clamped to
+    `match_start`, so widening the snippet can never swallow the keyword.
     """
     if left <= 0:
         return 0
 
-    # If cutting right inside an English word (e.g. "rem|ember")
     if _is_word_char(body[left - 1]) and _is_word_char(body[left]):
-        # Move outward (leftward) to the start of the word
         pos = left
         while pos > 0 and _is_word_char(body[pos - 1]):
             pos -= 1
-        return pos
+        return min(pos, match_start)
 
-    return left
+    return min(left, match_start)
 
 
 def _adjust_right_boundary(body: str, right: int, match_end: int) -> int:
-    """Adjust right boundary to respect English word boundaries.
+    """Where to end the snippet: `right`, run on to a word boundary.
 
-    Always stays >= match_end.
+    The mirror of `_adjust_left_boundary`: "token|izer" becomes "tokenizer",
+    and the result is clamped to `match_end` so the keyword survives whole.
     """
     if right >= len(body):
         return len(body)
 
-    # If cutting right inside an English word (e.g. "token|izer")
     if _is_word_char(body[right - 1]) and _is_word_char(body[right]):
-        # Move outward (rightward) to complete the word
         pos = right
         while pos < len(body) and _is_word_char(body[pos]):
             pos += 1
-        return pos
+        return max(pos, match_end)
 
-    return right
+    return max(right, match_end)
 
 
 def extract_snippets(
@@ -55,19 +53,21 @@ def extract_snippets(
     query: str,
     context_chars: int = 25,
     max_snippets: int = 5,
-) -> list[str]:
-    """Pure function extracting contextual snippets for query hits in body.
+) -> tuple[list[str], int]:
+    """The pieces of `body` worth showing for `query`, and how many there are.
 
-    Zero I/O, no DB or filesystem access.
-    - Preserves keyword entirely across boundaries (never truncates the matched term).
-    - Truncates English on word boundaries, CJK on characters.
-    - Merges nearby matches into one snippet,
-      outputs separate snippets for distant hits.
-    - Omits leading/trailing ellipsis if match touches start/end of body.
+    Returns at most `max_snippets` of them alongside the total, so a memo that
+    matches nine times can say so rather than quietly showing five — seeing
+    only the first hit is how you misjudge whether a memo is the one you want
+    (spec 搜索 29).
+
+    Pure: no database, no filesystem. Keywords survive whole, English is cut
+    between words and CJK between characters, neighbouring hits merge into one
+    piece, and the ellipsis is dropped where the body itself begins or ends.
     """
     q = query.strip()
     if not q or not body:
-        return []
+        return [], 0
 
     body_lower = body.lower()
     q_lower = q.lower()
@@ -83,7 +83,7 @@ def extract_snippets(
         start_search = pos + max(1, len(q))
 
     if not matches:
-        return []
+        return [], 0
 
     # 2. Build and merge windows
     windows: list[list[int]] = []
@@ -120,4 +120,4 @@ def extract_snippets(
         suffix = "..." if final_right < len(body) else ""
         snippets.append(f"{prefix}{cleaned}{suffix}")
 
-    return snippets
+    return snippets, len(merged)

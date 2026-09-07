@@ -70,13 +70,24 @@ export function MemoPage() {
     [fetchMemos],
   );
 
-  // The saved memo goes straight to the top — no refetch, so it lands the
-  // instant the request returns.
-  const save = useCallback(async (body: string, images?: ImageUpload[]) => {
-    const saved = await createMemo(body, images);
-    setMemos((current) => [saved, ...current]);
-    setError(null);
-  }, []);
+  const save = useCallback(
+    async (body: string, images?: ImageUpload[]) => {
+      const saved = await createMemo(body, images);
+      setError(null);
+
+      if (searchQuery.trim() === "") {
+        // Straight to the top — no refetch, so it lands the instant the
+        // request returns.
+        setMemos((current) => [saved, ...current]);
+        return;
+      }
+      // A search is on, so this list is a result set, not the whole list. Let
+      // the server say whether what was just written belongs in it — and if
+      // it does, with which snippets.
+      await fetchMemos(searchQuery);
+    },
+    [searchQuery, fetchMemos],
+  );
 
   const update = useCallback((updated: Memo) => {
     setMemos((current) =>
@@ -91,7 +102,7 @@ export function MemoPage() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
       <MemoComposer onSave={save} />
-      <MemoSearchBar value={searchQuery} onChange={handleSearch} />
+      <MemoSearchBar onChange={handleSearch} />
       <MemoList
         memos={memos}
         loading={loading}

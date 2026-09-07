@@ -43,3 +43,14 @@
   - `HighlightText.tsx`: 安全使用 `<mark>` 渲染高亮匹配项，无 `dangerouslySetInnerHTML`。
   - `MemoItem.tsx`: 折叠态下展示正文首行与多条高亮命中片段，点击依然就地展开与编辑。
   - `MemoList.tsx`: 搜索无结果时提供明确提示。
+
+---
+
+**Review 后的修正**
+
+- **片段以前最多 5 段,多出来的无声消失。** 验收条件是「一条正文中的多处命中**都能看到**」,而只看到前几处正是「这条是不是我要找的」会判错的地方。`extract_snippets` 现在返回 `(片段, 命中总数)`,接口多一个 `snippet_total`,前端在片段下方显示「还有 N 处命中未显示」。
+- **搜索以前没有上限**,列表有 `RECENT_MEMO_LIMIT = 200` 而搜索没有 —— 一个常见词能一次拉回全部正文。两者现在共用同一个上限。
+- `_adjust_left_boundary` / `_adjust_right_boundary` 收了 `match_start` / `match_end` 却从没用过,docstring 承诺的「绝不吃掉关键词」是靠调用点凑巧成立的。现在真的 clamp 了,并补了一条 `context_chars=1` 的测试。
+- **搜索片段挪到了折叠行的 `<button>` 外面** —— 片段恰恰是最想复制的那段文字,而 button 里的文字拖不动。顺带修掉 `<button>` 里塞 `<div>` 的内容模型问题。
+- `MemoSearchBar` 以前把输入文本经父组件绕一圈再发回来(`useEffect(() => setInternalValue(value), [value])`),回环落地那一帧敲的字会被覆盖。文本现在只归它自己。
+- **搜索状态下保存新 memo 会插进筛选结果里**,哪怕它不含关键词。现在搜索开着时交给服务端重新判定,顺带把片段带回来。

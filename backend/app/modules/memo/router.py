@@ -6,27 +6,17 @@ from fastapi.responses import FileResponse
 from app.core.deps import SessionDep, SettingsDep
 from app.modules.memo import service
 from app.modules.memo.schemas import MemoCreate, MemoRead, MemoUpdate
-from app.modules.memo.snippets import extract_snippets
 
 router = APIRouter(prefix="/memos", tags=["memo"])
 
 
 @router.post("", response_model=MemoRead, status_code=status.HTTP_201_CREATED)
 def create_memo(
-    payload: MemoCreate,
-    session: SessionDep,
-    settings: SettingsDep,
+    payload: MemoCreate, session: SessionDep, settings: SettingsDep
 ) -> MemoRead:
     try:
-        memo, image_count = service.create_memo(
+        memo = service.create_memo(
             session, payload.body, settings.images_dir, payload.images
-        )
-        return MemoRead(
-            id=memo.id,
-            body=memo.body,
-            created_at=memo.created_at,
-            updated_at=memo.updated_at,
-            image_count=image_count,
         )
     except service.EmptyMemo as empty:
         raise HTTPException(
@@ -36,39 +26,21 @@ def create_memo(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)
         ) from invalid
+    return MemoRead.of(memo, service.count_images(settings.images_dir, memo.id))
 
 
 @router.get("", response_model=list[MemoRead])
 def list_memos(
-    session: SessionDep,
-    settings: SettingsDep,
-    q: str | None = None,
+    session: SessionDep, settings: SettingsDep, q: str | None = None
 ) -> list[MemoRead]:
-    query = q.strip() if q is not None else ""
-    if query:
-        memos = service.search_memos(session, query)
-        return [
-            MemoRead(
-                id=memo.id,
-                body=memo.body,
-                created_at=memo.created_at,
-                updated_at=memo.updated_at,
-                image_count=service.count_images(settings.images_dir, memo.id),
-                snippets=extract_snippets(memo.body, query),
-            )
-            for memo in memos
-        ]
-
     return [
-        MemoRead(
-            id=memo.id,
-            body=memo.body,
-            created_at=memo.created_at,
-            updated_at=memo.updated_at,
-            image_count=service.count_images(settings.images_dir, memo.id),
-            snippets=[],
+        MemoRead.of(
+            listing.memo,
+            listing.image_count,
+            listing.snippets,
+            listing.snippet_total,
         )
-        for memo in service.list_memos(session)
+        for listing in service.list_memos(session, settings.images_dir, q or "")
     ]
 
 
@@ -76,15 +48,9 @@ def list_memos(
 def get_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> MemoRead:
     try:
         memo = service.get_memo(session, memo_id)
-        return MemoRead(
-            id=memo.id,
-            body=memo.body,
-            created_at=memo.created_at,
-            updated_at=memo.updated_at,
-            image_count=service.count_images(settings.images_dir, memo.id),
-        )
     except service.MemoNotFound as not_found:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found
+    return MemoRead.of(memo, service.count_images(settings.images_dir, memo.id))
 
 
 @router.patch("/{memo_id}", response_model=MemoRead)
@@ -95,15 +61,8 @@ def update_memo(
     settings: SettingsDep,
 ) -> MemoRead:
     try:
-        memo, image_count = service.update_memo(
+        memo = service.update_memo(
             session, memo_id, payload.body, settings.images_dir, payload.images
-        )
-        return MemoRead(
-            id=memo.id,
-            body=memo.body,
-            created_at=memo.created_at,
-            updated_at=memo.updated_at,
-            image_count=image_count,
         )
     except service.EmptyMemo as empty:
         raise HTTPException(
@@ -115,6 +74,7 @@ def update_memo(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)
         ) from invalid
+    return MemoRead.of(memo, service.count_images(settings.images_dir, memo.id))
 
 
 @router.delete("/{memo_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -126,11 +86,7 @@ def delete_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> Non
 
 
 @router.get("/{memo_id}/images/{filename}")
-def get_memo_image(
-    memo_id: int,
-    filename: str,
-    settings: SettingsDep,
-) -> FileResponse:
+def get_memo_image(memo_id: int, filename: str, settings: SettingsDep) -> FileResponse:
     if ".." in filename or "/" in filename or "\\" in filename:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "image not found")
 
@@ -138,4 +94,7 @@ def get_memo_image(
     if not image_path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "image not found")
 
-    return FileResponse(image_path)
+    # These bytes came from a paste. Whatever the extension claims, the browser
+    # must not go looking for something more interesting in them and end up
+    # running a document from this app's own origin (design.md §6 F1).
+    return FileResponse(image_path, headers={"X-Content-Type-Options": "nosniff"})
