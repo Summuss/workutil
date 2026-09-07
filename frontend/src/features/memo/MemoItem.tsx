@@ -37,10 +37,11 @@ function formatTime(iso: string): string {
 /**
  * One memo in the list: a single line, or the whole thing.
  *
- * Expanded, the body is shown once — rendered. Clicking it turns that same
- * block into the textarea, so the click that would put the cursor somewhere is
- * the click that starts the edit; there is no viewing state to leave first
- * (spec 编辑与删除 19).
+ * Expanded, the body is shown once — rendered, and inert. Editing starts from
+ * the 编辑 button, not from clicking the text: copying a stack trace back out
+ * of a memo is a daily move, and a click that starts an edit eats the drag
+ * that was selecting it. Both states are still one card with no navigation,
+ * which is what spec 编辑与删除 19 is actually about.
  */
 export function MemoItem({
   memo,
@@ -137,13 +138,24 @@ export function MemoItem({
             {isModified && <span>· 修改于 {formatTime(memo.updated_at)}</span>}
             {isUnsaved && <span className="text-amber-600">· 未保存</span>}
           </div>
-          <button
-            type="button"
-            onClick={onToggleExpand}
-            className="cursor-pointer text-slate-400 hover:text-slate-600"
-          >
-            收起
-          </button>
+          <div className="flex items-center gap-3">
+            {!editing && (
+              <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="cursor-pointer text-slate-400 hover:text-slate-600"
+              >
+                编辑
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              className="cursor-pointer text-slate-400 hover:text-slate-600"
+            >
+              收起
+            </button>
+          </div>
         </div>
 
         {editing ? (
@@ -176,25 +188,9 @@ export function MemoItem({
             </div>
           </div>
         ) : (
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="编辑正文"
-            onClick={(event) => {
-              // A link in the body should be followed, not edited.
-              if (event.target instanceof Element && event.target.closest("a")) {
-                return;
-              }
-              setEditing(true);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                setEditing(true);
-              }
-            }}
-            className="mt-3 cursor-text rounded-md focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-slate-400"
-          >
+          // Nothing here reacts to a click: dragging across a stack trace to
+          // copy it must stay a selection.
+          <div className="mt-3">
             <MemoMarkdown content={memo.body} />
           </div>
         )}
