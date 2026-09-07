@@ -19,6 +19,9 @@ make install          # backend: uv sync;frontend: pnpm install
 
 需要 [uv](https://docs.astral.sh/uv/) 和 Node + pnpm。服务器上都已经有了。
 
+> Node 至少 **22.22.0**(react-router 8 的下限)。构建只发生在开发服务器上,
+> 工作机拿到的是 `dist/`,所以这个下限不影响工作机。
+
 > **所有 `make` 命令都在仓库根目录跑。** 在 `backend/` 里跑会得到
 > `make: *** No rule to make target` —— Makefile 只有一份,在根目录。
 
@@ -88,7 +91,11 @@ cd ~/Code/summus-workutil && make build && make run
 
 | 看什么 | 期望 |
 | --- | --- |
-| 页面打开的瞬间 | 光标已经在输入框里,不点任何地方直接打字就有字 |
+| **打开 <http://localhost:8765/>** | 直接就是 Memo 页,**光标已经在输入框里** —— 加了路由之后这条最容易坏,先看它 |
+| 点顶部「Evidence」再点回「Memo」 | 两页互切,当前那个在导航里高亮;回到 Memo 时光标又在输入框里 |
+| 在 Evidence 页按浏览器后退 / 前进 | 在两页间来回,地址栏跟着变 |
+| 在 `/evidence` 上按 `F5` | 还是 Evidence 页,**不是 404**(后端的 SPA 回退,design.md §3.1) |
+| 地址栏敲一个不存在的路径 | 落回 Memo 页,不是白屏 |
 | 打几个字,`Ctrl+Enter` | 立刻出现在下方列表最上面,只显示首行 |
 | 保存之后 | 输入框空了,而且**还是聚焦的**,可以直接接着打下一条 |
 | 连记三条 | 最新的在最上面 |

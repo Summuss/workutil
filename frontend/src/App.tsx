@@ -1,9 +1,32 @@
+import { BrowserRouter, Navigate, Route, Routes } from "react-router";
+
+import { AppNav } from "./AppNav";
+import { EvidencePage } from "./features/evidence/EvidencePage";
 import { MemoPage } from "./features/memo/MemoPage";
 
+/**
+ * The route table.
+ *
+ * `/` is Memo itself, never a redirect to it: F1 claims zero navigation clicks
+ * between opening workutil and having written something down
+ * (requirements.md §4 F1), and a hop through `<Navigate>` costs a render and
+ * blinks the focus away.
+ *
+ * These are real paths, not a hash (design.md §2) — which is why the server
+ * needs `SinglePageApp` (design.md §3.1).
+ */
 export function App() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <MemoPage />
-    </div>
+    <BrowserRouter>
+      <div className="min-h-screen bg-slate-50 text-slate-900">
+        <AppNav />
+        <Routes>
+          <Route path="/" element={<MemoPage />} />
+          <Route path="/evidence" element={<EvidencePage />} />
+          {/* A mistyped URL lands on the thing you open this tool for. */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   );
 }

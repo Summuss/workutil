@@ -46,6 +46,8 @@
 
 **这样工作机上只需要 Python,不需要 Node。** 直接减少一半的环境依赖 —— 在「工作机能否装软件」尚未确认的情况下,这是重要的风险对冲。
 
+托管不是「按文件找,找不到就 404」那么简单:前端走真实路径而非 hash 路由,在 `/evidence` 上按 `F5` 会向后端要一个不存在的文件。这类路径必须回 `index.html`,前端路由才有机会看到这个 URL。带扩展名的路径与 `/api` 下的路径**保持 404** —— 一个失效的 `<script src>` 拿到 HTML,错误会报在 MIME 类型上,比 404 难查得多。实现见 `main.py` 的 `SinglePageApp`。
+
 ### 3.2 用 `uv` 管理 Python 环境
 
 `uv` 是单文件二进制,并且能自己安装 Python。万一工作机不允许安装软件,这是最好的退路;届时再用 PyInstaller 打包成免安装版也不必改动架构。
@@ -80,6 +82,8 @@ backend/app/
     evidence/
   main.py          create_app():迁移、挂载各模块 router、托管前端产物
 frontend/src/
+  App.tsx          路由表;`/` 直接就是 Memo,不经跳转
+  AppNav.tsx       顶部导航
   features/
     memo/  todo/  bookmark/  script/  evidence/
   shared/          通用组件、API client、图片粘贴 hook

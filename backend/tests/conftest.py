@@ -1,5 +1,6 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -18,9 +19,18 @@ def data_dir(tmp_path: Path) -> Path:
 
 
 @contextmanager
-def workutil_at(data_dir: Path) -> Iterator[TestClient]:
-    """Start workutil against a data directory, the way launching it would."""
-    with TestClient(create_app(Settings(data_dir=data_dir))) as client:
+def workutil_at(
+    data_dir: Path, frontend_dist: Path | None = None
+) -> Iterator[TestClient]:
+    """Start workutil against a data directory, the way launching it would.
+
+    `frontend_dist` stands in for a frontend build when a test cares about the
+    UI being served; left out, `Settings` points at the real one.
+    """
+    settings = Settings(data_dir=data_dir)
+    if frontend_dist is not None:
+        settings = replace(settings, frontend_dist=frontend_dist)
+    with TestClient(create_app(settings)) as client:
         yield client
 
 
