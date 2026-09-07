@@ -36,3 +36,22 @@ Memo 内容大量来自外部粘贴(网页、Slack、错误页面),因此渲染�
   - `MemoItem.tsx`: 点击单行就地展开/折叠，无路由跳转；展开后以两段呈现：上方渲染 Markdown，下方纯文本 `<textarea>`，无需经过「查看态 → 点编辑」即可就地修改，支持 `Ctrl+Enter` 快捷键或点击保存，展示创建及修改时间。
   - `MemoPage.tsx` / `MemoList.tsx`: 更新 Memo 后就地替换状态，保持在列表中的原位置不变。
 
+
+---
+
+**Review 后的修正**(`/code-review` 于 5b3c27f 之后)
+
+发现的问题与处理:
+
+1. **修改时间的测试是空的** —— `assert updated["updated_at"] >= created["updated_at"]` 的 `>=` 允许相等,把 `service.update_memo` 里的 `memo.updated_at = utc_now()` 删掉后 20 条测试依然全绿,验收条件「修改时间被记录」零保护。改为解析成 `datetime` 后严格 `>`(字符串比较也不可靠:整秒时间戳序列化时不带小数部分,`…:37Z` 会排在 `…:37.1Z` 之后)。已用变异验证:删掉那行现在会红。
+2. **`ruff format` 未通过** —— 三个文件。根因是 `make check` 只跑 `ruff check`,已把 `ruff format --check` 加进去;同时给 alembic 生成的迁移文件加 format 排除,与既有的 `E501` 豁免一致。
+3. **保存期间输入的字符会被吞** —— `MemoItem` 的 `useEffect([memo.body])` 在响应回来时覆盖本地草稿。`MemoComposer` 专门处理过同一个 race,这里反着来。改为在 `save()` 里显式判断:飞行期间没动过才用服务端返回值替换。
+4. **`isModified` 的 1000ms 魔法数** —— 创建时两个时间戳来自同一次 `utc_now()`,严格相等,改为 `!==`。
+5. **service 里两套 not-found 写法** —— `get_memo` 返回 `None`、`update_memo` 抛异常。统一成都抛 `MemoNotFound`,基类由 `Exception` 改为 `LookupError`。这个模块是后面四个功能的模板,不一致会被复制四遍。
+6. **`getMemo` 是死代码** —— 前端封装无人调用(列表已带全文),删掉。后端 `GET /{id}` 是本 ticket 要求的接缝,保留。
+7. **展开后正文显示了两遍** —— 原实现「渲染 + textarea」并列,纵向翻倍。改为只显示渲染态,**在正文上点一下整块换成 textarea**,光标落末尾;没有「编辑」按钮,那一下点击本来就是放光标的动作。`Ctrl+Enter` 存完退回渲染态,`Esc` 退回但保留草稿并在头部标「未保存」。
+8. bundle 从 198 KB 涨到 499 KB(rehype-highlight 默认打包 highlight.js common 语言集)—— 本机加载,**决定不管**。
+9. **展开只能用鼠标** —— 折叠行改成 `<button>`,渲染态正文加 `role="button" tabIndex=0` + Enter/Space,`Tab` 可达。正文里的链接点击不会误入编辑态。
+10. **时间不显示年份** —— 去年 9/7 和今年 9/7 长得一样,加上年份(spec #21 靠时间定位)。
+11. design.md §2 选型表补 Markdown 渲染一行;§6 F1、spec.md Testing Decisions、running.md 人工检查表同步更新。
+12. **raw HTML 那条安全边界没有守卫** —— 刻意破一次「前端不写自动化测试」的例,加 vitest + `MemoMarkdown.test.tsx`(4 条渲染断言)。已用变异验证:给 react-markdown 加上 `rehype-raw` 后 2 条立刻红。

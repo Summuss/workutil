@@ -83,7 +83,8 @@ cd ~/Code/summus-workutil && make build && make run
 ### UI 要人工看什么
 
 第一版**刻意不写前端自动化测试**(见 `.scratch/memo/spec.md` Testing Decisions),
-所以 UI 回归只能靠手动。每次动了前端,对着看一遍:
+所以 UI 回归只能靠手动。唯一的例外是 Markdown 不解析 raw HTML 那条安全边界,
+由 `MemoMarkdown.test.tsx` 守着,`make test` 会跑。其余每次动了前端,对着看一遍:
 
 | 看什么 | 期望 |
 | --- | --- |
@@ -95,6 +96,13 @@ cd ~/Code/summus-workutil && make build && make run
 | 记一条多行的(粘段报错堆栈) | 列表里只显示第一行,不是整坨 |
 | 只打空格然后 `Ctrl+Enter` | 什么都不发生,不产生空记录 |
 | **保存后马上接着打字** | 已保存的那段不会赖在框里(否则下次保存会存重复) |
+| 点列表里某条 | 就地展开,地址栏不变;正文是**渲染后**的 Markdown,代码块等宽带高亮 |
+| 只用键盘:`Tab` 到某条按 `Enter` | 能展开;再 `Tab` 到正文按 `Enter` 能进编辑 |
+| 在展开的正文上点一下 | 整块换成纯文本框,光标落在末尾,不经过任何「编辑」按钮 |
+| 改几个字 `Ctrl+Enter` | 存下,退回渲染态,头部出现「修改于」 |
+| 改完按 `Esc` | 退回渲染态但**草稿还在**,头部标「未保存」,点回去还是那些字 |
+| 编辑一条旧的再存 | 它**留在原位**,不会被顶到最上面 |
+| 正文里写 `<script>alert(1)</script>` | 原样显示成文字,不弹窗 |
 
 macOS 上 `Cmd+Enter` 等价于 `Ctrl+Enter`。
 
@@ -136,8 +144,8 @@ UI、数据存取、Excel 导出可以在服务器上完整验证。详见 desig
 | `make dev-frontend` | 前端 :5173,`/api` 反代到后端 |
 | `make build` | 构建前端到 `frontend/dist/` |
 | `make run` | 生产形态启动(单进程,含 UI) |
-| `make test` | 后端测试 |
-| `make check` | ruff + mypy + tsc |
+| `make test` | 后端测试 + 前端那一个渲染安全测试 |
+| `make check` | ruff check + ruff format --check + mypy + tsc |
 
 改了 ORM 模型之后要生成迁移:
 

@@ -59,4 +59,3 @@ export function MemoList({ memos, loading, error, onUpdate }: MemoListProps) {
     </>
   );
 }
-

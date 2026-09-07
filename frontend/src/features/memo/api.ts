@@ -5,10 +5,6 @@ export function listMemos(): Promise<Memo[]> {
   return get<Memo[]>("/memos");
 }
 
-export function getMemo(id: number): Promise<Memo> {
-  return get<Memo>(`/memos/${id}`);
-}
-
 export function createMemo(body: string): Promise<Memo> {
   return post<Memo>("/memos", { body });
 }
@@ -16,4 +12,3 @@ export function createMemo(body: string): Promise<Memo> {
 export function updateMemo(id: number, body: string): Promise<Memo> {
   return patch<Memo>(`/memos/${id}`, { body });
 }
-

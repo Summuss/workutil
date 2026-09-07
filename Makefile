@@ -21,8 +21,10 @@ run:
 
 test:
 	cd backend && uv run pytest
+	cd frontend && pnpm test
 
 check:
 	cd backend && uv run ruff check .
+	cd backend && uv run ruff format --check .
 	cd backend && uv run mypy app tests
 	cd frontend && pnpm typecheck

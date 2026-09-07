@@ -47,4 +47,3 @@ export function patch<T>(path: string, payload: unknown): Promise<T> {
     body: JSON.stringify(payload),
   });
 }
-

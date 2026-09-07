@@ -29,18 +29,14 @@ def list_memos(session: SessionDep) -> Sequence[Memo]:
 
 @router.get("/{memo_id}", response_model=MemoRead)
 def get_memo(memo_id: int, session: SessionDep) -> Memo:
-    memo = service.get_memo(session, memo_id)
-    if memo is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"memo {memo_id} not found"
-        )
-    return memo
+    try:
+        return service.get_memo(session, memo_id)
+    except service.MemoNotFound as not_found:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found
 
 
 @router.patch("/{memo_id}", response_model=MemoRead)
-def update_memo(
-    memo_id: int, payload: MemoUpdate, session: SessionDep
-) -> Memo:
+def update_memo(memo_id: int, payload: MemoUpdate, session: SessionDep) -> Memo:
     try:
         return service.update_memo(session, memo_id, payload.body)
     except service.EmptyMemo as empty:
@@ -48,7 +44,4 @@ def update_memo(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(empty)
         ) from empty
     except service.MemoNotFound as not_found:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, str(not_found)
-        ) from not_found
-
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found

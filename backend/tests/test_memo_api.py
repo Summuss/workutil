@@ -18,6 +18,16 @@ from app.modules.memo.models import Memo
 from .conftest import workutil_at
 
 
+def at(timestamp: str) -> datetime:
+    """A timestamp from the API, as a datetime.
+
+    Compared as strings these would not always sort the way the clock ran: a
+    whole-second timestamp serialises without a fractional part, so "…:37Z"
+    lands after "…:37.1Z".
+    """
+    return datetime.fromisoformat(timestamp)
+
+
 def test_a_saved_memo_can_be_read_back_from_the_list(client: TestClient) -> None:
     created = client.post("/api/memos", json={"body": "取消 timeout 的绕过办法"})
     assert created.status_code == 201
@@ -153,9 +163,8 @@ def test_a_memo_body_can_be_updated(client: TestClient) -> None:
     assert read_back["body"] == "新内容"
 
 
-def test_updating_a_memo_updates_timestamp_while_preserving_creation_time(
-    client: TestClient,
-) -> None:
+def test_updating_a_memo_records_when_it_changed(client: TestClient) -> None:
+    """The edit must move `updated_at` and leave `created_at` where it was."""
     created = client.post("/api/memos", json={"body": "原始内容"}).json()
     memo_id = created["id"]
 
@@ -164,7 +173,7 @@ def test_updating_a_memo_updates_timestamp_while_preserving_creation_time(
     ).json()
 
     assert updated["created_at"] == created["created_at"]
-    assert updated["updated_at"] >= created["updated_at"]
+    assert at(updated["updated_at"]) > at(created["updated_at"])
 
 
 def test_updating_a_nonexistent_memo_returns_404(client: TestClient) -> None:
@@ -178,9 +187,7 @@ def test_updating_a_memo_to_empty_body_is_refused(client: TestClient) -> None:
 
     for body in ("", "   ", "\n\t "):
         assert (
-            client.patch(
-                f"/api/memos/{memo_id}", json={"body": body}
-            ).status_code
+            client.patch(f"/api/memos/{memo_id}", json={"body": body}).status_code
             == 422
         )
 
@@ -204,13 +211,11 @@ def test_editing_an_old_memo_does_not_change_its_position_in_the_list(
     )
     session.commit()
 
-    old_memo_id = session.scalars(
-        select(Memo).where(Memo.body == "older memo original")
-    ).one().id
-
-    client.patch(
-        f"/api/memos/{old_memo_id}", json={"body": "older memo updated"}
+    old_memo_id = (
+        session.scalars(select(Memo).where(Memo.body == "older memo original")).one().id
     )
+
+    client.patch(f"/api/memos/{old_memo_id}", json={"body": "older memo updated"})
 
     listed = client.get("/api/memos").json()
     assert [memo["body"] for memo in listed] == [
@@ -236,9 +241,6 @@ def test_a_memo_stores_and_returns_html_verbatim(client: TestClient) -> None:
     assert client.get("/api/memos").json()[0]["body"] == html_body
 
     updated_html = '<div class="test"><script>console.log(1)</script></div>'
-    updated = client.patch(
-        f"/api/memos/{memo_id}", json={"body": updated_html}
-    ).json()
+    updated = client.patch(f"/api/memos/{memo_id}", json={"body": updated_html}).json()
     assert updated["body"] == updated_html
     assert client.get(f"/api/memos/{memo_id}").json()["body"] == updated_html
-

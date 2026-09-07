@@ -38,8 +38,11 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
 
-[tool.ruff.lint.per-file-ignores]
+[tool.ruff.format]
 # Alembic writes these; they are a historical record, not hand-maintained code.
+exclude = ["app/migrations/versions/*"]
+
+[tool.ruff.lint.per-file-ignores]
 "app/migrations/versions/*" = ["E501"]
 
 [tool.mypy]

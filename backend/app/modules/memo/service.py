@@ -17,8 +17,8 @@ class EmptyMemo(ValueError):
     """A memo with nothing in it is not a memo."""
 
 
-class MemoNotFound(Exception):
-    """Raised when acting on a memo that does not exist."""
+class MemoNotFound(LookupError):
+    """No memo has that id."""
 
 
 def create_memo(session: Session, body: str) -> Memo:
@@ -47,21 +47,25 @@ def list_memos(session: Session) -> Sequence[Memo]:
     ).all()
 
 
-def get_memo(session: Session, memo_id: int) -> Memo | None:
-    return session.get(Memo, memo_id)
+def get_memo(session: Session, memo_id: int) -> Memo:
+    memo = session.get(Memo, memo_id)
+    if memo is None:
+        raise MemoNotFound(f"memo {memo_id} not found")
+    return memo
 
 
 def update_memo(session: Session, memo_id: int, body: str) -> Memo:
+    """Rewrite a memo's body, recording when it changed.
+
+    Only `updated_at` moves; `created_at` is what the list sorts on, so editing
+    something old leaves it where it was (see `list_memos`).
+    """
     text = body.strip()
     if not text:
         raise EmptyMemo("a memo needs a body")
 
-    memo = session.get(Memo, memo_id)
-    if memo is None:
-        raise MemoNotFound(f"memo {memo_id} not found")
-
+    memo = get_memo(session, memo_id)
     memo.body = text
     memo.updated_at = utc_now()
     session.commit()
     return memo
-
