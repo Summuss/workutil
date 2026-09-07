@@ -446,3 +446,65 @@ def test_images_survive_restart(data_dir: Path) -> None:
         res = after.get(f"/api/memos/{memo_id}/images/img_1.png")
         assert res.status_code == 200
         assert res.content == SAMPLE_PNG
+
+
+def test_deleting_a_memo_cleans_up_its_images_directory(
+    client: TestClient, data_dir: Path
+) -> None:
+    b64 = base64.b64encode(SAMPLE_PNG).decode()
+    created = client.post(
+        "/api/memos",
+        json={
+            "body": "带图将被删除\n![img](temp:1)",
+            "images": [{"id": "temp:1", "data": b64, "filename": "shot.png"}],
+        },
+    ).json()
+    memo_id = created["id"]
+    memo_images_dir = data_dir / "images" / str(memo_id)
+    assert memo_images_dir.is_dir()
+    assert (memo_images_dir / "img_1.png").is_file()
+
+    # Delete memo
+    assert client.delete(f"/api/memos/{memo_id}").status_code == 204
+
+    # Images directory is gone from disk
+    assert not memo_images_dir.exists()
+
+    # Requesting the image now returns 404
+    assert client.get(f"/api/memos/{memo_id}/images/img_1.png").status_code == 404
+
+
+def test_removing_image_reference_from_body_keeps_image_file_on_disk(
+    client: TestClient, data_dir: Path
+) -> None:
+    """Deliberate decision: cutting text does not delete files (no reference counting).
+
+    Deleting text in editor is reversible, but losing files is not.
+    """
+    b64 = base64.b64encode(SAMPLE_PNG).decode()
+    created = client.post(
+        "/api/memos",
+        json={
+            "body": "保留文件测试\n![img](temp:1)",
+            "images": [{"id": "temp:1", "data": b64, "filename": "shot.png"}],
+        },
+    ).json()
+    memo_id = created["id"]
+    saved_file = data_dir / "images" / str(memo_id) / "img_1.png"
+    assert saved_file.is_file()
+
+    # Remove the image reference from the body
+    client.patch(f"/api/memos/{memo_id}", json={"body": "只保留文字，删除了图片引用"})
+
+    # The image file is still preserved on disk
+    assert saved_file.is_file()
+
+    # The image endpoint still serves it
+    img_resp = client.get(f"/api/memos/{memo_id}/images/img_1.png")
+    assert img_resp.status_code == 200
+    assert img_resp.content == SAMPLE_PNG
+
+
+def test_deleting_a_memo_without_images_succeeds(client: TestClient) -> None:
+    created = client.post("/api/memos", json={"body": "无图记录"}).json()
+    assert client.delete(f"/api/memos/{created['id']}").status_code == 204

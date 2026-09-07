@@ -8,9 +8,22 @@
 
 **Blocked by:** 03, 04
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 删除一条含图的 Memo 后,它的图片文件从磁盘消失
-- [ ] 仅从正文中删除图片引用并保存后,图片文件**仍然保留**
-- [ ] 不引入引用计数机制
-- [ ] HTTP 接缝测试覆盖上述两条行为
+- [x] 删除一条含图的 Memo 后,它的图片文件从磁盘消失
+- [x] 仅从正文中删除图片引用并保存后,图片文件**仍然保留**
+- [x] 不引入引用计数机制
+- [x] HTTP 接缝测试覆盖上述两条行为
+
+## Comments
+
+代码已实现，后端测试增至 33 条全绿（ruff / mypy / tsc 均干净）。
+
+- **后端**:
+  - `service.py`: `delete_memo` 接收 `images_dir`，在从数据库物理删除 Memo 后，递归删除磁盘上的 `images/<memo_id>/` 目录；对无图 Memo 安全跳过。
+  - `router.py`: `DELETE /api/memos/{memo_id}` 注入 `SettingsDep` 并将 `settings.images_dir` 传入 `service.delete_memo`。
+  - `tests/test_memo_api.py`: 在主接缝上补充覆盖：
+    1. 删除含图 Memo 后磁盘上的图片目录彻底被清理，图片 URL 访问返回 404；
+    2. 从正文中删掉图片 Markdown 引用后，磁盘上的图片文件仍然保留，图片接口依然返回 200 与原图数据（锁死「不做引用计数」决策，防止不可逆误删）；
+    3. 删除无图 Memo 正常成功返回 204。
+

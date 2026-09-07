@@ -1,4 +1,5 @@
 import base64
+import shutil
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -159,11 +160,17 @@ def update_memo(
     return memo, image_count
 
 
-def delete_memo(session: Session, memo_id: int) -> None:
-    """Permanently delete a memo.
+def delete_memo(session: Session, memo_id: int, images_dir: Path | None = None) -> None:
+    """Permanently delete a memo and its image directory.
 
     Direct deletion without soft-delete or version history (spec Out of Scope).
+    Deleting a memo cleans up its images/<memo_id>/ directory on disk.
     """
     memo = get_memo(session, memo_id)
     session.delete(memo)
     session.commit()
+
+    if images_dir is not None:
+        memo_dir = images_dir / str(memo_id)
+        if memo_dir.is_dir():
+            shutil.rmtree(memo_dir)

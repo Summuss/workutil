@@ -97,9 +97,9 @@ def update_memo(
 
 
 @router.delete("/{memo_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_memo(memo_id: int, session: SessionDep) -> None:
+def delete_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> None:
     try:
-        service.delete_memo(session, memo_id)
+        service.delete_memo(session, memo_id, settings.images_dir)
     except service.MemoNotFound as not_found:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found
 
