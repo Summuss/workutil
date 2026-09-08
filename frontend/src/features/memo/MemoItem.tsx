@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -81,13 +82,17 @@ export function MemoItem({
   const isModified = memo.updated_at !== memo.created_at;
   const isUnsaved = draft !== memo.body;
 
-  const focusEnd = (element: HTMLTextAreaElement | null) => {
+  // Memoized: this is a ref callback (`ref={focusEnd}` below), and React
+  // re-fires a ref callback whenever its identity changes between renders —
+  // an unmemoized version here would re-focus and snap the caret to the end
+  // on every keystroke while editing.
+  const focusEnd = useCallback((element: HTMLTextAreaElement | null) => {
     textareaRef.current = element;
     if (element) {
       element.focus();
       element.setSelectionRange(element.value.length, element.value.length);
     }
-  };
+  }, []);
 
   async function save() {
     const pending = draft;
