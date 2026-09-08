@@ -190,6 +190,19 @@ describe("backend error localization via refusalFrom", () => {
     expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe("パスが存在しないか、アクセスできません");
   });
 
+  it("falls back to a translated generic message, not the raw detail string, when no code is present", async () => {
+    const fakeResponse = {
+      status: 404,
+      json: () => Promise.resolve({ detail: "image not found" }),
+    } as unknown as Response;
+
+    setLanguage("zh");
+    expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe("请求失败 (404)");
+
+    setLanguage("ja");
+    expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe("リクエストに失敗しました (404)");
+  });
+
   it("returns generic unknown error on 500 status", async () => {
     const fakeResponse = {
       status: 500,

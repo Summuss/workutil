@@ -39,21 +39,7 @@ export async function refusalFrom(response: Response): Promise<string> {
       }
 
       if (code) {
-        const errorKey = `error.${code}`;
-        const translated = t(errorKey);
-        if (translated !== `[${errorKey}]`) {
-          return translated;
-        }
-      }
-
-      if (typeof b.detail === "string" && b.detail.trim() !== "") {
-        return b.detail;
-      }
-      if (typeof b.detail === "object" && b.detail !== null) {
-        const d = b.detail as Record<string, unknown>;
-        if (typeof d.message === "string" && d.message.trim() !== "") {
-          return d.message;
-        }
+        return t(`error.${code}`);
       }
     }
     return generic;
