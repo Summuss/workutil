@@ -88,14 +88,10 @@ def delete_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> Non
 
 @router.get("/{memo_id}/images/{filename}")
 def get_memo_image(memo_id: int, filename: str, settings: SettingsDep) -> FileResponse:
-    if ".." in filename or "/" in filename or "\\" in filename:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "image not found")
+    """One screenshot out of a memo's directory.
 
-    image_path = service.memo_images_dir(settings.images_dir, memo_id) / filename
-    if not image_path.is_file():
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "image not found")
-
-    # These bytes came from a paste. Whatever the extension claims, the browser
-    # must not go looking for something more interesting in them and end up
-    # running a document from this app's own origin (design.md §6 F1).
-    return FileResponse(image_path, headers={"X-Content-Type-Options": "nosniff"})
+    The traversal guard and the `nosniff` that has to come with these bytes are
+    `images.serve`'s, not this route's: Evidence serves screenshots too, and
+    the two must not be able to drift apart (design.md §6 F1).
+    """
+    return images.serve(service.memo_images_dir(settings.images_dir, memo_id), filename)

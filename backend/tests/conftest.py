@@ -1,3 +1,4 @@
+import base64
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import replace
@@ -53,3 +54,24 @@ def session(client: TestClient, data_dir: Path) -> Iterator[Session]:
             yield session
     finally:
         engine.dispose()
+
+
+#: Two real PNGs, one pixel and four. Small enough to sit in the source, and
+#: real enough that anything reading them back gets an actual image — Memo and
+#: Evidence both paste screenshots, so the sample lives here rather than in
+#: either one's tests.
+SAMPLE_PNG = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
+    b"\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00"
+    b"\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+SAMPLE_PNG_2 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x02\x00\x00\x00\x02"
+    b"\x08\x06\x00\x00\x00v\x28\xb5g\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00"
+    b"\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+
+def data_url(raw: bytes) -> str:
+    """Image bytes as the browser hands them over: a base64 data URL."""
+    return "data:image/png;base64," + base64.b64encode(raw).decode()

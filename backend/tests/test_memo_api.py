@@ -19,7 +19,7 @@ from app.core.db import utc_now
 from app.modules.memo.models import Memo
 from app.modules.memo.service import RECENT_MEMO_LIMIT
 
-from .conftest import workutil_at
+from .conftest import SAMPLE_PNG, SAMPLE_PNG_2, workutil_at
 
 
 def at(timestamp: str) -> datetime:
@@ -291,18 +291,6 @@ def test_deleted_memo_remains_gone_after_restart(data_dir: Path) -> None:
         assert [m["body"] for m in after.get("/api/memos").json()] == ["survives"]
         assert after.get(f"/api/memos/{m2['id']}").status_code == 404
         assert after.get(f"/api/memos/{m1['id']}").status_code == 200
-
-
-SAMPLE_PNG = (
-    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
-    b"\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00"
-    b"\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
-)
-SAMPLE_PNG_2 = (
-    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x02\x00\x00\x00\x02"
-    b"\x08\x06\x00\x00\x00v\x28\xb5g\x00\x00\x00\rIDATx\x9cc`\x00\x00\x00"
-    b"\x02\x00\x01H\xaf\xa4q\x00\x00\x00\x00IEND\xaeB`\x82"
-)
 
 
 def test_a_memo_can_be_created_with_an_image(client: TestClient) -> None:

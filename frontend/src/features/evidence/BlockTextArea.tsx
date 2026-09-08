@@ -1,10 +1,16 @@
 import { useState, type KeyboardEvent } from "react";
 
+import { imageDropHandlers } from "../../shared/images";
+
 interface BlockTextAreaProps {
   initial: string;
   busy: boolean;
   hint: string;
   placeholder?: string;
+  /** Given, screenshots pasted or dropped here become image blocks instead of
+      going nowhere. The composer takes them; the box that edits an existing
+      text block does not, because a block does not change kind. */
+  onImages?: (files: File[]) => void;
   /** For an editor, which was opened on purpose. The composer stays put: it
       sits below the blocks, and taking the cursor there on load would scroll a
       long case past the thing you opened it to read. */
@@ -19,17 +25,22 @@ interface BlockTextAreaProps {
  * Ctrl+Enter commits, the same chord memo is saved with; Escape leaves, when
  * there is something to leave to. Like `InlineEdit`, it does not close itself
  * on a refusal: what was typed stays on screen next to the reason.
+ *
+ * It is also where screenshots come in, when `onImages` says so — one box you
+ * keep pasting into, whichever kind of thing is on the clipboard.
  */
 export function BlockTextArea({
   initial,
   busy,
   hint,
   placeholder,
+  onImages,
   autoFocus = false,
   onCommit,
   onCancel,
 }: BlockTextAreaProps) {
   const [draft, setDraft] = useState(initial);
+  const images = imageDropHandlers<HTMLTextAreaElement>(onImages);
 
   async function commit() {
     if (busy) {
@@ -63,6 +74,7 @@ export function BlockTextArea({
         value={draft}
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={handleKeyDown}
+        {...images}
         rows={4}
         spellCheck={false}
         placeholder={placeholder}

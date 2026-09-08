@@ -1,4 +1,5 @@
 import { del, get, patch, post, put } from "../../shared/api";
+import type { IncomingImage } from "../../shared/images";
 import type {
   Block,
   Case,
@@ -71,6 +72,22 @@ export function addTextBlock(
   text: string,
 ): Promise<Block> {
   return post<Block>(blocksAt(evidenceId, caseId), { kind: "text", text });
+}
+
+/**
+ * One pasted screenshot, one block.
+ *
+ * Posted the moment it is pasted rather than held for a save: an image block
+ * *is* the screenshot, so there is nothing else for it to wait for. A paste of
+ * three sends three of these in turn, which is what puts them in the case in
+ * the order they were pasted.
+ */
+export function addImageBlock(
+  evidenceId: number,
+  caseId: number,
+  image: IncomingImage,
+): Promise<Block> {
+  return post<Block>(blocksAt(evidenceId, caseId), { kind: "image", image });
 }
 
 export function editBlockText(

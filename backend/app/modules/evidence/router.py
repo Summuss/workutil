@@ -4,7 +4,9 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 
 from fastapi import APIRouter, HTTPException, status
+from fastapi.responses import FileResponse
 
+from app.core import images
 from app.core.deps import SessionDep, SettingsDep
 from app.modules.evidence import service
 from app.modules.evidence.schemas import (
@@ -20,6 +22,7 @@ from app.modules.evidence.schemas import (
     EvidenceDetail,
     EvidenceRead,
     EvidenceRename,
+    ImageBlockCreate,
     MoveRequest,
 )
 
@@ -48,6 +51,8 @@ def _as_http_error() -> Iterator[None]:
         service.InvalidTitle,
         service.InvalidCaseName,
         service.EmptyBlockText,
+        service.WrongBlockKind,
+        images.InvalidImage,
     ) as invalid:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)
@@ -117,9 +122,11 @@ def rename_case(
 
 
 @router.delete("/{evidence_id}/cases/{case_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_case(evidence_id: int, case_id: int, session: SessionDep) -> None:
+def delete_case(
+    evidence_id: int, case_id: int, session: SessionDep, settings: SettingsDep
+) -> None:
     with _as_http_error():
-        service.delete_case(session, evidence_id, case_id)
+        service.delete_case(session, evidence_id, case_id, settings.images_dir)
 
 
 @router.post("/{evidence_id}/cases/{case_id}/move", response_model=list[CaseRead])
@@ -146,14 +153,32 @@ def get_case(evidence_id: int, case_id: int, session: SessionDep) -> CaseDetail:
     status_code=status.HTTP_201_CREATED,
 )
 def add_block(
-    evidence_id: int, case_id: int, payload: BlockCreate, session: SessionDep
+    evidence_id: int,
+    case_id: int,
+    payload: BlockCreate,
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> BlockRead:
-    """Append a block to a case. Only `text` so far — see `BlockCreate`."""
+    """Append a block to a case — one door for every kind.
+
+    Which kind is in the body, and the union it is validated against refuses a
+    kind with no payload behind it before this runs (see `BlockCreate`).
+    """
     with _as_http_error():
-        block = service.add_text_block(
-            session, evidence_id, case_id, payload.text, payload.label
-        )
-    return BlockRead.model_validate(block)
+        if isinstance(payload, ImageBlockCreate):
+            block = service.add_image_block(
+                session,
+                evidence_id,
+                case_id,
+                settings.images_dir,
+                payload.image,
+                payload.label,
+            )
+        else:
+            block = service.add_text_block(
+                session, evidence_id, case_id, payload.text, payload.label
+            )
+    return BlockRead.of(block, evidence_id)
 
 
 @router.patch(
@@ -170,7 +195,7 @@ def edit_block_text(
         block = service.set_block_text(
             session, evidence_id, case_id, block_id, payload.text
         )
-    return BlockRead.model_validate(block)
+    return BlockRead.of(block, evidence_id)
 
 
 @router.put(
@@ -192,7 +217,7 @@ def set_block_label(
         block = service.set_block_label(
             session, evidence_id, case_id, block_id, payload.label
         )
-    return BlockRead.model_validate(block)
+    return BlockRead.of(block, evidence_id)
 
 
 @router.delete(
@@ -200,10 +225,16 @@ def set_block_label(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 def delete_block(
-    evidence_id: int, case_id: int, block_id: int, session: SessionDep
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> None:
     with _as_http_error():
-        service.delete_block(session, evidence_id, case_id, block_id)
+        service.delete_block(
+            session, evidence_id, case_id, block_id, settings.images_dir
+        )
 
 
 @router.post(
@@ -220,4 +251,22 @@ def move_block(
     """Answers with the whole new order, the way moving a case does."""
     with _as_http_error():
         blocks = service.move_block(session, evidence_id, case_id, block_id, payload.to)
-    return [BlockRead.model_validate(block) for block in blocks]
+    return [BlockRead.of(block, evidence_id) for block in blocks]
+
+
+@router.get("/{evidence_id}/images/{filename}")
+def get_evidence_image(
+    evidence_id: int, filename: str, settings: SettingsDep
+) -> FileResponse:
+    """One screenshot out of an evidence's directory.
+
+    Per evidence rather than per case: a screenshot outlives the case it was
+    pasted into only for as long as that case does, but the file it is named
+    against sits beside every other case's (`service.evidence_images_dir`).
+
+    The traversal guard and the `nosniff` these bytes need are `images.serve`'s,
+    shared with memo so the two cannot drift apart (design.md §6 F1).
+    """
+    return images.serve(
+        service.evidence_images_dir(settings.images_dir, evidence_id), filename
+    )

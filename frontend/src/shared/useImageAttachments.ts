@@ -1,27 +1,6 @@
-import {
-  useCallback,
-  useRef,
-  type ClipboardEvent,
-  type DragEvent,
-  type RefObject,
-} from "react";
+import { useCallback, useRef, type RefObject } from "react";
 
-import type { ImageUpload } from "./images";
-
-interface PendingImage {
-  id: string;
-  file: File;
-  dataUrl: string;
-}
-
-function fileToDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
+import { imageDropHandlers, readImage, type ImageUpload } from "./images";
 
 /**
  * Screenshots pasted or dragged into a textarea.
@@ -31,6 +10,10 @@ function fileToDataUrl(file: File): Promise<string> {
  * image it still names go up in one request, so there is never an image on
  * the server belonging to a memo that was never written (spec 图片).
  *
+ * This is Memo's way and not Evidence's: a memo names its images from inside a
+ * body of Markdown, so an image only exists once that body is saved. An
+ * evidence block *is* one image, so it is posted the moment it is pasted.
+ *
  * These images are never rendered from here, so they live in a ref: they are
  * cargo for the next save, not state the screen is showing.
  */
@@ -38,7 +21,7 @@ export function useImageAttachments(
   textareaRef: RefObject<HTMLTextAreaElement | null>,
   onChangeText: (next: string) => void,
 ) {
-  const pendingImages = useRef<PendingImage[]>([]);
+  const pendingImages = useRef<ImageUpload[]>([]);
 
   const insertImages = useCallback(
     async (files: File[]) => {
@@ -49,11 +32,10 @@ export function useImageAttachments(
       // Read the files before looking at the textarea. A big screenshot takes
       // long enough to type into, and where the cursor was when the paste
       // landed is not where it is when the bytes arrive.
-      const loaded: PendingImage[] = await Promise.all(
+      const loaded: ImageUpload[] = await Promise.all(
         files.map(async (file, index) => ({
           id: `temp:img_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 7)}`,
-          file,
-          dataUrl: await fileToDataUrl(file),
+          ...(await readImage(file)),
         })),
       );
 
@@ -81,53 +63,14 @@ export function useImageAttachments(
     [textareaRef, onChangeText],
   );
 
-  const handlePaste = useCallback(
-    (event: ClipboardEvent<HTMLTextAreaElement>) => {
-      const files = Array.from(event.clipboardData?.items ?? [])
-        .filter((item) => item.type.startsWith("image/"))
-        .map((item) => item.getAsFile())
-        .filter((file): file is File => file !== null);
-
-      if (files.length > 0) {
-        event.preventDefault();
-        void insertImages(files);
-      }
-    },
-    [insertImages],
+  const { onPaste, onDrop, onDragOver } = imageDropHandlers<HTMLTextAreaElement>(
+    (files) => void insertImages(files),
   );
-
-  const handleDrop = useCallback(
-    (event: DragEvent<HTMLTextAreaElement>) => {
-      const files = Array.from(event.dataTransfer?.files ?? []).filter((file) =>
-        file.type.startsWith("image/"),
-      );
-      if (files.length > 0) {
-        event.preventDefault();
-        void insertImages(files);
-      }
-    },
-    [insertImages],
-  );
-
-  const handleDragOver = useCallback((event: DragEvent<HTMLTextAreaElement>) => {
-    const hasImage = Array.from(event.dataTransfer?.items ?? []).some((item) =>
-      item.type.startsWith("image/"),
-    );
-    if (hasImage) {
-      event.preventDefault();
-    }
-  }, []);
 
   /** The images this text still names — the ones the save has to carry. */
   const getImagesForSave = useCallback(
     (textToSave: string): ImageUpload[] =>
-      pendingImages.current
-        .filter((image) => textToSave.includes(image.id))
-        .map((image) => ({
-          id: image.id,
-          data: image.dataUrl,
-          filename: image.file.name || "screenshot.png",
-        })),
+      pendingImages.current.filter((image) => textToSave.includes(image.id)),
     [],
   );
 
@@ -144,9 +87,9 @@ export function useImageAttachments(
   }, []);
 
   return {
-    handlePaste,
-    handleDrop,
-    handleDragOver,
+    handlePaste: onPaste,
+    handleDrop: onDrop,
+    handleDragOver: onDragOver,
     getImagesForSave,
     forgetSavedImages,
   };

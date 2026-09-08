@@ -2,8 +2,10 @@
 
 The HTTP boundary is the agreed test seam (design.md §6 F5 测试接缝). This is the
 bottom layer of the model — Evidence → Case → Block — with the simplest of the
-three kinds. Image and table blocks arrive in tickets 05 and 06 and slot into
-the same ordering, labelling and deletion this file pins down.
+three kinds. What is pinned down here is what every kind shares: ordering,
+labelling, deletion, and which case a block belongs to. The half that touches
+the disk is in `test_evidence_image_block_api.py`; the table kind arrives in
+ticket 06 and slots into the same ordering and labelling.
 
 There are no step numbers: the pieces of a case stand side by side rather than
 1→2→3 (ADR-0003), which is why `label` is optional and nothing here counts.
@@ -159,12 +161,15 @@ def test_a_pasted_log_keeps_its_shape(
     ]
 
 
-def test_only_text_blocks_can_be_added_yet(
+def test_a_kind_with_no_payload_behind_it_is_refused(
     client: TestClient, case: tuple[int, int]
 ) -> None:
-    """`kind` is `text` / `image` / `table`, and this ticket implements one of
-    them. A block claiming a kind with no payload behind it is refused rather
-    than stored as an empty something."""
+    """`kind` is `text` / `image` / `table`, and each carries its own payload.
+
+    `table` is not implemented yet (ticket 06) and `video` is not a kind at
+    all; `image` is real but needs an image, which a body of text is not. All
+    three are refused rather than stored as an empty something.
+    """
     evidence_id, case_id = case
 
     for kind in ("image", "table", "video"):

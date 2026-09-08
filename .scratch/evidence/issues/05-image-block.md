@@ -12,15 +12,15 @@
 
 **Blocked by:** 02, 04
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 在 Case 里粘贴剪贴板截图,生成一个图片 Block
-- [ ] 也能把图片文件拖拽进来
-- [ ] 一次粘贴多张 = 多个 Block,顺序与粘贴顺序一致
-- [ ] 图片存 `data/images/evidence/<evidence_id>/`,原图不压缩
-- [ ] 图片 Block 可以加 label、可以参与排序
-- [ ] 删 image Block → 文件从磁盘上消失
-- [ ] 删 Case → 它名下所有图片文件消失
-- [ ] 删 Evidence → 整个目录消失
-- [ ] 文件删不掉时接口仍然成功返回
-- [ ] HTTP 主接缝测试覆盖上述三级删除与「删不掉不算失败」
+- [x] 在 Case 里粘贴剪贴板截图,生成一个图片 Block
+- [x] 也能把图片文件拖拽进来
+- [x] 一次粘贴多张 = 多个 Block,顺序与粘贴顺序一致
+- [x] 图片存 `data/images/evidence/<evidence_id>/`,原图不压缩
+- [x] 图片 Block 可以加 label、可以参与排序
+- [x] 删 image Block → 文件从磁盘上消失
+- [x] 删 Case → 它名下所有图片文件消失
+- [x] 删 Evidence → 整个目录消失
+- [x] 文件删不掉时接口仍然成功返回
+- [x] HTTP 主接缝测试覆盖上述三级删除与「删不掉不算失败」

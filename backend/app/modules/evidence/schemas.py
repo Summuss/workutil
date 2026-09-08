@@ -1,15 +1,16 @@
 from datetime import datetime
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
+from app.core.images import IncomingImage
 from app.modules.evidence.models import (
     BlockKind,
     Evidence,
     EvidenceBlock,
     EvidenceCase,
 )
-from app.modules.evidence.service import Move
+from app.modules.evidence.service import Move, evidence_images_url
 
 
 class EvidenceCreate(BaseModel):
@@ -34,18 +35,31 @@ class MoveRequest(BaseModel):
     to: Move
 
 
-class BlockCreate(BaseModel):
-    """A new block, and which of the three kinds it is.
-
-    `kind` is required and can so far only be `text`: the other two carry a
-    payload that does not exist yet, and a block claiming to be an image with
-    no image behind it is worse than a refusal. Tickets 05 and 06 turn this
-    into a union discriminated on `kind`.
-    """
+class TextBlockCreate(BaseModel):
+    """A new paragraph. A log is one of these — there is no separate kind."""
 
     kind: Literal[BlockKind.TEXT]
     text: str
     label: str | None = None
+
+
+class ImageBlockCreate(BaseModel):
+    """A new screenshot. One block holds one image, so this carries one.
+
+    A paste of three arrives as three of these requests, which is what makes
+    each of them a block that can be labelled and moved on its own
+    (design.md §6 F5).
+    """
+
+    kind: Literal[BlockKind.IMAGE]
+    image: IncomingImage
+    label: str | None = None
+
+
+#: The kinds a block can be created as, told apart by `kind`. `table` is
+#: missing rather than accepted-and-ignored: a block claiming a kind with no
+#: payload behind it is worse than a refusal. Ticket 06 adds it here.
+BlockCreate = Annotated[TextBlockCreate | ImageBlockCreate, Field(discriminator="kind")]
 
 
 class BlockTextEdit(BaseModel):
@@ -63,7 +77,13 @@ class BlockLabelEdit(BaseModel):
 class BlockRead(BaseModel):
     """A block as the case shows it.
 
-    `text` is empty for the kinds that carry something else — see the model.
+    Every kind is read through this one shape, each leaving the payloads that
+    are not its own empty: `text` for a paragraph, `image_url` for a
+    screenshot. The screen switches on `kind`, not on which field is filled.
+
+    The URL is built here rather than left to the browser to assemble out of an
+    id and a filename: where an image is reachable is the server's to say, the
+    way it is for a memo (`service.evidence_images_url`).
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -73,6 +93,22 @@ class BlockRead(BaseModel):
     order: int
     label: str | None
     text: str
+    image_url: str | None = None
+
+    @classmethod
+    def of(cls, block: EvidenceBlock, evidence_id: int) -> "BlockRead":
+        return cls(
+            id=block.id,
+            kind=block.kind,
+            order=block.order,
+            label=block.label,
+            text=block.text,
+            image_url=(
+                f"{evidence_images_url(evidence_id)}/{block.image_name}"
+                if block.kind is BlockKind.IMAGE
+                else None
+            ),
+        )
 
 
 class CaseRead(BaseModel):
@@ -138,5 +174,5 @@ class CaseDetail(CaseRead):
     ) -> "CaseDetail":
         return cls(
             **CaseRead.model_validate(case).model_dump(),
-            blocks=[BlockRead.model_validate(block) for block in blocks],
+            blocks=[BlockRead.of(block, case.evidence_id) for block in blocks],
         )

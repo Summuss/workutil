@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core import images
 from app.core.db import utc_now
+from app.core.images import IncomingImage
 from app.modules.evidence.models import (
     BlockKind,
     Evidence,
@@ -76,6 +77,10 @@ class EmptyBlockText(ValueError):
     """A text block with nothing in it."""
 
 
+class WrongBlockKind(ValueError):
+    """This block does not carry the payload the edit is for."""
+
+
 class EvidenceListing(NamedTuple):
     """An evidence as the list shows it: the row, plus how many cases it has."""
 
@@ -98,6 +103,13 @@ def evidence_images_dir(images_dir: Path, evidence_id: int) -> Path:
     move in without migrating what is already on disk (design.md §5).
     """
     return images_dir / "evidence" / str(evidence_id)
+
+
+def evidence_images_url(evidence_id: int) -> str:
+    """What a saved screenshot is called from outside — the other half of the
+    pair above. Both have to agree with the route in `router.py`, so neither is
+    spelled out twice."""
+    return f"/api/evidence/{evidence_id}/images"
 
 
 def _clean_title(title: str) -> str:
@@ -289,17 +301,27 @@ def rename_case(
     return case
 
 
-def delete_case(session: Session, evidence_id: int, case_id: int) -> None:
-    """Drop a case, closing the gap it leaves in the order.
+def delete_case(
+    session: Session, evidence_id: int, case_id: int, images_dir: Path | None = None
+) -> None:
+    """Drop a case, its blocks, and the screenshots those blocks were.
 
     Renumbering rather than leaving a hole keeps `order` meaning "which sheet",
     so nothing downstream has to reason about gaps.
+
+    The files go one by one rather than by directory: every case of an evidence
+    keeps its screenshots in the same one, so removing it would take the other
+    cases' with it.
     """
     case = get_case(session, evidence_id, case_id)
+    doomed = _image_names(_blocks_in_order(session, case.id))
+
     session.delete(case)
     session.flush()
     _renumber(_cases_in_order(session, evidence_id))
     session.commit()
+
+    _discard_images(images_dir, evidence_id, doomed)
 
 
 def move_case(
@@ -343,9 +365,10 @@ def _renumber(rows: Sequence[Ordered]) -> None:
 
 # --- Blocks -----------------------------------------------------------------
 #
-# The bottom layer: what is actually inside a case. Only `TEXT` exists so far;
-# image and table blocks arrive in tickets 05 and 06 and reuse everything here
-# except the payload they carry.
+# The bottom layer: what is actually inside a case. `TEXT` and `IMAGE` exist;
+# the table block arrives in ticket 06 and reuses everything here except the
+# payload it carries. Labelling, ordering and finding a block are the same for
+# every kind — only what is added, edited and cleaned up differs.
 
 
 class CaseContent(NamedTuple):
@@ -443,6 +466,66 @@ def add_text_block(
     return block
 
 
+def add_image_block(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    images_dir: Path,
+    image: IncomingImage,
+    label: str | None = None,
+) -> EvidenceBlock:
+    """Append one pasted screenshot to a case, after what is already there.
+
+    One block holds one image; a paste of three arrives as three of these, in
+    the order they were pasted (design.md §6 F5). The file is written before
+    the row exists, so a screenshot that will not decode is refused with
+    nothing saved — the reverse would leave a block pointing at no file.
+    """
+    case = get_case(session, evidence_id, case_id)
+    (name,) = images.save(evidence_images_dir(images_dir, evidence_id), [image])
+
+    block = EvidenceBlock(
+        case_id=case.id,
+        kind=BlockKind.IMAGE,
+        image_name=name,
+        label=_clean_label(label),
+        order=len(_blocks_in_order(session, case.id)),
+    )
+    session.add(block)
+    session.commit()
+    return block
+
+
+def _image_names(blocks: Sequence[EvidenceBlock]) -> list[str]:
+    """The files these blocks are, ignoring the ones that are not images.
+
+    Asked of `kind` and not of whether `image_name` happens to be filled: which
+    payload a block carries is what its kind means, and the table kind lands in
+    the same fork in ticket 06.
+    """
+    return [block.image_name for block in blocks if block.kind is BlockKind.IMAGE]
+
+
+def _discard_images(
+    images_dir: Path | None, evidence_id: int, names: Sequence[str]
+) -> None:
+    """Throw away named screenshots of one evidence, tolerating a locked file.
+
+    Deleting is done after the rows are committed and never reported: on
+    Windows a screenshot held open by a viewer cannot be unlinked, and the
+    block it belonged to is already gone, so an error would be a lie (spec 图片).
+
+    A caller with no images directory — a test driving the service alone — asks
+    for nothing here rather than guarding at each call.
+    """
+    if images_dir is None:
+        return
+
+    directory = evidence_images_dir(images_dir, evidence_id)
+    for name in names:
+        images.discard_file(directory / name)
+
+
 def set_block_text(
     session: Session, evidence_id: int, case_id: int, block_id: int, text: str
 ) -> EvidenceBlock:
@@ -452,6 +535,9 @@ def set_block_text(
     edited their own way, and neither comes through here.
     """
     block = get_block(session, evidence_id, case_id, block_id)
+    if block.kind is not BlockKind.TEXT:
+        raise WrongBlockKind("这一段不是文字,改不了它的正文")
+
     block.text = _clean_block_text(text)
     session.commit()
     return block
@@ -476,14 +562,27 @@ def set_block_label(
 
 
 def delete_block(
-    session: Session, evidence_id: int, case_id: int, block_id: int
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    images_dir: Path | None = None,
 ) -> None:
-    """Drop a block, closing the gap it leaves in the order."""
+    """Drop a block, closing the gap it leaves in the order.
+
+    An image block *is* one screenshot, so dropping it takes the file: there is
+    no half-cut state in which the reference is temporarily gone, which is what
+    stops memo from doing the same (design.md §5).
+    """
     block = get_block(session, evidence_id, case_id, block_id)
+    doomed = _image_names([block])
+
     session.delete(block)
     session.flush()
     _renumber(_blocks_in_order(session, case_id))
     session.commit()
+
+    _discard_images(images_dir, evidence_id, doomed)
 
 
 def move_block(

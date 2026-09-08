@@ -70,7 +70,7 @@
 ```
 backend/app/
   core/            config.py(数据目录与监听地址)  db.py  deps.py
-                   images.py —— 图片的解码、落盘、计数、清理。Memo 与 Evidence 共用
+                   images.py —— 图片的解码、落盘、计数、清理、回传。Memo 与 Evidence 共用
                    平台操作抽象层在 F3 时加入这里
   migrations/      Alembic;版本文件在 versions/,随服务启动自动执行
   modules/
@@ -109,7 +109,7 @@ TDD 只打在事先约定的接缝上,不追求覆盖率。
 - **位置**:由 `platformdirs` 决定 —— Windows `%APPDATA%/workutil`,macOS `~/Library/Application Support/workutil`
 - **结构**:`workutil.db`(SQLite)+ `images/<memo_id>/`(Memo)+ `images/evidence/<evidence_id>/`(Evidence)—— 图片按所属对象分目录。Memo 的目录名永远是十进制整数,不会和字面量 `evidence` 相撞,所以 Evidence 挤进同一个父目录不需要搬迁既有数据。代价是目录树不对称,等第三个要存图的模块出现时再统一
 - **不做跨机同步**(见需求文档 §3),因此不需要处理冲突合并,也不需要全局唯一 ID
-- **图片**:存为磁盘文件,原图不压缩,DB 只记录相对路径。相对路径而非绝对路径,是为了整个数据目录可以直接打包备份、迁移
+- **图片**:存为磁盘文件,原图不压缩,DB 不记绝对路径 —— 目录由所属对象的 id 推出来,行里只留文件名(Evidence 的 `image_name`)或指回本服务的相对 URL(Memo 的正文)。都是为了整个数据目录可以直接打包备份、迁移
 - **图片的删除跟随所属对象**:删除一条 memo 就是删掉它的整个图片目录。**Memo 不做引用计数** —— 引用计数要解析 Markdown 正文,而剪切一段文字的中间态引用数为 0,会导致不可逆的误删;留下几个无人引用的文件则是可逆且无害的
 - **Evidence 是这条规则的例外,而且是有理由的例外**:它的图片引用是**结构化的**(一个 image Block 就是一张图),不是从正文里解析出来的,没有「剪到一半」的中间态。删一个 image Block 就是明确地说这张不要了。所以 Evidence 删 Block 即删文件、删 Case 即删其名下图片、删 Evidence 即删整个目录。沿用 memo 那条「**删不掉文件不算失败**」:Windows 上被看图软件占着的截图删不掉,而 DB 行已经没了,这时回错误等于撒谎
 
@@ -155,13 +155,18 @@ TDD 只打在事先约定的接缝上,不追求覆盖率。
 
 - Block 有 `kind`:`text` / `image` / `table`。Log 归进 `text`,不单列一类
 - Block 有可选的 `label` 当小标题(「事前準備の DB データ」)。**没有步骤编号**
-- 一个 image Block 装一张图。一次粘 3 张 = 3 个 Block,各自可加 label、可单独排序
+- 一个 image Block 装一张图。一次粘 3 张 = 3 个 Block,各自可加 label、可单独排序。前端按粘贴顺序**逐个 POST**,而不是一次发一批 —— 一个 Block 一个请求,落地顺序就是粘贴顺序,中途失败也只是少了后面几张,前面几张已经在服务器上,不必回滚
 - Case 与 Block 的顺序靠 `order` 字段;交互是**上下移动 + 置顶 / 置底按钮,不做拖拽** —— Block 是边做边追加的,重排基本是就近修正,拖拽换来的依赖和键盘可达性成本不值
 - Block **按 Case 一次读一份**(`GET /api/evidence/<id>/cases/<id>`),不跟着 Evidence 详情一起回来 —— 屏幕上只有当前 Case,而同一份 Evidence 的其他 Case 可能挂着一整天验证的截图
 - 文字 Block **不允许为空**(不要了就删掉它);粘贴带来的首尾空行和行尾空格去掉,但**第一行的缩进保留** —— `strip()` 只削得掉第一行的缩进,会让它下面每一行都吊在半空,而 log 就是文字 Block
 - 小标题是**独立接口**(`PUT .../blocks/<id>/label`):它属于三种 kind 里的每一种,而正文只属于其中一种
+- 加 Block **只有一个入口**(`POST .../blocks`),请求体按 `kind` 做 discriminated union,各带各的 payload。没实现的 kind 不在 union 里,于是「声称是图片却没有图片」在进业务逻辑之前就被挡掉;同理 `PATCH .../blocks/<id>` 只改文字 Block 的正文,对图片 Block 是 422 而不是悄悄写进一个用不到的列
 
-**图片链路与 Memo 共享,代码已下沉**:解码、落盘、计数、清理原本长在 `modules/memo/service.py` 里,M2 第一步把它们提到了 `core/images.py`(`count` / `discard` / `save_and_link`),按「目录 + URL 前缀」参数化。这是 ADR-0001 那句「共享机制、不共享概念」的具体落点 —— 共享的是这条链路,**不是**一个「有图片的东西」的公共基类。「哪个目录属于谁」留在各自的模块里(memo 的在 `memo/service.py` 的 `memo_images_dir`)。
+**图片链路与 Memo 共享,代码已下沉**:解码、落盘、计数、清理原本长在 `modules/memo/service.py` 里,M2 第一步把它们提到了 `core/images.py`(`save` / `save_and_link` / `count` / `discard` / `discard_file` / `serve`),按「目录 + URL 前缀」参数化。这是 ADR-0001 那句「共享机制、不共享概念」的具体落点 —— 共享的是这条链路,**不是**一个「有图片的东西」的公共基类。「哪个目录属于谁」留在各自的模块里(memo 的在 `memo/service.py` 的 `memo_images_dir`,evidence 的在 `evidence/service.py` 的 `evidence_images_dir`)。
+
+图片响应那条安全线(路径穿越防护 + `X-Content-Type-Options: nosniff`)也收在 `core/images.py` 的 `serve` 里,两个模块的图片路由都只是转发 —— 这条线两边必须一样,而抄一遍就意味着有一天只改一边。
+
+**image Block 存的是 `image_name`,一个文件名而不是路径** —— 目录由 `evidence_id` 推出来,所以整个数据目录仍然可以整体搬走(§5),一行也没法指到别的 Evidence 的文件上。**同一份 Evidence 的所有 Case 共用一个图片目录**,所以删 Case 是按名字逐个删文件,而不是删目录 —— 删目录会把同门其他 Case 的截图一起带走。删 Evidence 才是删整个目录。
 
 #### 表格
 

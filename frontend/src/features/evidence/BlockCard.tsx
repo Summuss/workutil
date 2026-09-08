@@ -34,6 +34,9 @@ const LABEL_FIELD =
  * tried click-to-edit and reverted it within a day (design.md §6 F1). Copying
  * a stack trace out of what you just pasted is an everyday move here too, and
  * drag-selecting text ends in a click that would throw the selection away.
+ *
+ * A block never changes kind, so only a text block offers that button: an
+ * image is retaken and re-pasted, not edited.
  */
 export function BlockCard({
   block,
@@ -63,6 +66,8 @@ export function BlockCard({
   }
 
   async function remove(): Promise<void> {
+    // Deleting an image block deletes the screenshot itself, which nothing
+    // undoes — hence the same confirmation as any other block, and no more.
     if (window.confirm("确定删除这一段吗?")) {
       await onDelete();
     }
@@ -108,14 +113,16 @@ export function BlockCard({
               {MOVE_LABELS[to].glyph}
             </button>
           ))}
-          <button
-            type="button"
-            disabled={busy || editingText}
-            onClick={() => setEditingText(true)}
-            className={TOOL_BUTTON}
-          >
-            编辑
-          </button>
+          {block.kind === "text" && (
+            <button
+              type="button"
+              disabled={busy || editingText}
+              onClick={() => setEditingText(true)}
+              className={TOOL_BUTTON}
+            >
+              编辑
+            </button>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -127,9 +134,24 @@ export function BlockCard({
         </div>
       </div>
 
-      {/* Only text blocks exist so far; image and table bring their own bodies
-          in tickets 05 and 06, and everything above this line is theirs too. */}
-      {editingText ? (
+      {/* The body is the one part that belongs to a kind; everything above
+          this line belongs to all of them. The table body arrives in ticket
+          06. */}
+      {block.kind === "image" ? (
+        /* Shown whole, scaled down to the card. The file on disk is the
+           original — the only resizing this tool does happens on the copy
+           inside an exported workbook (design.md §6 F5).
+
+           No `src` fallback: an empty one asks the server for this page again
+           and draws the answer as a broken image. */
+        block.image_url !== null && (
+          <img
+            src={block.image_url}
+            alt={block.label ?? "截图"}
+            className="max-w-full self-start rounded border border-slate-200"
+          />
+        )
+      ) : editingText ? (
         <BlockTextArea
           initial={block.text}
           busy={busy}

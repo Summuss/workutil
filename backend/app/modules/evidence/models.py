@@ -90,8 +90,8 @@ class EvidenceBlock(Ordered, Base):
     what a piece is ("事前準備の DB データ"); most blocks do without one.
 
     One table holds all three kinds, each carrying the payload its own kind
-    needs. `text` is that payload for `TEXT`; image and table blocks bring
-    their own columns in tickets 05 and 06, and leave this one empty.
+    needs and leaving the others empty: `text` for `TEXT`, `image_name` for
+    `IMAGE`. The table block brings its own in ticket 06.
     """
 
     __tablename__ = "evidence_block"
@@ -115,5 +115,12 @@ class EvidenceBlock(Ordered, Base):
     )
     label: Mapped[str | None] = mapped_column(Text, nullable=True)
     text: Mapped[str] = mapped_column(Text, default="")
+    #: The file this block *is*, named within its evidence's image directory —
+    #: a name and not a path, so the whole data directory stays movable
+    #: (design.md §5) and one column cannot address another evidence's files.
+    #: The directory is shared by every case of the evidence, so a name is only
+    #: unique within it, which is why deleting a case deletes files one by one
+    #: rather than the directory.
+    image_name: Mapped[str] = mapped_column(Text, default="")
 
     case: Mapped[EvidenceCase] = relationship(back_populates="blocks")
