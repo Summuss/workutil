@@ -29,6 +29,10 @@ export function deleteEvidence(id: number): Promise<void> {
   return del(`/evidence/${id}`);
 }
 
+export function exportEvidenceUrl(id: number): string {
+  return `/api/evidence/${id}/export`;
+}
+
 export function addCase(evidenceId: number, name: string): Promise<Case> {
   return post<Case>(`/evidence/${evidenceId}/cases`, { name });
 }

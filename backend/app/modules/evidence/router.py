@@ -2,9 +2,10 @@
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from app.core import images
 from app.core.deps import SessionDep, SettingsDep
@@ -57,6 +58,7 @@ def _as_http_error() -> Iterator[None]:
         service.EmptyBlockText,
         service.EmptyTable,
         service.WrongBlockKind,
+        service.EmptyEvidence,
         images.InvalidImage,
     ) as invalid:
         raise HTTPException(
@@ -86,6 +88,27 @@ def get_evidence(evidence_id: int, session: SessionDep) -> EvidenceDetail:
     with _as_http_error():
         opened = service.open_evidence(session, evidence_id)
     return EvidenceDetail.with_cases(opened.evidence, opened.cases)
+
+
+@router.get("/{evidence_id}/export")
+def export_evidence(
+    evidence_id: int, session: SessionDep, settings: SettingsDep
+) -> Response:
+    """Download the evidence as an Excel workbook (.xlsx).
+
+    Refuses with 422 if the evidence has no cases (design.md §6 F5).
+    Uses RFC 5987 filename* in Content-Disposition for non-ASCII safety.
+    """
+    with _as_http_error():
+        filename, content = service.export_evidence(
+            session, evidence_id, settings.images_dir
+        )
+    encoded = quote(filename)
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{encoded}"},
+    )
 
 
 @router.patch("/{evidence_id}", response_model=EvidenceRead)

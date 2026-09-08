@@ -7,6 +7,7 @@ import { useLoad } from "../../shared/useLoad";
 import {
   addCase,
   deleteCase,
+  exportEvidenceUrl,
   getEvidence,
   moveCase,
   renameCase,
@@ -161,6 +162,16 @@ export function EvidenceDetailPage() {
             {evidence.title}
           </button>
         )}
+        <a
+          href={exportEvidenceUrl(id)}
+          download
+          className={`shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 ${
+            cases.length === 0 ? "pointer-events-none opacity-40" : ""
+          }`}
+          title={cases.length === 0 ? "没有用例，无法导出" : "导出 Excel"}
+        >
+          导出 Excel
+        </a>
       </div>
 
       {(error ?? titleEdit.error) !== null && (

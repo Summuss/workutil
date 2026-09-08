@@ -12,6 +12,12 @@ from app.core import images
 from app.core.db import utc_now
 from app.core.images import IncomingImage
 from app.modules.evidence import tables
+from app.modules.evidence.layout import (
+    DEFAULT_LAYOUT_SETTINGS,
+    LayoutSettings,
+    build_evidence_workbook,
+    sanitize_filename,
+)
 from app.modules.evidence.models import (
     BlockKind,
     Evidence,
@@ -88,6 +94,10 @@ class EmptyTable(ValueError):
 
 class WrongBlockKind(ValueError):
     """This block does not carry the payload the edit is for."""
+
+
+class EmptyEvidence(ValueError):
+    """An evidence with no cases cannot be exported."""
 
 
 class EvidenceListing(NamedTuple):
@@ -240,6 +250,34 @@ def open_evidence(session: Session, evidence_id: int) -> OpenEvidence:
     """
     evidence = get_evidence(session, evidence_id)
     return OpenEvidence(evidence, _cases_in_order(session, evidence_id))
+
+
+def export_evidence(
+    session: Session,
+    evidence_id: int,
+    images_dir: Path,
+    settings: LayoutSettings = DEFAULT_LAYOUT_SETTINGS,
+) -> tuple[str, bytes]:
+    """Export an evidence as an Excel workbook.
+
+    Returns (filename, bytes).
+    Refuses with EmptyEvidence if there are 0 cases (design.md §6 F5).
+    """
+    evidence = get_evidence(session, evidence_id)
+    cases = _cases_in_order(session, evidence_id)
+    if not cases:
+        raise EmptyEvidence("Evidence 没有任何用例，无法导出")
+
+    cases_with_blocks: list[tuple[EvidenceCase, list[EvidenceBlock]]] = [
+        (case, _blocks_in_order(session, case.id)) for case in cases
+    ]
+
+    filename = sanitize_filename(evidence.title)
+    dir_for_evidence = evidence_images_dir(images_dir, evidence_id)
+    content = build_evidence_workbook(
+        evidence, cases_with_blocks, dir_for_evidence, settings
+    )
+    return filename, content
 
 
 def count_cases(session: Session, evidence_id: int) -> int:

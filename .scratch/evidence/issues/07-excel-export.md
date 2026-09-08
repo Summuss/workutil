@@ -14,20 +14,20 @@
 
 **Blocked by:** 05, 06
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `pyproject.toml` 加 openpyxl 与 Pillow
-- [ ] `layout.py` 纯函数:像素 → 预留行数、等比缩放后尺寸;带单测,覆盖超高、超宽、极小图
-- [ ] `LayoutSettings` dataclass 集中排版参数(列宽、最大图片宽度 900px、底色、边框),值写在代码里,**不做配置文件**
-- [ ] 一个 Case 一个 sheet,sheet 名 = Case 名
-- [ ] 单列纵向排布:Block 依次往下,之间空一行,label 加粗单占一行
-- [ ] 图片按预留行数放置,**下一个 Block 从图片下方开始**
-- [ ] 表格:表头加粗 + 底色 `#87e7ad` + 全表细边框;`has_header` 为 false 时不加粗任何行
-- [ ] 所有单元格 `@` 文本格式
-- [ ] 文件名 `エビデンス_<title>.xlsx`,title 里的 `\ / : * ? " < > |` 替换为 `_`
-- [ ] `Content-Disposition` 用 RFC 5987 的 `filename*=UTF-8''...`(文件名是非 ASCII,只给 `filename=` 在部分环境会乱码)
-- [ ] 零个 Case 的 Evidence 拒绝导出(422);零个 Block 的 Case 允许,出一个空 sheet
-- [ ] 主接缝测试:调导出接口拿 bytes → openpyxl 读回来,断言 sheet 名、单元格值、图片数量与锚定行
-- [ ] 护栏用例:1080px 高的图片导出后,**下一个 Block 的起始行在图片下方**(撑行高的实现会在这里失败)
-- [ ] 护栏用例:值为 `007` 的单元格读回来仍是字符串 `"007"`
-- [ ] 人眼验收:导出的 xlsx 下载到 macOS,用 Excel / Numbers 打开,确认 sheet 名、图片位置、行高列宽正常
+- [x] `pyproject.toml` 加 openpyxl 与 Pillow
+- [x] `layout.py` 纯函数:像素 → 预留行数、等比缩放后尺寸;带单测,覆盖超高、超宽、极小图
+- [x] `LayoutSettings` dataclass 集中排版参数(列宽、最大图片宽度 900px、底色、边框),值写在代码里,**不做配置文件**
+- [x] 一个 Case 一个 sheet,sheet 名 = Case 名
+- [x] 单列纵向排布:Block 依次往下,之间空一行,label 加粗单占一行
+- [x] 图片按预留行数放置,**下一个 Block 从图片下方开始**
+- [x] 表格:表头加粗 + 底色 `#87e7ad` + 全表细边框;`has_header` 为 false 时不加粗任何行
+- [x] 所有单元格 `@` 文本格式
+- [x] 文件名 `エビデンス_<title>.xlsx`,title 里的 `\ / : * ? " < > |` 替换为 `_`
+- [x] `Content-Disposition` 用 RFC 5987 的 `filename*=UTF-8''...`(文件名是非 ASCII,只给 `filename=` 在部分环境会乱码)
+- [x] 零个 Case 的 Evidence 拒绝导出(422);零个 Block 的 Case 允许,出一个空 sheet
+- [x] 主接缝测试:调导出接口拿 bytes → openpyxl 读回来,断言 sheet 名、单元格值、图片数量与锚定行
+- [x] 护栏用例:1080px 高的图片导出后,**下一个 Block 的起始行在图片下方**(撑行高的实现会在这里失败)
+- [x] 护栏用例:值为 `007` 的单元格读回来仍是字符串 `"007"`
+- [x] 人眼验收:导出的 xlsx 下载到 macOS,用 Excel / Numbers 打开,确认 sheet 名、图片位置、行高列宽正常
