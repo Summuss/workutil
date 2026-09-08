@@ -155,3 +155,53 @@ describe("language detection and persistence", () => {
     expect(mockStorage[STORAGE_KEY]).toBe("zh");
   });
 });
+
+describe("backend error localization via refusalFrom", () => {
+  beforeEach(() => {
+    setLanguage("zh");
+  });
+
+  it("translates known backend error code to current language", async () => {
+    const fakeResponse = {
+      status: 422,
+      json: () => Promise.resolve({ code: "todo.empty_title", detail: "待办内容不能为空" }),
+    } as unknown as Response;
+
+    setLanguage("zh");
+    expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe("待办内容不能为空");
+
+    setLanguage("ja");
+    expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe("Todoのタイトルを入力してください");
+  });
+
+  it("handles nested detail.code from FastAPI", async () => {
+    const fakeResponse = {
+      status: 422,
+      json: () =>
+        Promise.resolve({
+          detail: { code: "bookmark.path_not_found", message: "路径不存在" },
+        }),
+    } as unknown as Response;
+
+    setLanguage("zh");
+    expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe("路径不存在或无法访问");
+
+    setLanguage("ja");
+    expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe("パスが存在しないか、アクセスできません");
+  });
+
+  it("returns generic unknown error on 500 status", async () => {
+    const fakeResponse = {
+      status: 500,
+      json: () => Promise.resolve({ detail: "Internal Server Error" }),
+    } as unknown as Response;
+
+    setLanguage("zh");
+    expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe("发生未知错误，请稍后重试");
+
+    setLanguage("ja");
+    expect(await (await import("../api")).refusalFrom(fakeResponse)).toBe(
+      "予期せぬエラーが発生しました。時間をおいて再試行してください",
+    );
+  });
+});

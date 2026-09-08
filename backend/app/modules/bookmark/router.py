@@ -5,9 +5,10 @@ Forwarding only — the behaviour lives in service.py.
 
 from typing import Annotated
 
-from fastapi import APIRouter, Body, HTTPException, status
+from fastapi import APIRouter, Body, status
 
 from app.core.deps import PlatformDep, SessionDep
+from app.core.errors import http_error
 from app.modules.bookmark import service
 from app.modules.bookmark.schemas import (
     BookmarkActionResponse,
@@ -43,7 +44,7 @@ def create_group(
     try:
         group = service.create_group(session, payload.name)
     except service.EmptyName as err:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, err) from err
     return BookmarkGroupRead.model_validate(group)
 
 
@@ -54,9 +55,9 @@ def update_group(
     try:
         group = service.update_group(session, group_id, payload.name)
     except service.GroupNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     except service.EmptyName as err:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, err) from err
     return BookmarkGroupRead.model_validate(group)
 
 
@@ -65,7 +66,7 @@ def delete_group(group_id: int, session: SessionDep) -> None:
     try:
         service.delete_group(session, group_id)
     except service.GroupNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
 
 
 @groups_router.post("/{group_id}/move", response_model=list[BookmarkGroupRead])
@@ -75,7 +76,7 @@ def move_group(
     try:
         groups = service.move_group(session, group_id, payload.to)
     except service.GroupNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     return [BookmarkGroupRead.model_validate(g) for g in groups]
 
 
@@ -86,7 +87,7 @@ def open_group(
     try:
         return service.open_group(session, group_id, platform)
     except service.GroupNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
 
 
 # --- Bookmarks ---
@@ -103,11 +104,11 @@ def create_bookmark(payload: BookmarkCreate, session: SessionDep) -> BookmarkRea
             session, payload.name, payload.path, group_id=payload.group_id
         )
     except service.GroupNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     except service.PathDoesNotExist as err:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+        raise http_error(status.HTTP_400_BAD_REQUEST, err) from err
     except service.EmptyName as err:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, err) from err
     return BookmarkRead.model_validate(bookmark)
 
 
@@ -134,7 +135,7 @@ def get_bookmark(bookmark_id: int, session: SessionDep) -> BookmarkRead:
     try:
         bookmark = service.get_bookmark(session, bookmark_id)
     except service.BookmarkNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     return BookmarkRead.model_validate(bookmark)
 
 
@@ -153,13 +154,13 @@ def update_bookmark(
             update_group_id=update_group_id,
         )
     except service.BookmarkNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     except service.GroupNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     except service.PathDoesNotExist as err:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+        raise http_error(status.HTTP_400_BAD_REQUEST, err) from err
     except service.EmptyName as err:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, err) from err
     return BookmarkRead.model_validate(bookmark)
 
 
@@ -168,7 +169,7 @@ def delete_bookmark(bookmark_id: int, session: SessionDep) -> None:
     try:
         service.delete_bookmark(session, bookmark_id)
     except service.BookmarkNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
 
 
 @bookmarks_router.post("/{bookmark_id}/move", response_model=list[BookmarkRead])
@@ -178,7 +179,7 @@ def move_bookmark(
     try:
         reordered = service.move_bookmark(session, bookmark_id, payload.to)
     except service.BookmarkNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     return [BookmarkRead.model_validate(b) for b in reordered]
 
 
@@ -189,9 +190,9 @@ def open_bookmark(
     try:
         bookmark = service.open_bookmark(session, bookmark_id, platform)
     except service.BookmarkNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     except service.PathDoesNotExist as err:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+        raise http_error(status.HTTP_400_BAD_REQUEST, err) from err
     return BookmarkActionResponse(
         ok=True, id=bookmark.id, name=bookmark.name, path=bookmark.path
     )
@@ -204,11 +205,11 @@ def reveal_bookmark(
     try:
         bookmark = service.reveal_bookmark(session, bookmark_id, platform)
     except service.BookmarkNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     except service.CannotRevealDirectory as err:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, err) from err
     except service.PathDoesNotExist as err:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+        raise http_error(status.HTTP_400_BAD_REQUEST, err) from err
     return BookmarkActionResponse(
         ok=True, id=bookmark.id, name=bookmark.name, path=bookmark.path
     )

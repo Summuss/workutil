@@ -46,9 +46,13 @@ ILLEGAL_SHEET_NAME_CHARACTERS = frozenset(":\\/?*[]")
 class EvidenceNotFound(LookupError):
     """No evidence has that id."""
 
+    code = "evidence.not_found"
+
 
 class CaseNotFound(LookupError):
     """No case has that id — or it belongs to a different evidence."""
+
+    code = "evidence.case_not_found"
 
 
 # The messages below are shown to the author verbatim, under the field they
@@ -57,33 +61,49 @@ class CaseNotFound(LookupError):
 class InvalidTitle(ValueError):
     """An evidence with no title has no name for its file."""
 
+    code = "evidence.invalid_title"
+
 
 class InvalidCaseName(ValueError):
     """A case name Excel could not carry as a sheet name."""
+
+    code = "evidence.invalid_case_name"
 
 
 class BlockNotFound(LookupError):
     """No block has that id — or it belongs to a different case."""
 
+    code = "evidence.block_not_found"
+
 
 class CellNotFound(LookupError):
     """No such row or column in this table."""
+
+    code = "evidence.cell_not_found"
 
 
 class EmptyBlockText(ValueError):
     """A text block with nothing in it."""
 
+    code = "evidence.empty_block_text"
+
 
 class EmptyTable(ValueError):
     """The last row or column of a table, which would leave nothing."""
+
+    code = "evidence.empty_table"
 
 
 class WrongBlockKind(ValueError):
     """This block does not carry the payload the edit is for."""
 
+    code = "evidence.wrong_block_kind"
+
 
 class EmptyEvidence(ValueError):
     """An evidence with no cases cannot be exported."""
+
+    code = "evidence.empty_evidence"
 
 
 class EvidenceListing(NamedTuple):

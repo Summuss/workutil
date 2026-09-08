@@ -40,6 +40,8 @@ MAX_IMAGE_BYTES = 25 * 1024 * 1024
 class InvalidImage(ValueError):
     """Image data is malformed, unreadable, or too large."""
 
+    code = "image.invalid_image"
+
 
 class IncomingImage(BaseModel):
     """A screenshot on its way in, still only a data URL.

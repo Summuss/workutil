@@ -3,10 +3,11 @@
 Forwarding only — the behaviour lives in service.py.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import SessionDep
+from app.core.errors import http_error
 from app.modules.todo import service
 from app.modules.todo.models import Todo
 from app.modules.todo.schemas import (
@@ -61,7 +62,7 @@ def create_todo(payload: TodoCreate, session: SessionDep) -> TodoRead:
             source_memo_id=payload.source_memo_id,
         )
     except service.EmptyTitle as err:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, err) from err
     return _single_read(session, todo)
 
 
@@ -90,9 +91,9 @@ def update_todo(todo_id: int, payload: TodoUpdate, session: SessionDep) -> TodoR
             update_due_date=update_due_date,
         )
     except service.TodoNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     except service.EmptyTitle as err:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, err) from err
     return _single_read(session, todo)
 
 
@@ -101,7 +102,7 @@ def delete_todo(todo_id: int, session: SessionDep) -> None:
     try:
         service.delete_todo(session, todo_id)
     except service.TodoNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
 
 
 @router.post("/{todo_id}/complete", response_model=TodoRead)
@@ -109,7 +110,7 @@ def complete_todo(todo_id: int, session: SessionDep) -> TodoRead:
     try:
         todo = service.complete_todo(session, todo_id)
     except service.TodoNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     return _single_read(session, todo)
 
 
@@ -118,7 +119,7 @@ def reopen_todo(todo_id: int, session: SessionDep) -> TodoRead:
     try:
         todo = service.reopen_todo(session, todo_id)
     except service.TodoNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     return _single_read(session, todo)
 
 
@@ -129,9 +130,9 @@ def move_todo(
     try:
         reordered = service.move_todo(session, todo_id, payload.to)
     except service.TodoNotFound as err:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
     except service.CannotMoveCompletedTodo as err:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+        raise http_error(status.HTTP_400_BAD_REQUEST, err) from err
     valid_memo_ids = service.get_existing_memo_ids(
         session,
         [t.source_memo_id for t in reordered if t.source_memo_id is not None],

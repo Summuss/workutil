@@ -53,8 +53,10 @@ class MissingImageFile(ValueError):
     workbook is the deliverable, and silently swapping a screenshot for a
     sentence would hand someone a file they never got to check — the same
     reasoning design.md gives for validating a sheet name on the way in
-    instead of cleaning it up on the way out.
+    (§6 F5 Excel 导出).
     """
+
+    code = "evidence.missing_image_file"
 
 
 BorderStyle = Literal[

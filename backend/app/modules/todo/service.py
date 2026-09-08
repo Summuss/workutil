@@ -20,13 +20,19 @@ RECENT_COMPLETED_LIMIT = 200
 class TodoNotFound(LookupError):
     """No todo has that id."""
 
+    code = "todo.not_found"
+
 
 class EmptyTitle(ValueError):
     """A todo must have a non-empty title."""
 
+    code = "todo.empty_title"
+
 
 class CannotMoveCompletedTodo(ValueError):
     """A completed todo cannot be moved."""
+
+    code = "todo.cannot_move_completed"
 
 
 def _clean_title(raw_title: str) -> str:

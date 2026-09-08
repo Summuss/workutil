@@ -22,9 +22,13 @@ RECENT_MEMO_LIMIT = 200
 class EmptyMemo(ValueError):
     """A memo with nothing in it is not a memo."""
 
+    code = "memo.empty_memo"
+
 
 class MemoNotFound(LookupError):
     """No memo has that id."""
+
+    code = "memo.not_found"
 
 
 class MemoListing(NamedTuple):

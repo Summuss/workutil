@@ -1,10 +1,11 @@
 """HTTP for memos. Forwarding only — the behaviour lives in service.py."""
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from fastapi.responses import FileResponse
 
 from app.core import images
 from app.core.deps import SessionDep, SettingsDep
+from app.core.errors import http_error
 from app.modules.memo import service
 from app.modules.memo.schemas import MemoCreate, MemoRead, MemoUpdate
 
@@ -20,13 +21,9 @@ def create_memo(
             session, payload.body, settings.images_dir, payload.images
         )
     except service.EmptyMemo as empty:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, str(empty)
-        ) from empty
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, empty) from empty
     except images.InvalidImage as invalid:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)
-        ) from invalid
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, invalid) from invalid
     return MemoRead.of(memo, service.count_images(settings.images_dir, memo.id))
 
 
@@ -50,7 +47,7 @@ def get_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> MemoRe
     try:
         memo = service.get_memo(session, memo_id)
     except service.MemoNotFound as not_found:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found
+        raise http_error(status.HTTP_404_NOT_FOUND, not_found) from not_found
     return MemoRead.of(memo, service.count_images(settings.images_dir, memo.id))
 
 
@@ -66,15 +63,11 @@ def update_memo(
             session, memo_id, payload.body, settings.images_dir, payload.images
         )
     except service.EmptyMemo as empty:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, str(empty)
-        ) from empty
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, empty) from empty
     except service.MemoNotFound as not_found:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found
+        raise http_error(status.HTTP_404_NOT_FOUND, not_found) from not_found
     except images.InvalidImage as invalid:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)
-        ) from invalid
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, invalid) from invalid
     return MemoRead.of(memo, service.count_images(settings.images_dir, memo.id))
 
 
@@ -83,7 +76,7 @@ def delete_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> Non
     try:
         service.delete_memo(session, memo_id, settings.images_dir)
     except service.MemoNotFound as not_found:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(not_found)) from not_found
+        raise http_error(status.HTTP_404_NOT_FOUND, not_found) from not_found
 
 
 @router.get("/{memo_id}/images/{filename}")

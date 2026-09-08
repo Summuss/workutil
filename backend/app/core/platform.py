@@ -22,6 +22,8 @@ class UnsupportedPlatformError(RuntimeError):
     path is cleanly exercised (ticket 01, design.md §3.3).
     """
 
+    code = "platform.unsupported"
+
     DEFAULT_MESSAGE = "Linux 环境不支持直接打开或定位本地文件（开发服务器无桌面）"
 
     def __init__(self, message: str = DEFAULT_MESSAGE) -> None:

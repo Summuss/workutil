@@ -8,14 +8,14 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** closed
 
-- [ ] 遍历 `backend/app/modules/{memo,todo,bookmark,evidence}/service.py` 的自定义异常,统一带一个 `code` 字段(如 `todo.empty_title`)
-- [ ] 对应的 `router.py` 把 `code` 放进 4xx 响应体,不再只回一句拼好的中文 `detail`
-- [ ] `frontend/src/shared/api.ts` 的 `refusalFrom` 按 `code` 查语言包渲染;网络失败 / 载入失败等既有的前端侧兜底文案(`shared/api.ts:36`、`shared/useLoad.ts:41`)也一并接入 `t()`
-- [ ] `zh.json`/`ja.json` 补齐这些错误 key 的翻译
-- [ ] 未分类的非预期异常仍返回一条通用的、已翻译的「未知错误」文案
-- [ ] 主接缝测试:至少一个已知校验失败(如提交空标题的 Todo)断言响应体带的是 `code` 而不是裸中文字符串
-- [ ] 切到日语触发同一个失败操作,提示是日语;切回中文,提示是中文
-- [ ] key 对齐测试仍然通过
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] 遍历 `backend/app/modules/{memo,todo,bookmark,evidence}/service.py` 的自定义异常,统一带一个 `code` 字段(如 `todo.empty_title`)
+- [x] 对应的 `router.py` 把 `code` 放进 4xx 响应体,不再只回一句拼好的中文 `detail`
+- [x] `frontend/src/shared/api.ts` 的 `refusalFrom` 按 `code` 查语言包渲染;网络失败 / 载入失败等既有的前端侧兜底文案(`shared/api.ts:36`、`shared/useLoad.ts:41`)也一并接入 `t()`
+- [x] `zh.json`/`ja.json` 补齐这些错误 key 的翻译
+- [x] 未分类的非预期异常仍返回一条通用的、已翻译的「未知错误」文案
+- [x] 主接缝测试:至少一个已知校验失败(如提交空标题的 Todo)断言响应体带的是 `code` 而不是裸中文字符串
+- [x] 切到日语触发同一个失败操作,提示是日语;切回中文,提示是中文
+- [x] key 对齐测试仍然通过
+- [x] `make check` 与 `pnpm build` 通过

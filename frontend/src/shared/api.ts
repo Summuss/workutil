@@ -1,3 +1,5 @@
+import { t } from "./i18n";
+
 /** Talking to the workutil backend, which is always same-origin. */
 
 const API_ROOT = "/api";
@@ -10,19 +12,51 @@ export class ApiError extends Error {
 }
 
 /**
- * Why the server said no, in its own words.
+ * Why the server said no, localized by error code when possible.
  *
  * Evidence rejects a case name at the moment it is typed rather than cleaning
  * it up at export, and that only helps if the reason reaches the field the
- * author is looking at. FastAPI's own validation errors put a list of objects
- * in `detail`; those have nothing to say to a person, so they fall back.
+ * author is looking at. Structured codes allow front-end localization.
  */
-async function refusalFrom(response: Response): Promise<string> {
-  const generic = `请求失败(${response.status})`;
+export async function refusalFrom(response: Response): Promise<string> {
+  if (response.status >= 500) {
+    return t("error.unknown");
+  }
+
+  const generic = t("api.request_failed", { status: response.status });
   try {
     const body: unknown = await response.json();
-    const detail = (body as { detail?: unknown }).detail;
-    return typeof detail === "string" && detail.trim() !== "" ? detail : generic;
+    if (typeof body === "object" && body !== null) {
+      const b = body as Record<string, unknown>;
+      let code: string | null = null;
+      if (typeof b.code === "string" && b.code.trim() !== "") {
+        code = b.code.trim();
+      } else if (typeof b.detail === "object" && b.detail !== null) {
+        const d = b.detail as Record<string, unknown>;
+        if (typeof d.code === "string" && d.code.trim() !== "") {
+          code = d.code.trim();
+        }
+      }
+
+      if (code) {
+        const errorKey = `error.${code}`;
+        const translated = t(errorKey);
+        if (translated !== `[${errorKey}]`) {
+          return translated;
+        }
+      }
+
+      if (typeof b.detail === "string" && b.detail.trim() !== "") {
+        return b.detail;
+      }
+      if (typeof b.detail === "object" && b.detail !== null) {
+        const d = b.detail as Record<string, unknown>;
+        if (typeof d.message === "string" && d.message.trim() !== "") {
+          return d.message;
+        }
+      }
+    }
+    return generic;
   } catch {
     return generic;
   }
@@ -33,7 +67,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     response = await fetch(`${API_ROOT}${path}`, init);
   } catch {
-    throw new ApiError(0, "连接不上 workutil 服务");
+    throw new ApiError(0, t("api.network_error"));
   }
 
   if (!response.ok) {

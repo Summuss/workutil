@@ -1,6 +1,7 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
 import { messageOf } from "./api";
+import { t } from "./i18n";
 
 export interface Loaded<T> {
   value: T | null;
@@ -38,7 +39,7 @@ export function useLoad<T>(load: () => Promise<T>, deps: unknown[] = []): Loaded
       })
       .catch((cause: unknown) => {
         if (!abandoned) {
-          setError(messageOf(cause, "载入失败"));
+          setError(messageOf(cause, t("common.load_failed")));
         }
       })
       .finally(() => {

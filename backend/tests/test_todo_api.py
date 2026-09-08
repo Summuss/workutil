@@ -35,7 +35,8 @@ def test_create_todo_refuses_empty_title(client: TestClient) -> None:
     for empty in ("", "   ", "\t\n"):
         response = client.post("/api/todos", json={"title": empty})
         assert response.status_code == 422
-        assert "待办" in response.json()["detail"]
+        body = response.json()
+        assert body.get("code") == "todo.empty_title"
 
 
 def test_list_todos_empty(client: TestClient) -> None:

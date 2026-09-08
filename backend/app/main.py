@@ -84,7 +84,26 @@ def create_app(
     ) -> JSONResponse:
         return JSONResponse(
             status_code=status.HTTP_501_NOT_IMPLEMENTED,
-            content={"detail": str(exc)},
+            content={"code": exc.code, "detail": str(exc)},
+        )
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(
+        request: Request, exc: HTTPException
+    ) -> JSONResponse:
+        content: dict[str, str | None]
+        if isinstance(exc.detail, dict):
+            code = exc.detail.get("code")
+            msg = (
+                exc.detail.get("message") or exc.detail.get("detail") or str(exc.detail)
+            )
+            content = {"code": code, "detail": msg}
+        else:
+            content = {"detail": exc.detail}
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=content,
+            headers=exc.headers,
         )
 
     for router in ROUTERS:

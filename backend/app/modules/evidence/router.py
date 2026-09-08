@@ -4,11 +4,12 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from urllib.parse import quote
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 from fastapi.responses import FileResponse, Response
 
 from app.core import images
 from app.core.deps import SessionDep, SettingsDep
+from app.core.errors import http_error
 from app.modules.evidence import layout, service
 from app.modules.evidence.schemas import (
     BlockCreate,
@@ -51,7 +52,7 @@ def _as_http_error() -> Iterator[None]:
         service.BlockNotFound,
         service.CellNotFound,
     ) as missing:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, str(missing)) from missing
+        raise http_error(status.HTTP_404_NOT_FOUND, missing) from missing
     except (
         service.InvalidTitle,
         service.InvalidCaseName,
@@ -62,9 +63,7 @@ def _as_http_error() -> Iterator[None]:
         images.InvalidImage,
         layout.MissingImageFile,
     ) as invalid:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)
-        ) from invalid
+        raise http_error(status.HTTP_422_UNPROCESSABLE_CONTENT, invalid) from invalid
 
 
 @router.post("", response_model=EvidenceRead, status_code=status.HTTP_201_CREATED)

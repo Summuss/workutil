@@ -22,21 +22,31 @@ from app.modules.bookmark.schemas import (
 class PathDoesNotExist(ValueError):
     """The specified path does not exist on the machine."""
 
+    code = "bookmark.path_not_found"
+
 
 class EmptyName(ValueError):
     """A bookmark or group must have a non-empty name."""
+
+    code = "bookmark.empty_name"
 
 
 class BookmarkNotFound(LookupError):
     """No bookmark has that id."""
 
+    code = "bookmark.not_found"
+
 
 class GroupNotFound(LookupError):
     """No bookmark group has that id."""
 
+    code = "bookmark.group_not_found"
+
 
 class CannotRevealDirectory(ValueError):
     """A directory cannot be revealed because doing so reveals its parent."""
+
+    code = "bookmark.cannot_reveal_directory"
 
 
 def _clean_path(raw_path: str) -> str:
