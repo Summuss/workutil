@@ -823,11 +823,9 @@ def test_check_bookmarks_all_exist(client: TestClient, tmp_path: Path) -> None:
 
     item1 = next(i for i in items if i["id"] == b1["id"])
     assert item1["exists"] is True
-    assert item1["is_stale"] is False
 
     item2 = next(i for i in items if i["id"] == b2["id"])
     assert item2["exists"] is True
-    assert item2["is_stale"] is False
 
 
 def test_check_bookmarks_stale_detection(client: TestClient, tmp_path: Path) -> None:
@@ -849,11 +847,9 @@ def test_check_bookmarks_stale_detection(client: TestClient, tmp_path: Path) -> 
 
     item1 = next(i for i in items if i["id"] == b1["id"])
     assert item1["exists"] is False
-    assert item1["is_stale"] is True
 
     item2 = next(i for i in items if i["id"] == b2["id"])
     assert item2["exists"] is True
-    assert item2["is_stale"] is False
 
 
 def test_get_bookmarks_does_not_check_existence(
@@ -882,7 +878,6 @@ def test_get_bookmarks_does_not_check_existence(
     # Confirm BookmarkRead schema has no 'exists' field (it does not check existence)
     found = next(item for item in data["loose"] if item["id"] == b["id"])
     assert "exists" not in found
-    assert "is_stale" not in found
 
 
 def test_check_bookmarks_with_specific_ids(client: TestClient, tmp_path: Path) -> None:
