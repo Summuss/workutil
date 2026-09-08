@@ -1,10 +1,17 @@
 import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
-import type { Bookmark, BookmarkGroup, BookmarkUpdatePayload, MoveDirection } from "./types";
+import type {
+  Bookmark,
+  BookmarkGroup,
+  BookmarkStatus,
+  BookmarkUpdatePayload,
+  MoveDirection,
+} from "./types";
 
 interface BookmarkItemProps {
   bookmark: Bookmark;
+  status: BookmarkStatus;
   groups: BookmarkGroup[];
   at: number;
   count: number;
@@ -32,6 +39,7 @@ const TOOL_BUTTON =
 
 export function BookmarkItem({
   bookmark,
+  status,
   groups,
   at,
   count,
@@ -210,11 +218,23 @@ export function BookmarkItem({
     );
   }
 
+  const isStale = status === "stale";
+
   return (
-    <li className="group flex items-center justify-between gap-3 rounded-md bg-white px-3 py-2.5 shadow-xs transition-colors hover:bg-slate-50/80">
+    <li
+      className={`group flex items-center justify-between gap-3 rounded-md px-3 py-2.5 shadow-xs transition-colors ${
+        isStale
+          ? "border border-dashed border-slate-300 bg-slate-100/60 hover:bg-slate-100/90"
+          : "bg-white hover:bg-slate-50/80"
+      }`}
+    >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className="truncate text-sm font-medium text-slate-800">
+          <span
+            className={`truncate text-sm font-medium ${
+              isStale ? "text-slate-600" : "text-slate-800"
+            }`}
+          >
             {bookmark.name}
           </span>
           <span
@@ -226,10 +246,48 @@ export function BookmarkItem({
           >
             {bookmark.is_directory ? "文件夹" : "文件"}
           </span>
+
+          {status === "unknown" && (
+            <span
+              className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500"
+              title="检测中或尚未验证路径存在性"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse" />
+              未知
+            </span>
+          )}
+          {status === "valid" && (
+            <span
+              className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
+              title="路径有效，文件/目录存在"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              有效
+            </span>
+          )}
+          {status === "stale" && (
+            <span
+              className="inline-flex items-center gap-1 rounded border border-slate-300 bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 shadow-xs"
+              title="路径不存在或已失效"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+              失效
+            </span>
+          )}
         </div>
-        <p className="mt-0.5 truncate text-xs text-slate-400 font-mono" title={bookmark.path}>
-          {bookmark.path}
-        </p>
+
+        {isStale ? (
+          <p className="mt-0.5 truncate text-xs font-mono" title={bookmark.path}>
+            <span className="line-through text-slate-400">{bookmark.path}</span>
+            <span className="ml-1.5 font-sans text-[11px] font-normal text-rose-600">
+              [路径不存在]
+            </span>
+          </p>
+        ) : (
+          <p className="mt-0.5 truncate text-xs text-slate-400 font-mono" title={bookmark.path}>
+            {bookmark.path}
+          </p>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
@@ -238,7 +296,11 @@ export function BookmarkItem({
             type="button"
             onClick={() => void handleOpen()}
             disabled={opening}
-            className="cursor-pointer rounded bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
+            className={`cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+              isStale
+                ? "bg-slate-200/80 text-slate-500 hover:bg-slate-300 hover:text-slate-800"
+                : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
+            }`}
           >
             {opening ? "打开中…" : "打开"}
           </button>
@@ -247,7 +309,11 @@ export function BookmarkItem({
               type="button"
               onClick={() => void handleReveal()}
               disabled={revealing}
-              className="cursor-pointer rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
+              className={`cursor-pointer rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                isStale
+                  ? "bg-slate-200/80 text-slate-500 hover:bg-slate-300 hover:text-slate-800"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+              }`}
             >
               {revealing ? "定位中…" : "打开所在文件夹"}
             </button>

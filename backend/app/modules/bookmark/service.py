@@ -11,6 +11,8 @@ from app.core.ordering import Move, renumber, reorder
 from app.core.platform import Platform
 from app.modules.bookmark.models import Bookmark, BookmarkGroup
 from app.modules.bookmark.schemas import (
+    BookmarkCheckItem,
+    BookmarkCheckResponse,
     BookmarkGroupOpenResponse,
     OpenedBookmark,
     SkippedBookmark,
@@ -359,3 +361,31 @@ def open_group(
         )
 
     return BookmarkGroupOpenResponse(opened=opened, skipped=skipped)
+
+
+def _check_path_exists(raw_path: str) -> bool:
+    try:
+        return Path(raw_path).exists()
+    except OSError:
+        return False
+
+
+def check_bookmarks(
+    session: Session,
+    bookmark_ids: list[int] | None = None,
+) -> BookmarkCheckResponse:
+    stmt = select(Bookmark)
+    if bookmark_ids is not None:
+        stmt = stmt.where(Bookmark.id.in_(bookmark_ids))
+    stmt = stmt.order_by(Bookmark.id)
+    bookmarks = list(session.scalars(stmt).all())
+
+    items: list[BookmarkCheckItem] = []
+    for b in bookmarks:
+        items.append(
+            BookmarkCheckItem(
+                id=b.id,
+                exists=_check_path_exists(b.path),
+            )
+        )
+    return BookmarkCheckResponse(items=items)

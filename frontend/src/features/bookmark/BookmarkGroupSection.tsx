@@ -4,6 +4,7 @@ import { messageOf } from "../../shared/api";
 import { BookmarkItem } from "./BookmarkItem";
 import type {
   BookmarkGroup,
+  BookmarkStatus,
   BookmarkUpdatePayload,
   MoveDirection,
 } from "./types";
@@ -13,6 +14,7 @@ interface BookmarkGroupSectionProps {
   groups: BookmarkGroup[];
   at: number;
   count: number;
+  getStatus: (id: number) => BookmarkStatus;
   onRenameGroup: (id: number, name: string) => Promise<void>;
   onDeleteGroup: (id: number) => Promise<void>;
   onMoveGroup: (id: number, to: MoveDirection) => Promise<void>;
@@ -44,6 +46,7 @@ export function BookmarkGroupSection({
   groups,
   at,
   count,
+  getStatus,
   onRenameGroup,
   onDeleteGroup,
   onMoveGroup,
@@ -235,6 +238,7 @@ export function BookmarkGroupSection({
             <BookmarkItem
               key={bookmark.id}
               bookmark={bookmark}
+              status={getStatus(bookmark.id)}
               groups={groups}
               at={idx}
               count={group.bookmarks.length}

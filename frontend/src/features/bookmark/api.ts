@@ -1,6 +1,7 @@
 import { del, get, patch, post } from "../../shared/api";
 import type {
   Bookmark,
+  BookmarkCheckResponse,
   BookmarkCreatePayload,
   BookmarkGroup,
   BookmarkGroupCreatePayload,
@@ -71,5 +72,9 @@ export function moveBookmarkGroup(
 
 export function openBookmarkGroup(id: number): Promise<BookmarkGroupOpenResponse> {
   return post<BookmarkGroupOpenResponse>(`/bookmark-groups/${id}/open`);
+}
+
+export function checkBookmarks(ids?: number[]): Promise<BookmarkCheckResponse> {
+  return post<BookmarkCheckResponse>("/bookmarks/check", ids ? { ids } : undefined);
 }
 

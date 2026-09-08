@@ -63,3 +63,15 @@ export interface BookmarkGroupOpenResponse {
   skipped: SkippedBookmark[];
 }
 
+export type BookmarkStatus = "unknown" | "valid" | "stale";
+
+export interface BookmarkCheckItem {
+  id: number;
+  exists: boolean;
+  is_stale: boolean;
+}
+
+export interface BookmarkCheckResponse {
+  items: BookmarkCheckItem[];
+}
+

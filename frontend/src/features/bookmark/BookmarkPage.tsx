@@ -1,8 +1,9 @@
-import { useCallback, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
 import { useLoad } from "../../shared/useLoad";
 import {
+  checkBookmarks,
   createBookmark,
   createBookmarkGroup,
   deleteBookmark,
@@ -22,6 +23,7 @@ import { BookmarkItem } from "./BookmarkItem";
 import type {
   BookmarkCreatePayload,
   BookmarkListResponse,
+  BookmarkStatus,
   BookmarkUpdatePayload,
   MoveDirection,
 } from "./types";
@@ -45,19 +47,52 @@ export function BookmarkPage() {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [statusMap, setStatusMap] = useState<Record<number, BookmarkStatus>>({});
+  const [checking, setChecking] = useState(false);
 
   const groups = loaded?.groups ?? [];
   const loose = loaded?.loose ?? [];
   const hasItems = groups.length > 0 || loose.length > 0;
 
+  const getStatus = useCallback(
+    (id: number): BookmarkStatus => statusMap[id] ?? "unknown",
+    [statusMap],
+  );
+
+  const runCheck = useCallback(async () => {
+    setChecking(true);
+    try {
+      const res = await checkBookmarks();
+      setStatusMap((prev) => {
+        const next = { ...prev };
+        for (const item of res.items) {
+          next[item.id] = item.exists ? "valid" : "stale";
+        }
+        return next;
+      });
+    } catch {
+      // Non-blocking: existence check failure does not block list usage
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loaded !== null) {
+      void runCheck();
+    }
+  }, [loaded !== null, runCheck]);
+
   const refresh = useCallback(async () => {
     try {
       const data = await listBookmarks();
       setLoaded(data);
+      setStatusMap({});
+      void runCheck();
     } catch (cause) {
       setError(messageOf(cause, "刷新书签失败"));
     }
-  }, [setLoaded, setError]);
+  }, [setLoaded, setError, runCheck]);
 
   const handleRegister = useCallback(
     async (payload: BookmarkCreatePayload) => {
@@ -270,6 +305,34 @@ export function BookmarkPage() {
         </p>
       ) : (
         <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between px-1 text-xs text-slate-500">
+            <div className="flex items-center gap-2">
+              <span>
+                共 {groups.reduce((acc, g) => acc + g.bookmarks.length, 0) + loose.length} 个书签
+              </span>
+              {(() => {
+                const all = [...groups.flatMap((g) => g.bookmarks), ...loose];
+                const staleCount = all.filter((b) => statusMap[b.id] === "stale").length;
+                return staleCount > 0 ? (
+                  <span className="rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[11px] font-medium text-rose-700">
+                    {staleCount} 个失效
+                  </span>
+                ) : null;
+              })()}
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setStatusMap({});
+                void runCheck();
+              }}
+              disabled={checking}
+              className="cursor-pointer text-xs text-slate-500 hover:text-slate-800 disabled:opacity-50"
+            >
+              {checking ? "⏳ 检查中…" : "🔄 重新检查"}
+            </button>
+          </div>
+
           {/* Groups list */}
           {groups.map((group, idx) => (
             <BookmarkGroupSection
@@ -278,6 +341,7 @@ export function BookmarkPage() {
               groups={groups}
               at={idx}
               count={groups.length}
+              getStatus={getStatus}
               onRenameGroup={handleRenameGroup}
               onDeleteGroup={handleDeleteGroup}
               onMoveGroup={handleMoveGroup}
@@ -310,6 +374,7 @@ export function BookmarkPage() {
                   <BookmarkItem
                     key={bookmark.id}
                     bookmark={bookmark}
+                    status={getStatus(bookmark.id)}
                     groups={groups}
                     at={idx}
                     count={loose.length}

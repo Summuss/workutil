@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 
 from app.core.ordering import Move
 
@@ -87,3 +87,21 @@ class SkippedBookmark(BaseModel):
 class BookmarkGroupOpenResponse(BaseModel):
     opened: list[OpenedBookmark]
     skipped: list[SkippedBookmark]
+
+
+class BookmarkCheckRequest(BaseModel):
+    ids: list[int] | None = None
+
+
+class BookmarkCheckItem(BaseModel):
+    id: int
+    exists: bool
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def is_stale(self) -> bool:
+        return not self.exists
+
+
+class BookmarkCheckResponse(BaseModel):
+    items: list[BookmarkCheckItem]

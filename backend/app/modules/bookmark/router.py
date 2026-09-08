@@ -3,12 +3,16 @@
 Forwarding only — the behaviour lives in service.py.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from typing import Annotated
+
+from fastapi import APIRouter, Body, HTTPException, status
 
 from app.core.deps import PlatformDep, SessionDep
 from app.modules.bookmark import service
 from app.modules.bookmark.schemas import (
     BookmarkActionResponse,
+    BookmarkCheckRequest,
+    BookmarkCheckResponse,
     BookmarkCreate,
     BookmarkGroupCreate,
     BookmarkGroupOpenResponse,
@@ -114,6 +118,15 @@ def list_bookmarks(session: SessionDep) -> BookmarkListResponse:
         groups=[BookmarkGroupRead.model_validate(g) for g in groups],
         loose=[BookmarkRead.model_validate(b) for b in loose],
     )
+
+
+@bookmarks_router.post("/check", response_model=BookmarkCheckResponse)
+def check_bookmarks(
+    session: SessionDep,
+    payload: Annotated[BookmarkCheckRequest | None, Body()] = None,
+) -> BookmarkCheckResponse:
+    ids = payload.ids if payload else None
+    return service.check_bookmarks(session, ids)
 
 
 @bookmarks_router.get("/{bookmark_id}", response_model=BookmarkRead)

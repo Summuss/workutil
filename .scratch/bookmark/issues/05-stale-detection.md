@@ -12,11 +12,11 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `POST /api/bookmarks/check` —— 返回每条书签的存在性
-- [ ] `GET /api/bookmarks` **不做**存在性检查(别顺手加回去)
-- [ ] 前端:列表立刻渲染,随后发起检查,回来给失效项打上明显的失效标识
-- [ ] 检查结果回来之前,书签处于「未知」态,不显示成有效
-- [ ] 主接缝测试:指向已删除路径的书签在 check 结果里是失效
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `POST /api/bookmarks/check` —— 返回每条书签的存在性
+- [x] `GET /api/bookmarks` **不做**存在性检查(别顺手加回去)
+- [x] 前端:列表立刻渲染,随后发起检查,回来给失效项打上明显的失效标识
+- [x] 检查结果回来之前,书签处于「未知」态,不显示成有效
+- [x] 主接缝测试:指向已删除路径的书签在 check 结果里是失效
+- [x] `make check` 与 `pnpm build` 通过

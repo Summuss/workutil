@@ -795,3 +795,146 @@ def test_linux_platform_error_path_returns_501(data_dir: Path, tmp_path: Path) -
         assert res_group.status_code == 501
         detail_group = res_group.json()["detail"]
         assert "Linux" in detail_group or "不支持" in detail_group
+
+
+# --- Ticket 05: 失效检测 (Stale Detection) tests --------------------------------
+
+
+def test_check_bookmarks_empty(client: TestClient) -> None:
+    res = client.post("/api/bookmarks/check")
+    assert res.status_code == 200
+    assert res.json() == {"items": []}
+
+
+def test_check_bookmarks_all_exist(client: TestClient, tmp_path: Path) -> None:
+    f = tmp_path / "valid.txt"
+    f.write_text("ok")
+    d = tmp_path / "valid_dir"
+    d.mkdir()
+
+    b1 = client.post("/api/bookmarks", json={"name": "File", "path": str(f)}).json()
+    b2 = client.post("/api/bookmarks", json={"name": "Dir", "path": str(d)}).json()
+
+    res = client.post("/api/bookmarks/check")
+    assert res.status_code == 200
+    data = res.json()
+    items = data["items"]
+    assert len(items) == 2
+
+    item1 = next(i for i in items if i["id"] == b1["id"])
+    assert item1["exists"] is True
+    assert item1["is_stale"] is False
+
+    item2 = next(i for i in items if i["id"] == b2["id"])
+    assert item2["exists"] is True
+    assert item2["is_stale"] is False
+
+
+def test_check_bookmarks_stale_detection(client: TestClient, tmp_path: Path) -> None:
+    f1 = tmp_path / "file1.txt"
+    f1.write_text("1")
+    f2 = tmp_path / "file2.txt"
+    f2.write_text("2")
+
+    b1 = client.post("/api/bookmarks", json={"name": "B1", "path": str(f1)}).json()
+    b2 = client.post("/api/bookmarks", json={"name": "B2", "path": str(f2)}).json()
+
+    # Delete f1 from disk — b1 is now stale
+    f1.unlink()
+    assert not f1.exists()
+
+    res = client.post("/api/bookmarks/check")
+    assert res.status_code == 200
+    items = res.json()["items"]
+
+    item1 = next(i for i in items if i["id"] == b1["id"])
+    assert item1["exists"] is False
+    assert item1["is_stale"] is True
+
+    item2 = next(i for i in items if i["id"] == b2["id"])
+    assert item2["exists"] is True
+    assert item2["is_stale"] is False
+
+
+def test_get_bookmarks_does_not_check_existence(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Guard: GET /api/bookmarks must NOT perform existence checks.
+
+    It returns immediately from the database without verifying whether
+    paths exist on disk.
+    """
+    f = tmp_path / "temp.txt"
+    f.write_text("content")
+
+    b = client.post("/api/bookmarks", json={"name": "Temp", "path": str(f)}).json()
+
+    # Delete file from disk
+    f.unlink()
+    assert not f.exists()
+
+    # GET /api/bookmarks returns normally with the bookmark intact
+    res = client.get("/api/bookmarks")
+    assert res.status_code == 200
+    data = res.json()
+    loose_ids = [item["id"] for item in data["loose"]]
+    assert b["id"] in loose_ids
+    # Confirm BookmarkRead schema has no 'exists' field (it does not check existence)
+    found = next(item for item in data["loose"] if item["id"] == b["id"])
+    assert "exists" not in found
+    assert "is_stale" not in found
+
+
+def test_check_bookmarks_with_specific_ids(client: TestClient, tmp_path: Path) -> None:
+    f1 = tmp_path / "f1.txt"
+    f1.write_text("1")
+    f2 = tmp_path / "f2.txt"
+    f2.write_text("2")
+    f3 = tmp_path / "f3.txt"
+    f3.write_text("3")
+
+    b1 = client.post("/api/bookmarks", json={"name": "B1", "path": str(f1)}).json()
+    b2 = client.post("/api/bookmarks", json={"name": "B2", "path": str(f2)}).json()
+    b3 = client.post("/api/bookmarks", json={"name": "B3", "path": str(f3)}).json()
+
+    f1.unlink()
+
+    # Check only b1 and b2
+    res = client.post(
+        "/api/bookmarks/check",
+        json={"ids": [b1["id"], b2["id"]]},
+    )
+    assert res.status_code == 200
+    items = res.json()["items"]
+    assert len(items) == 2
+    assert {i["id"] for i in items} == {b1["id"], b2["id"]}
+    assert b3["id"] not in {i["id"] for i in items}
+    item1 = next(i for i in items if i["id"] == b1["id"])
+    assert item1["exists"] is False
+    item2 = next(i for i in items if i["id"] == b2["id"])
+    assert item2["exists"] is True
+
+
+def test_check_bookmarks_multiple_bookmarks_same_path(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """ADR-0006 guard: Multiple bookmarks can point to the same path.
+
+    When that path is deleted, all bookmarks pointing to it reflect stale status.
+    """
+    f = tmp_path / "shared.txt"
+    f.write_text("content")
+
+    b1 = client.post("/api/bookmarks", json={"name": "Shared 1", "path": str(f)}).json()
+    b2 = client.post("/api/bookmarks", json={"name": "Shared 2", "path": str(f)}).json()
+
+    f.unlink()
+
+    res = client.post("/api/bookmarks/check")
+    assert res.status_code == 200
+    items = res.json()["items"]
+
+    item1 = next(i for i in items if i["id"] == b1["id"])
+    item2 = next(i for i in items if i["id"] == b2["id"])
+    assert item1["exists"] is False
+    assert item2["exists"] is False
