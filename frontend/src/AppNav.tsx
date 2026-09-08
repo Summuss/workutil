@@ -28,6 +28,9 @@ export function AppNav() {
         <NavLink to="/evidence" className={linkClass}>
           Evidence
         </NavLink>
+        <NavLink to="/bookmarks" className={linkClass}>
+          Bookmarks
+        </NavLink>
       </nav>
     </header>
   );

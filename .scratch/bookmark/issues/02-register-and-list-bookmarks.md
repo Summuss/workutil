@@ -12,14 +12,14 @@
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `modules/bookmark/`(router / models / service / schemas)+ Alembic 迁移 + `registry.py` 一行
-- [ ] `POST /api/bookmarks`(path 必填、name 必填、记下是文件还是文件夹)
-- [ ] `GET /api/bookmarks` / `PATCH {id}`(name·path)/ `DELETE {id}`
-- [ ] 登记或改成一个不存在的路径 → **400 + 一句人话**,不是 500 也不是静默收下
-- [ ] **同一个 path 能登记两条**,没有去重、没有 `UNIQUE`
-- [ ] 前端 `/bookmarks` 页面 + `AppNav` 多一个 tab,能登记、改名、改路径、删除
-- [ ] 前端粘贴路径后**自动填好 name**(文件名),可改
-- [ ] 打开 `/` 仍然直接是 memo 输入框、光标已在里面
-- [ ] HTTP 主接缝测试覆盖上述行为;`make check` 与 `pnpm build` 通过
+- [x] `modules/bookmark/`(router / models / service / schemas)+ Alembic 迁移 + `registry.py` 一行
+- [x] `POST /api/bookmarks`(path 必填、name 必填、记下是文件还是文件夹)
+- [x] `GET /api/bookmarks` / `PATCH {id}`(name·path)/ `DELETE {id}`
+- [x] 登记或改成一个不存在的路径 → **400 + 一句人话**,不是 500 也不是静默收下
+- [x] **同一个 path 能登记两条**,没有去重、没有 `UNIQUE`
+- [x] 前端 `/bookmarks` 页面 + `AppNav` 多一个 tab,能登记、改名、改路径、删除
+- [x] 前端粘贴路径后**自动填好 name**(文件名),可改
+- [x] 打开 `/` 仍然直接是 memo 输入框、光标已在里面
+- [x] HTTP 主接缝测试覆盖上述行为;`make check` 与 `pnpm build` 通过
