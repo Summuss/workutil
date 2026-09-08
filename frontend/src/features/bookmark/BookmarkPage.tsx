@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
 import { useLoad } from "../../shared/useLoad";
@@ -21,6 +21,7 @@ import { BookmarkForm } from "./BookmarkForm";
 import { BookmarkGroupSection } from "./BookmarkGroupSection";
 import { BookmarkItem } from "./BookmarkItem";
 import type {
+  BookmarkCheckItem,
   BookmarkCreatePayload,
   BookmarkListResponse,
   BookmarkStatus,
@@ -49,58 +50,113 @@ export function BookmarkPage() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [statusMap, setStatusMap] = useState<Record<number, BookmarkStatus>>({});
   const [checking, setChecking] = useState(false);
+  const didInitialCheckRef = useRef(false);
+  //: ids currently on screen, kept fresh by the effect below — read by
+  //: runCheck() so a full check can stamp every id it covers without making
+  //: runCheck itself depend on (and be re-created by) `groups`/`loose`.
+  const knownIdsRef = useRef<number[]>([]);
+  //: The sequence number most recently issued for each bookmark id. Lets a
+  //: response recognize a newer check for the same id was issued after it
+  //: (e.g. a fast targeted checkOne racing a slow full check on a network
+  //: drive) and drop itself instead of overwriting fresher data — last
+  //: issued wins, not last to answer.
+  const lastIssuedRef = useRef<Record<number, number>>({});
+  const nextSeqRef = useRef(0);
 
   const groups = loaded?.groups ?? [];
   const loose = loaded?.loose ?? [];
   const hasItems = groups.length > 0 || loose.length > 0;
+
+  useEffect(() => {
+    knownIdsRef.current = [...groups.flatMap((g) => g.bookmarks), ...loose].map(
+      (b) => b.id,
+    );
+  }, [groups, loose]);
 
   const getStatus = useCallback(
     (id: number): BookmarkStatus => statusMap[id] ?? "unknown",
     [statusMap],
   );
 
-  const runCheck = useCallback(async () => {
-    setChecking(true);
-    try {
-      const res = await checkBookmarks();
+  const applyCheckResults = useCallback(
+    (items: BookmarkCheckItem[], issuedAt: Record<number, number>) => {
       setStatusMap((prev) => {
         const next = { ...prev };
-        for (const item of res.items) {
-          next[item.id] = item.exists ? "valid" : "stale";
+        for (const item of items) {
+          if (lastIssuedRef.current[item.id] === issuedAt[item.id]) {
+            next[item.id] = item.exists ? "valid" : "stale";
+          }
         }
         return next;
       });
+    },
+    [],
+  );
+
+  // Full check: every bookmark currently on screen. Only for first load and
+  // the manual "重新检查" button — routine edits use checkOne below, because
+  // re-verifying everything on every click is exactly the stall ticket 05's
+  // separate endpoint exists to avoid (a broken network drive can take
+  // seconds, and it would flash every badge back to "unknown" each time).
+  const runCheck = useCallback(async () => {
+    setChecking(true);
+    const issuedAt: Record<number, number> = {};
+    for (const id of knownIdsRef.current) {
+      issuedAt[id] = ++nextSeqRef.current;
+      lastIssuedRef.current[id] = issuedAt[id];
+    }
+    try {
+      const res = await checkBookmarks();
+      applyCheckResults(res.items, issuedAt);
     } catch {
       // Non-blocking: existence check failure does not block list usage
     } finally {
       setChecking(false);
     }
-  }, []);
+  }, [applyCheckResults]);
+
+  // Targeted check: the one bookmark a register/edit could actually affect.
+  const checkOne = useCallback(
+    async (id: number) => {
+      const seq = ++nextSeqRef.current;
+      lastIssuedRef.current[id] = seq;
+      try {
+        const res = await checkBookmarks([id]);
+        applyCheckResults(res.items, { [id]: seq });
+      } catch {
+        // Non-blocking; the badge just stays at its last known state.
+      }
+    },
+    [applyCheckResults],
+  );
 
   useEffect(() => {
-    if (loaded !== null) {
+    if (loaded !== null && !didInitialCheckRef.current) {
+      didInitialCheckRef.current = true;
       void runCheck();
     }
-  }, [loaded !== null, runCheck]);
+  }, [loaded, runCheck]);
 
-  const refresh = useCallback(async () => {
+  // Refetch the list alone — for actions (reordering, renaming, regrouping,
+  // deleting a group) that cannot change whether any path exists on disk,
+  // so there is nothing here for a status check to tell us.
+  const refreshList = useCallback(async () => {
     try {
       const data = await listBookmarks();
       setLoaded(data);
-      setStatusMap({});
-      void runCheck();
     } catch (cause) {
       setError(messageOf(cause, "刷新书签失败"));
     }
-  }, [setLoaded, setError, runCheck]);
+  }, [setLoaded, setError]);
 
   const handleRegister = useCallback(
     async (payload: BookmarkCreatePayload) => {
-      await createBookmark(payload);
-      await refresh();
+      const created = await createBookmark(payload);
+      await refreshList();
       setError(null);
+      void checkOne(created.id);
     },
-    [refresh, setError],
+    [refreshList, setError, checkOne],
   );
 
   const handleCreateGroup = useCallback(
@@ -114,14 +170,14 @@ export function BookmarkPage() {
       try {
         await createBookmarkGroup({ name: cleanName });
         setNewGroupName("");
-        await refresh();
+        await refreshList();
       } catch (cause) {
         setGroupError(messageOf(cause, "创建组失败"));
       } finally {
         setCreatingGroup(false);
       }
     },
-    [newGroupName, creatingGroup, refresh],
+    [newGroupName, creatingGroup, refreshList],
   );
 
   const handleRenameGroup = useCallback(
@@ -144,9 +200,9 @@ export function BookmarkPage() {
   const handleDeleteGroup = useCallback(
     async (id: number) => {
       await deleteBookmarkGroup(id);
-      await refresh();
+      await refreshList();
     },
-    [refresh],
+    [refreshList],
   );
 
   const handleMoveGroup = useCallback(
@@ -167,25 +223,32 @@ export function BookmarkPage() {
   const handleUpdateBookmark = useCallback(
     async (id: number, payload: BookmarkUpdatePayload) => {
       await updateBookmark(id, payload);
-      await refresh();
+      await refreshList();
+      void checkOne(id);
     },
-    [refresh],
+    [refreshList, checkOne],
   );
 
   const handleDeleteBookmark = useCallback(
     async (id: number) => {
       await deleteBookmark(id);
-      await refresh();
+      await refreshList();
+      setStatusMap((prev) => {
+        if (!(id in prev)) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     },
-    [refresh],
+    [refreshList],
   );
 
   const handleMoveBookmark = useCallback(
     async (id: number, to: MoveDirection) => {
       await moveBookmark(id, to);
-      await refresh();
+      await refreshList();
     },
-    [refresh],
+    [refreshList],
   );
 
   const handleOpenBookmark = useCallback(async (id: number) => {
