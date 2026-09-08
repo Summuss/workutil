@@ -8,12 +8,12 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `todos.order` 字段 + 迁移;新建的排在末尾
-- [ ] `POST /api/todos/{id}/move` `{to: up|down|top|bottom}`,复用 `_reordered`
-- [ ] 未完成列表按 `order` 返回
-- [ ] `complete` / `reopen` **不修改 `order`**
-- [ ] 前端:每条上的上下移动 + 置顶 / 置底
-- [ ] 主接缝测试:**完成再撤销,todo 回到原来的位置**
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `todos.order` 字段 + 迁移;新建的排在末尾
+- [x] `POST /api/todos/{id}/move` `{to: up|down|top|bottom}`,复用 `_reordered`
+- [x] 未完成列表按 `order` 返回
+- [x] `complete` / `reopen` **不修改 `order`**
+- [x] 前端:每条上的上下移动 + 置顶 / 置底
+- [x] 主接缝测试:**完成再撤销,todo 回到原来的位置**
+- [x] `make check` 与 `pnpm build` 通过

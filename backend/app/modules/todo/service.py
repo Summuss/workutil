@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import utc_now
+from app.core.ordering import Move, renumber, reorder
 from app.modules.todo.models import Todo
 
 #: The ceiling on completed todos returned in the list. Same shape as memo's
@@ -20,6 +21,10 @@ class EmptyTitle(ValueError):
     """A todo must have a non-empty title."""
 
 
+class CannotMoveCompletedTodo(ValueError):
+    """A completed todo cannot be moved."""
+
+
 def _clean_title(raw_title: str) -> str:
     title = raw_title.strip()
     if not title:
@@ -34,11 +39,19 @@ def get_todo(session: Session, todo_id: int) -> Todo:
     return todo
 
 
+def _unfinished_todos_in_order(session: Session) -> list[Todo]:
+    stmt = select(Todo).where(Todo.completed_at.is_(None)).order_by(Todo.order, Todo.id)
+    return list(session.scalars(stmt).all())
+
+
 def create_todo(session: Session, raw_title: str) -> Todo:
     title = _clean_title(raw_title)
+    unfinished = _unfinished_todos_in_order(session)
+    order = (unfinished[-1].order + 1) if unfinished else 0
     now = utc_now()
     todo = Todo(
         title=title,
+        order=order,
         created_at=now,
         updated_at=now,
         completed_at=None,
@@ -61,7 +74,11 @@ def update_todo(session: Session, todo_id: int, raw_title: str | None = None) ->
 
 def delete_todo(session: Session, todo_id: int) -> None:
     todo = get_todo(session, todo_id)
+    was_unfinished = todo.completed_at is None
     session.delete(todo)
+    session.flush()
+    if was_unfinished:
+        renumber(_unfinished_todos_in_order(session))
     session.commit()
 
 
@@ -87,19 +104,24 @@ def reopen_todo(session: Session, todo_id: int) -> Todo:
     return todo
 
 
+def move_todo(session: Session, todo_id: int, to: Move) -> list[Todo]:
+    todo = get_todo(session, todo_id)
+    if todo.completed_at is not None:
+        raise CannotMoveCompletedTodo("已完成的待办不能移动")
+    unfinished = _unfinished_todos_in_order(session)
+    reordered = reorder(unfinished, todo, to)
+    session.commit()
+    return reordered
+
+
 def list_todos(session: Session) -> tuple[list[Todo], list[Todo]]:
     """Return all unfinished todos and recent completed todos."""
-    unfinished_stmt = (
-        select(Todo)
-        .where(Todo.completed_at.is_(None))
-        .order_by(Todo.created_at.asc(), Todo.id.asc())
-    )
+    todos = _unfinished_todos_in_order(session)
     completed_stmt = (
         select(Todo)
         .where(Todo.completed_at.is_not(None))
         .order_by(Todo.completed_at.desc(), Todo.id.desc())
         .limit(RECENT_COMPLETED_LIMIT)
     )
-    todos = list(session.scalars(unfinished_stmt).all())
     completed = list(session.scalars(completed_stmt).all())
     return todos, completed

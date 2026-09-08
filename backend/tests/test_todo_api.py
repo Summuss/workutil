@@ -144,6 +144,7 @@ def test_unfinished_todos_unlimited_and_completed_todos_capped(
     unfinished_rows = [
         Todo(
             title=f"未完成待办 {i}",
+            order=i,
             created_at=now + timedelta(seconds=i),
             updated_at=now + timedelta(seconds=i),
             completed_at=None,
@@ -157,6 +158,7 @@ def test_unfinished_todos_unlimited_and_completed_todos_capped(
     completed_rows = [
         Todo(
             title=f"已完成待办 {i}",
+            order=i,
             created_at=now + timedelta(seconds=i),
             updated_at=now + timedelta(seconds=i),
             completed_at=now + timedelta(seconds=i),
@@ -180,3 +182,113 @@ def test_unfinished_todos_unlimited_and_completed_todos_capped(
     assert len(data["completed"]) == RECENT_COMPLETED_LIMIT
     # Most recently completed is at index 0
     assert data["completed"][0]["title"] == f"已完成待办 {total_completed - 1}"
+
+
+def test_new_todos_appended_at_end(client: TestClient) -> None:
+    todo_a = client.post("/api/todos", json={"title": "A"}).json()
+    todo_b = client.post("/api/todos", json={"title": "B"}).json()
+    todo_c = client.post("/api/todos", json={"title": "C"}).json()
+
+    assert todo_a["order"] == 0
+    assert todo_b["order"] == 1
+    assert todo_c["order"] == 2
+
+    listed = client.get("/api/todos").json()["todos"]
+    assert [t["title"] for t in listed] == ["A", "B", "C"]
+
+
+def test_move_todo_up_down_top_bottom(client: TestClient) -> None:
+    todo_a = client.post("/api/todos", json={"title": "A"}).json()
+    client.post("/api/todos", json={"title": "B"})
+    todo_c = client.post("/api/todos", json={"title": "C"}).json()
+
+    # Move C to top -> [C, A, B]
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "top"})
+    assert resp.status_code == 200
+    titles = [t["title"] for t in resp.json()]
+    assert titles == ["C", "A", "B"]
+    orders = [t["order"] for t in resp.json()]
+    assert orders == [0, 1, 2]
+
+    # Move C down -> [A, C, B]
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "down"})
+    assert resp.status_code == 200
+    assert [t["title"] for t in resp.json()] == ["A", "C", "B"]
+
+    # Move C up -> [C, A, B]
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "up"})
+    assert resp.status_code == 200
+    assert [t["title"] for t in resp.json()] == ["C", "A", "B"]
+
+    # Move C to bottom -> [A, B, C]
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "bottom"})
+    assert resp.status_code == 200
+    assert [t["title"] for t in resp.json()] == ["A", "B", "C"]
+
+    # Boundary moves do not change order
+    resp = client.post(f"/api/todos/{todo_a['id']}/move", json={"to": "top"})
+    assert resp.status_code == 200
+    assert [t["title"] for t in resp.json()] == ["A", "B", "C"]
+
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "bottom"})
+    assert resp.status_code == 200
+    assert [t["title"] for t in resp.json()] == ["A", "B", "C"]
+
+
+def test_cannot_move_completed_todo(client: TestClient) -> None:
+    todo_a = client.post("/api/todos", json={"title": "A"}).json()
+    client.post(f"/api/todos/{todo_a['id']}/complete")
+
+    resp = client.post(f"/api/todos/{todo_a['id']}/move", json={"to": "top"})
+    assert resp.status_code == 400
+    assert "已完成" in resp.json()["detail"]
+
+
+def test_move_nonexistent_todo(client: TestClient) -> None:
+    resp = client.post("/api/todos/99999/move", json={"to": "up"})
+    assert resp.status_code == 404
+
+
+def test_delete_todo_renumbers_remaining(client: TestClient) -> None:
+    client.post("/api/todos", json={"title": "A"})
+    todo_b = client.post("/api/todos", json={"title": "B"}).json()
+    client.post("/api/todos", json={"title": "C"})
+
+    # Delete middle todo B
+    client.delete(f"/api/todos/{todo_b['id']}")
+
+    listed = client.get("/api/todos").json()["todos"]
+    assert len(listed) == 2
+    assert listed[0]["title"] == "A"
+    assert listed[0]["order"] == 0
+    assert listed[1]["title"] == "C"
+    assert listed[1]["order"] == 1
+
+
+def test_complete_and_reopen_preserves_order_and_position(client: TestClient) -> None:
+    """Main seam test for Ticket 02:
+
+    When a todo is completed, its order is UNTOUCHED.
+    When reopened, it returns to its exact original place in the list.
+    """
+    todo_a = client.post("/api/todos", json={"title": "A"}).json()
+    client.post("/api/todos", json={"title": "B"})
+    todo_c = client.post("/api/todos", json={"title": "C"}).json()
+
+    # Initial order: A (0), B (1), C (2)
+    # Reorder so C is first: [C (0), A (1), B (2)]
+    client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "top"})
+
+    # Complete middle todo A: order remains 1!
+    client.post(f"/api/todos/{todo_a['id']}/complete")
+
+    # Active list now only shows C and B
+    active = client.get("/api/todos").json()["todos"]
+    assert [t["title"] for t in active] == ["C", "B"]
+
+    # Reopen A: returns back between C and B, exactly in place!
+    client.post(f"/api/todos/{todo_a['id']}/reopen")
+
+    reopened_active = client.get("/api/todos").json()["todos"]
+    assert [t["title"] for t in reopened_active] == ["C", "A", "B"]
+    assert [t["order"] for t in reopened_active] == [0, 1, 2]

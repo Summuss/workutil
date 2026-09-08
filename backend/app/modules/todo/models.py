@@ -4,9 +4,10 @@ from sqlalchemy import Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, UtcDateTime
+from app.core.ordering import Ordered
 
 
-class Todo(Base):
+class Todo(Ordered, Base):
     """A single task to be done — see CONTEXT.md and spec.md.
 
     Has deliberately no foreign key to memos when created from memo:

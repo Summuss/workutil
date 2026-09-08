@@ -1,27 +1,49 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import type { Todo } from "./types";
+import type { MoveDirection, Todo } from "./types";
 
 interface TodoItemProps {
   todo: Todo;
   isCompleted: boolean;
+  at?: number;
+  count?: number;
   onToggle: (id: number) => Promise<void>;
   onUpdateTitle: (id: number, title: string) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onMove?: (id: number, to: MoveDirection) => Promise<void>;
 }
+
+const MOVES: {
+  to: MoveDirection;
+  glyph: string;
+  title: string;
+  stuck: (at: number, count: number) => boolean;
+}[] = [
+  { to: "top", glyph: "⤒", title: "移到最前", stuck: (at) => at === 0 },
+  { to: "up", glyph: "↑", title: "上移一位", stuck: (at) => at === 0 },
+  { to: "down", glyph: "↓", title: "下移一位", stuck: (at, count) => at === count - 1 },
+  { to: "bottom", glyph: "⤓", title: "移到最后", stuck: (at, count) => at === count - 1 },
+];
+
+const TOOL_BUTTON =
+  "cursor-pointer rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-default disabled:opacity-25";
 
 export function TodoItem({
   todo,
   isCompleted,
+  at,
+  count,
   onToggle,
   onUpdateTitle,
   onDelete,
+  onMove,
 }: TodoItemProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(todo.title);
   const [submitting, setSubmitting] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,6 +65,16 @@ export function TodoItem({
       await onToggle(todo.id);
     } finally {
       setToggling(false);
+    }
+  }
+
+  async function handleMove(to: MoveDirection) {
+    if (!onMove || moving) return;
+    setMoving(true);
+    try {
+      await onMove(todo.id, to);
+    } finally {
+      setMoving(false);
     }
   }
 
@@ -174,24 +206,43 @@ export function TodoItem({
         </span>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        {!isCompleted && (
+      <div className="flex shrink-0 items-center gap-2">
+        {!isCompleted && onMove && at !== undefined && count !== undefined && count > 1 && (
+          <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-hover:opacity-100">
+            {MOVES.map((move) => (
+              <button
+                key={move.to}
+                type="button"
+                title={move.title}
+                disabled={moving || move.stuck(at, count)}
+                onClick={() => void handleMove(move.to)}
+                className={TOOL_BUTTON}
+              >
+                {move.glyph}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          {!isCompleted && (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="cursor-pointer text-xs text-slate-400 hover:text-slate-700"
+            >
+              编辑
+            </button>
+          )}
           <button
             type="button"
-            onClick={() => setEditing(true)}
-            className="cursor-pointer text-xs text-slate-400 hover:text-slate-700"
+            onClick={() => void handleDelete()}
+            disabled={deleting}
+            className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
           >
-            编辑
+            {deleting ? "删除中…" : "删除"}
           </button>
-        )}
-        <button
-          type="button"
-          onClick={() => void handleDelete()}
-          disabled={deleting}
-          className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
-        >
-          {deleting ? "删除中…" : "删除"}
-        </button>
+        </div>
       </div>
     </li>
   );

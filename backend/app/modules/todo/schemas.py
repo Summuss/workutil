@@ -2,6 +2,12 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.ordering import Move
+
+
+class MoveRequest(BaseModel):
+    to: Move
+
 
 class TodoCreate(BaseModel):
     title: str
@@ -18,6 +24,7 @@ class TodoRead(BaseModel):
 
     id: int
     title: str
+    order: int
     completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

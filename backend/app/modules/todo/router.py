@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException, status
 from app.core.deps import SessionDep
 from app.modules.todo import service
 from app.modules.todo.schemas import (
+    MoveRequest,
     TodoCreate,
     TodoListResponse,
     TodoRead,
@@ -74,3 +75,16 @@ def reopen_todo(todo_id: int, session: SessionDep) -> TodoRead:
     except service.TodoNotFound as err:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
     return TodoRead.model_validate(todo)
+
+
+@router.post("/{todo_id}/move", response_model=list[TodoRead])
+def move_todo(
+    todo_id: int, payload: MoveRequest, session: SessionDep
+) -> list[TodoRead]:
+    try:
+        reordered = service.move_todo(session, todo_id, payload.to)
+    except service.TodoNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+    except service.CannotMoveCompletedTodo as err:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+    return [TodoRead.model_validate(t) for t in reordered]

@@ -7,11 +7,12 @@ import {
   createTodo,
   deleteTodo,
   listTodos,
+  moveTodo,
   reopenTodo,
   updateTodo,
 } from "./api";
 import { TodoItem } from "./TodoItem";
-import type { TodoListResponse } from "./types";
+import type { MoveDirection, TodoListResponse } from "./types";
 
 export function TodoPage() {
   const {
@@ -138,6 +139,26 @@ export function TodoPage() {
     [setLoaded],
   );
 
+  const handleMove = useCallback(
+    async (id: number, to: MoveDirection) => {
+      setActionError(null);
+      try {
+        const reordered = await moveTodo(id, to);
+        setLoaded((curr) =>
+          curr
+            ? {
+                ...curr,
+                todos: reordered,
+              }
+            : null,
+        );
+      } catch (cause) {
+        setActionError(messageOf(cause, "移动待办失败"));
+      }
+    },
+    [setLoaded],
+  );
+
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
       {/* Low friction input form: enter to save */}
@@ -184,14 +205,17 @@ export function TodoPage() {
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
-            {todos.map((todo) => (
+            {todos.map((todo, index) => (
               <TodoItem
                 key={todo.id}
                 todo={todo}
                 isCompleted={false}
+                at={index}
+                count={todos.length}
                 onToggle={handleComplete}
                 onUpdateTitle={handleUpdateTitle}
                 onDelete={handleDelete}
+                onMove={handleMove}
               />
             ))}
           </ul>
