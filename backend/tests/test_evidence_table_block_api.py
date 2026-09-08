@@ -352,6 +352,43 @@ def test_html_entities_come_back_as_characters(
     assert block["rows"] == [["a & b", "<x>"], ["c", "d"]]
 
 
+def test_the_markup_excel_actually_writes_is_read(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """The compatibility path against a real payload, not a tidy one.
+
+    What Excel puts on the clipboard is a style block, a `<col>`, and every
+    cell wrapped in attributes and a `<font>`. It is also the reason a paste is
+    asked about tables before it is asked about images: Excel offers a PNG of
+    the same cells, and answering "image" first turns a spreadsheet into a
+    screenshot (design.md §6 F5).
+    """
+    evidence_id, case_id = case
+
+    block = paste(
+        client,
+        evidence_id,
+        case_id,
+        "id code",
+        html=(
+            '<html xmlns:x="urn:schemas-microsoft-com:office:excel">'
+            '<head><style>.xl65 {mso-number-format:"\\@";}</style></head><body>'
+            "<!--StartFragment-->"
+            "<table border=0 cellspacing=0 style='border-collapse:collapse'>"
+            "<col width=64 span=2>"
+            "<tr height=20 style='height:15.0pt'>"
+            '<td height=20 class=xl65><font face="Calibri">id</font></td>'
+            "<td class=xl65>name&nbsp;</td></tr>"
+            "<tr height=20><td class=xl65>1</td>"
+            "<td class=xl65>山田&amp;佐藤</td></tr>"
+            "</table><!--EndFragment--></body></html>"
+        ),
+    )
+
+    assert block["kind"] == "table"
+    assert block["rows"] == [["id", "name"], ["1", "山田&佐藤"]]
+
+
 def test_tabs_win_over_html(client: TestClient, case: tuple[int, int]) -> None:
     """TSV is the main path; `text/html` is what it falls back to (spec 表格)."""
     evidence_id, case_id = case

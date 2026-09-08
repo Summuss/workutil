@@ -55,24 +55,35 @@ export function BlockTextArea({
   /**
    * A paste, sent wherever it belongs — or left alone to land in the box.
    *
-   * Images first, and asked of the shared handler rather than worked out again
-   * here: which half of a `DataTransfer` holds them is decided in one place on
-   * purpose, because getting it wrong fails silently (`shared/images.ts`).
-   * Taking a paste is exactly what calling `preventDefault` means, so that is
-   * the answer this reads.
+   * A possible table is asked about *before* images, and that order is the
+   * whole point. design.md §6 F5 says "有图片 flavor → image" first, which
+   * reads as obvious until you copy a range out of Excel: it puts three things
+   * on the clipboard — the TSV, the `<table>` markup, and a PNG picture of the
+   * cells. Checking images first turns a spreadsheet into a screenshot, which
+   * is the one outcome this whole kind exists to prevent (spec User Stories
+   * 10). An image flavour means "this is a picture" only when there is nothing
+   * better beside it.
    *
-   * What is left could be a query result — only ever a *could*. The server
-   * settles it, and says so in the confirmation under the block it makes.
+   * The narrow question `carriesTable` asks is what keeps that safe. A
+   * screenshot carries no tabs and no markup, so it still goes to images; so
+   * does an image copied off a web page, whose text is a URL and whose markup
+   * is an `<img>`.
+   *
+   * Images then come from the shared handler rather than being worked out
+   * again here: which half of a `DataTransfer` holds them is decided in one
+   * place on purpose, because getting it wrong fails silently
+   * (`shared/images.ts`).
+   *
+   * Either way it is only ever a *could*. The server settles what the text is,
+   * and says so in the confirmation under the block it makes.
    */
   function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
-    images.onPaste(event);
-    if (event.defaultPrevented) {
-      return;
-    }
     if (onTable && carriesTable(event.clipboardData)) {
       event.preventDefault();
       onTable(pastedText(event.clipboardData));
+      return;
     }
+    images.onPaste(event);
   }
 
   async function commit() {
