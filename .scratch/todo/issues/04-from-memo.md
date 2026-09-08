@@ -19,14 +19,14 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `todos.source_memo_id`(可空、**不建 FK**)+ 迁移;`POST /api/todos` 可带
-- [ ] 新路由 `/memo/:id`:只显示那一条 memo,渲染态可编辑,顶部「回到全部」
-- [ ] memo 卡片工具条上的「转 Todo」:弹窗预填首行、可改、确认后生成
-- [ ] Todo 上显示回溯链接,点击进入 `/memo/:id`
-- [ ] **原 memo 已删时,Todo 仍正常显示,只是没有链接**
-- [ ] 打开 `/` 仍然直接是 memo 输入框、光标已在里面
-- [ ] 后端 `modules/memo/` **零改动**(改了就说明走错路了)
-- [ ] 主接缝测试:`source_memo_id` 指向一条已删 memo 的 todo 仍能正常列出
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `todos.source_memo_id`(可空、**不建 FK**)+ 迁移;`POST /api/todos` 可带
+- [x] 新路由 `/memo/:id`:只显示那一条 memo,渲染态可编辑,顶部「回到全部」
+- [x] memo 卡片工具条上的「转 Todo」:弹窗预填首行、可改、确认后生成
+- [x] Todo 上显示回溯链接,点击进入 `/memo/:id`
+- [x] **原 memo 已删时,Todo 仍正常显示,只是没有链接**
+- [x] 打开 `/` 仍然直接是 memo 输入框、光标已在里面
+- [x] 后端 `modules/memo/` **零改动**(改了就说明走错路了)
+- [x] 主接缝测试:`source_memo_id` 指向一条已删 memo 的 todo 仍能正常列出
+- [x] `make check` 与 `pnpm build` 通过

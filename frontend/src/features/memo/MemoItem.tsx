@@ -7,6 +7,7 @@ import { deleteMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
 import { HighlightText } from "./HighlightText";
 import { MemoMarkdown } from "./MemoMarkdown";
+import { ConvertToTodoModal } from "./ConvertToTodoModal";
 import type { Memo } from "./types";
 
 interface MemoItemProps {
@@ -39,6 +40,7 @@ export function MemoItem({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showConvertToTodo, setShowConvertToTodo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -189,13 +191,22 @@ export function MemoItem({
           </div>
           <div className="flex items-center gap-3">
             {!editing && (
-              <button
-                type="button"
-                onClick={() => setEditing(true)}
-                className="cursor-pointer text-slate-400 hover:text-slate-600"
-              >
-                编辑
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowConvertToTodo(true)}
+                  className="cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  转 Todo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditing(true)}
+                  className="cursor-pointer text-slate-400 hover:text-slate-600"
+                >
+                  编辑
+                </button>
+              </>
             )}
             <button
               type="button"
@@ -257,6 +268,13 @@ export function MemoItem({
           </div>
         )}
       </div>
+
+      {showConvertToTodo && (
+        <ConvertToTodoModal
+          memo={memo}
+          onClose={() => setShowConvertToTodo(false)}
+        />
+      )}
     </li>
   );
 }

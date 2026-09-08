@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Link } from "react-router";
 
 import { getDueDateStatus } from "./dueDateUtil";
 import type { MoveDirection, Todo, TodoUpdatePayload } from "./types";
@@ -256,6 +257,17 @@ export function TodoItem({
                 ? `${todo.due_date} 逾期`
                 : todo.due_date}
           </span>
+        )}
+
+        {/* Source memo backlink */}
+        {todo.source_memo_id != null && (
+          <Link
+            to={`/memo/${todo.source_memo_id}`}
+            title="查看原 Memo"
+            className="inline-flex shrink-0 items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800"
+          >
+            源于 Memo
+          </Link>
         )}
       </div>
 

@@ -8,6 +8,10 @@ export function listMemos(query?: string): Promise<Memo[]> {
   return get<Memo[]>(`/memos${params}`);
 }
 
+export function getMemo(id: number): Promise<Memo> {
+  return get<Memo>(`/memos/${id}`);
+}
+
 export function createMemo(
   body: string,
   images: ImageUpload[] = [],

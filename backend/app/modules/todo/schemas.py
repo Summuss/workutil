@@ -12,6 +12,7 @@ class MoveRequest(BaseModel):
 class TodoCreate(BaseModel):
     title: str
     due_date: date | None = None
+    source_memo_id: int | None = None
 
 
 class TodoUpdate(BaseModel):
@@ -28,6 +29,7 @@ class TodoRead(BaseModel):
     title: str
     order: int
     due_date: date | None = None
+    source_memo_id: int | None = None
     completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

@@ -19,6 +19,7 @@ class Todo(Ordered, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(Text)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    source_memo_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
     completed_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, nullable=True, index=True
     )

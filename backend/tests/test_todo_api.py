@@ -345,3 +345,46 @@ def test_ordering_is_independent_of_due_date(client: TestClient) -> None:
     assert [t["title"] for t in listed_after_move] == ["逾期待办", "未来待办"]
     assert listed_after_move[0]["id"] == todo_overdue["id"]
     assert listed_after_move[1]["id"] == todo_future["id"]
+
+
+def test_create_todo_with_source_memo_id(client: TestClient) -> None:
+    memo = client.post("/api/memos", json={"body": "来自会议纪要的待办"}).json()
+    resp = client.post(
+        "/api/todos",
+        json={"title": "会议待办", "source_memo_id": memo["id"]},
+    )
+    assert resp.status_code == 201
+    created = resp.json()
+    assert created["title"] == "会议待办"
+    assert created["source_memo_id"] == memo["id"]
+
+
+def test_todo_with_deleted_memo_still_listed(client: TestClient) -> None:
+    """Main seam test for Ticket 04:
+
+    When the original memo is deleted, the todo is STILL normally listed,
+    without any foreign key violation or missing rows, but without a backlink
+    (source_memo_id resolved as None).
+    """
+    memo = client.post("/api/memos", json={"body": "临时记录备忘"}).json()
+    memo_id = memo["id"]
+
+    todo = client.post(
+        "/api/todos",
+        json={"title": "从备忘转出的待办", "source_memo_id": memo_id},
+    ).json()
+    todo_id = todo["id"]
+
+    # Delete the source memo
+    del_resp = client.delete(f"/api/memos/{memo_id}")
+    assert del_resp.status_code == 204
+
+    # Todo list is still 200 OK, todo is present, without backlink
+    listed_resp = client.get("/api/todos")
+    assert listed_resp.status_code == 200
+    todos = listed_resp.json()["todos"]
+
+    match = next((t for t in todos if t["id"] == todo_id), None)
+    assert match is not None
+    assert match["title"] == "从备忘转出的待办"
+    assert match["source_memo_id"] is None

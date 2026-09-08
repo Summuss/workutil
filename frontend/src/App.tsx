@@ -5,6 +5,7 @@ import { BookmarkPage } from "./features/bookmark/BookmarkPage";
 import { EvidenceDetailPage } from "./features/evidence/EvidenceDetailPage";
 import { EvidenceListPage } from "./features/evidence/EvidenceListPage";
 import { MemoPage } from "./features/memo/MemoPage";
+import { SingleMemoPage } from "./features/memo/SingleMemoPage";
 import { TodoPage } from "./features/todo/TodoPage";
 
 /**
@@ -25,6 +26,7 @@ export function App() {
         <AppNav />
         <Routes>
           <Route path="/" element={<MemoPage />} />
+          <Route path="/memo/:id" element={<SingleMemoPage />} />
           <Route path="/evidence" element={<EvidenceListPage />} />
           <Route path="/evidence/:evidenceId" element={<EvidenceDetailPage />} />
           <Route path="/bookmarks" element={<BookmarkPage />} />
