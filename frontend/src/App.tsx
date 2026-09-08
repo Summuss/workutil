@@ -5,6 +5,7 @@ import { BookmarkPage } from "./features/bookmark/BookmarkPage";
 import { EvidenceDetailPage } from "./features/evidence/EvidenceDetailPage";
 import { EvidenceListPage } from "./features/evidence/EvidenceListPage";
 import { MemoPage } from "./features/memo/MemoPage";
+import { TodoPage } from "./features/todo/TodoPage";
 
 /**
  * The route table.
@@ -27,6 +28,7 @@ export function App() {
           <Route path="/evidence" element={<EvidenceListPage />} />
           <Route path="/evidence/:evidenceId" element={<EvidenceDetailPage />} />
           <Route path="/bookmarks" element={<BookmarkPage />} />
+          <Route path="/todos" element={<TodoPage />} />
           {/* A mistyped URL lands on the thing you open this tool for. */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

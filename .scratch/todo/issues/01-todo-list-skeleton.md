@@ -12,13 +12,13 @@
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `modules/todo/`(router / models / service / schemas)+ Alembic 迁移 + `registry.py` 一行
-- [ ] `POST /api/todos`(只需要 title)/ `PATCH {id}`(改 title)/ `DELETE {id}`
-- [ ] `GET /api/todos` —— 未完成全量 + 已完成(倒序、有上限)
-- [ ] `POST /api/todos/{id}/complete` / `POST /api/todos/{id}/reopen`,`complete` 写 `completed_at`
-- [ ] 前端 `/todos` 页面 + `AppNav` 一个 tab:输入框回车即存,已完成区默认折叠、可展开、可撤销
-- [ ] 打开 `/` 仍然直接是 memo 输入框、光标已在里面
-- [ ] 主接缝测试:未完成不受上限影响、已完成区受上限
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `modules/todo/`(router / models / service / schemas)+ Alembic 迁移 + `registry.py` 一行
+- [x] `POST /api/todos`(只需要 title)/ `PATCH {id}`(改 title)/ `DELETE {id}`
+- [x] `GET /api/todos` —— 未完成全量 + 已完成(倒序、有上限)
+- [x] `POST /api/todos/{id}/complete` / `POST /api/todos/{id}/reopen`,`complete` 写 `completed_at`
+- [x] 前端 `/todos` 页面 + `AppNav` 一个 tab:输入框回车即存,已完成区默认折叠、可展开、可撤销
+- [x] 打开 `/` 仍然直接是 memo 输入框、光标已在里面
+- [x] 主接缝测试:未完成不受上限影响、已完成区受上限
+- [x] `make check` 与 `pnpm build` 通过

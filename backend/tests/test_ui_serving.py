@@ -68,6 +68,13 @@ def test_bookmarks_route_survives_a_reload(client: TestClient) -> None:
     assert response.text == INDEX_HTML
 
 
+def test_todos_route_survives_a_reload(client: TestClient) -> None:
+    response = client.get("/todos")
+
+    assert response.status_code == 200
+    assert response.text == INDEX_HTML
+
+
 def test_a_reload_survives_a_404_page_in_the_build(
     data_dir: Path, tmp_path: Path
 ) -> None:
