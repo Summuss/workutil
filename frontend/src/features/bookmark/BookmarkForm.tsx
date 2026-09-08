@@ -2,15 +2,17 @@ import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
 import { extractNameFromPath } from "./pathUtil";
-import type { BookmarkCreatePayload } from "./types";
+import type { BookmarkCreatePayload, BookmarkGroup } from "./types";
 
 interface BookmarkFormProps {
+  groups: BookmarkGroup[];
   onRegister: (payload: BookmarkCreatePayload) => Promise<void>;
 }
 
-export function BookmarkForm({ onRegister }: BookmarkFormProps) {
+export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
   const [path, setPath] = useState("");
   const [name, setName] = useState("");
+  const [groupId, setGroupId] = useState<number | null>(null);
   const [userEditedName, setUserEditedName] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,7 +44,11 @@ export function BookmarkForm({ onRegister }: BookmarkFormProps) {
     setSubmitting(true);
     setError(null);
     try {
-      await onRegister({ path: cleanPath, name: cleanName });
+      await onRegister({
+        path: cleanPath,
+        name: cleanName,
+        group_id: groupId ?? undefined,
+      });
       setPath("");
       setName("");
       setUserEditedName(false);
@@ -73,18 +79,39 @@ export function BookmarkForm({ onRegister }: BookmarkFormProps) {
         />
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="bookmark-name" className="text-xs font-medium text-slate-700">
-          名称
-        </label>
-        <input
-          id="bookmark-name"
-          type="text"
-          value={name}
-          onChange={(e) => handleNameChange(e.target.value)}
-          placeholder="书签显示名称 (粘贴路径后自动预填文件名,可修改)"
-          className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
-        />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-1">
+          <label htmlFor="bookmark-name" className="text-xs font-medium text-slate-700">
+            名称
+          </label>
+          <input
+            id="bookmark-name"
+            type="text"
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            placeholder="书签显示名称 (粘贴路径后自动预填文件名,可修改)"
+            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+          />
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <label htmlFor="bookmark-group" className="text-xs font-medium text-slate-700">
+            所属组
+          </label>
+          <select
+            id="bookmark-group"
+            value={groupId ?? ""}
+            onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
+            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+          >
+            <option value="">散装 (不加入组)</option>
+            {groups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {error !== null && <p className="text-xs text-red-600">{error}</p>}

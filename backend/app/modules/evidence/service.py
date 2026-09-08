@@ -1,7 +1,6 @@
 """What you can do with an Evidence and its Cases. Knows nothing about HTTP."""
 
 from collections.abc import Sequence
-from enum import StrEnum
 from pathlib import Path
 from typing import NamedTuple
 
@@ -11,6 +10,9 @@ from sqlalchemy.orm import Session
 from app.core import images
 from app.core.db import utc_now
 from app.core.images import IncomingImage
+from app.core.ordering import Move as Move
+from app.core.ordering import renumber as _renumber
+from app.core.ordering import reorder as _reordered
 from app.modules.evidence import tables
 from app.modules.evidence.layout import (
     DEFAULT_LAYOUT_SETTINGS,
@@ -23,7 +25,6 @@ from app.modules.evidence.models import (
     Evidence,
     EvidenceBlock,
     EvidenceCase,
-    Ordered,
 )
 
 #: The list shows the recent past, not the whole archive — there is no paging
@@ -40,21 +41,6 @@ SHEET_NAME_MAX_LENGTH = 31
 #: only at export, by which point the author has already typed them into a
 #: dozen cases (design.md §6 F5 Excel 导出).
 ILLEGAL_SHEET_NAME_CHARACTERS = frozenset(":\\/?*[]")
-
-
-class Move(StrEnum):
-    """Where a row is being sent among its siblings. Not a drag: four buttons.
-
-    Up and down are the everyday correction; top and bottom exist because
-    walking something up eight places one click at a time is not reordering, it
-    is clicking (design.md §6 F5). Cases and blocks are reordered the same way,
-    so they are sent the same four words.
-    """
-
-    UP = "up"
-    DOWN = "down"
-    TOP = "top"
-    BOTTOM = "bottom"
 
 
 class EvidenceNotFound(LookupError):
@@ -384,30 +370,6 @@ def move_case(
     cases = _reordered(_cases_in_order(session, evidence_id), case, to)
     session.commit()
     return cases
-
-
-def _reordered[RowT: Ordered](rows: list[RowT], row: RowT, to: Move) -> list[RowT]:
-    """`rows` with `row` sent where `to` says, renumbered from 0.
-
-    A move off either end is not an error and not a different kind of answer:
-    the row was already there, so this is the same list back.
-    """
-    was = rows.index(row)
-    now = {
-        Move.UP: was - 1,
-        Move.DOWN: was + 1,
-        Move.TOP: 0,
-        Move.BOTTOM: len(rows) - 1,
-    }[to]
-    if 0 <= now < len(rows):
-        rows.insert(now, rows.pop(was))
-        _renumber(rows)
-    return rows
-
-
-def _renumber(rows: Sequence[Ordered]) -> None:
-    for position, row in enumerate(rows):
-        row.order = position
 
 
 # --- Blocks -----------------------------------------------------------------

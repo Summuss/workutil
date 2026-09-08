@@ -1,25 +1,55 @@
 import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
-import type { Bookmark, BookmarkUpdatePayload } from "./types";
+import type { Bookmark, BookmarkGroup, BookmarkUpdatePayload, MoveDirection } from "./types";
 
 interface BookmarkItemProps {
   bookmark: Bookmark;
+  groups: BookmarkGroup[];
+  at: number;
+  count: number;
   onUpdate: (id: number, payload: BookmarkUpdatePayload) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
+  onMove: (id: number, to: MoveDirection) => Promise<void>;
 }
 
-export function BookmarkItem({ bookmark, onUpdate, onDelete }: BookmarkItemProps) {
+const MOVES: {
+  to: MoveDirection;
+  glyph: string;
+  title: string;
+  stuck: (at: number, count: number) => boolean;
+}[] = [
+  { to: "top", glyph: "⤒", title: "移到最前", stuck: (at) => at === 0 },
+  { to: "up", glyph: "↑", title: "上移一位", stuck: (at) => at === 0 },
+  { to: "down", glyph: "↓", title: "下移一位", stuck: (at, count) => at === count - 1 },
+  { to: "bottom", glyph: "⤓", title: "移到最后", stuck: (at, count) => at === count - 1 },
+];
+
+const TOOL_BUTTON =
+  "cursor-pointer rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-default disabled:opacity-25";
+
+export function BookmarkItem({
+  bookmark,
+  groups,
+  at,
+  count,
+  onUpdate,
+  onDelete,
+  onMove,
+}: BookmarkItemProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(bookmark.name);
   const [path, setPath] = useState(bookmark.path);
+  const [groupId, setGroupId] = useState<number | null>(bookmark.group_id);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function startEditing() {
     setName(bookmark.name);
     setPath(bookmark.path);
+    setGroupId(bookmark.group_id);
     setError(null);
     setEditing(true);
   }
@@ -41,7 +71,11 @@ export function BookmarkItem({ bookmark, onUpdate, onDelete }: BookmarkItemProps
     setSaving(true);
     setError(null);
     try {
-      await onUpdate(bookmark.id, { name: cleanName, path: cleanPath });
+      await onUpdate(bookmark.id, {
+        name: cleanName,
+        path: cleanPath,
+        group_id: groupId,
+      });
       setEditing(false);
     } catch (cause) {
       setError(messageOf(cause, "更新失败"));
@@ -64,20 +98,50 @@ export function BookmarkItem({ bookmark, onUpdate, onDelete }: BookmarkItemProps
     }
   }
 
+  async function handleMove(to: MoveDirection) {
+    if (moving) return;
+    setMoving(true);
+    try {
+      await onMove(bookmark.id, to);
+    } catch (cause) {
+      alert(messageOf(cause, "移动失败"));
+    } finally {
+      setMoving(false);
+    }
+  }
+
   if (editing) {
     return (
       <li className="rounded-md border border-slate-300 bg-white p-3 shadow-xs">
         <form onSubmit={(e) => void handleSave(e)} className="flex flex-col gap-2">
-          <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-medium text-slate-500">名称</label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="rounded border border-slate-200 px-2.5 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
-              autoFocus
-            />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-slate-500">名称</label>
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="rounded border border-slate-200 px-2.5 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+                autoFocus
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-slate-500">所属组</label>
+              <select
+                value={groupId ?? ""}
+                onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
+                className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+              >
+                <option value="">散装 (无分组)</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
+
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-medium text-slate-500">路径</label>
             <input
@@ -133,22 +197,39 @@ export function BookmarkItem({ bookmark, onUpdate, onDelete }: BookmarkItemProps
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        <button
-          type="button"
-          onClick={startEditing}
-          className="cursor-pointer text-xs text-slate-500 hover:text-slate-800"
-        >
-          编辑
-        </button>
-        <button
-          type="button"
-          onClick={() => void handleDelete()}
-          disabled={deleting}
-          className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
-        >
-          {deleting ? "删除中…" : "删除"}
-        </button>
+      <div className="flex shrink-0 items-center gap-1">
+        <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-hover:opacity-100">
+          {MOVES.map((move) => (
+            <button
+              key={move.to}
+              type="button"
+              title={move.title}
+              disabled={moving || move.stuck(at, count)}
+              onClick={() => void handleMove(move.to)}
+              className={TOOL_BUTTON}
+            >
+              {move.glyph}
+            </button>
+          ))}
+        </div>
+
+        <div className="ml-1 flex shrink-0 items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={startEditing}
+            className="cursor-pointer text-xs text-slate-500 hover:text-slate-800"
+          >
+            编辑
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleDelete()}
+            disabled={deleting}
+            className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
+          >
+            {deleting ? "删除中…" : "删除"}
+          </button>
+        </div>
       </div>
     </li>
   );

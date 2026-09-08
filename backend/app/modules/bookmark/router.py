@@ -1,18 +1,93 @@
-"""HTTP for bookmarks. Forwarding only — the behaviour lives in service.py."""
+"""HTTP for bookmarks and bookmark groups.
+
+Forwarding only — the behaviour lives in service.py.
+"""
 
 from fastapi import APIRouter, HTTPException, status
 
 from app.core.deps import SessionDep
 from app.modules.bookmark import service
-from app.modules.bookmark.schemas import BookmarkCreate, BookmarkRead, BookmarkUpdate
+from app.modules.bookmark.schemas import (
+    BookmarkCreate,
+    BookmarkGroupCreate,
+    BookmarkGroupRead,
+    BookmarkGroupUpdate,
+    BookmarkListResponse,
+    BookmarkRead,
+    BookmarkUpdate,
+    MoveRequest,
+)
 
-router = APIRouter(prefix="/bookmarks", tags=["bookmark"])
+router = APIRouter()
+bookmarks_router = APIRouter(prefix="/bookmarks", tags=["bookmark"])
+groups_router = APIRouter(prefix="/bookmark-groups", tags=["bookmark-group"])
 
 
-@router.post("", response_model=BookmarkRead, status_code=status.HTTP_201_CREATED)
+# --- Groups ---
+
+
+@groups_router.post(
+    "",
+    response_model=BookmarkGroupRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_group(
+    payload: BookmarkGroupCreate, session: SessionDep
+) -> BookmarkGroupRead:
+    try:
+        group = service.create_group(session, payload.name)
+    except service.EmptyName as err:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+    return BookmarkGroupRead.model_validate(group)
+
+
+@groups_router.patch("/{group_id}", response_model=BookmarkGroupRead)
+def update_group(
+    group_id: int, payload: BookmarkGroupUpdate, session: SessionDep
+) -> BookmarkGroupRead:
+    try:
+        group = service.update_group(session, group_id, payload.name)
+    except service.GroupNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+    except service.EmptyName as err:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+    return BookmarkGroupRead.model_validate(group)
+
+
+@groups_router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_group(group_id: int, session: SessionDep) -> None:
+    try:
+        service.delete_group(session, group_id)
+    except service.GroupNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+
+
+@groups_router.post("/{group_id}/move", response_model=list[BookmarkGroupRead])
+def move_group(
+    group_id: int, payload: MoveRequest, session: SessionDep
+) -> list[BookmarkGroupRead]:
+    try:
+        groups = service.move_group(session, group_id, payload.to)
+    except service.GroupNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+    return [BookmarkGroupRead.model_validate(g) for g in groups]
+
+
+# --- Bookmarks ---
+
+
+@bookmarks_router.post(
+    "",
+    response_model=BookmarkRead,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_bookmark(payload: BookmarkCreate, session: SessionDep) -> BookmarkRead:
     try:
-        bookmark = service.create_bookmark(session, payload.name, payload.path)
+        bookmark = service.create_bookmark(
+            session, payload.name, payload.path, group_id=payload.group_id
+        )
+    except service.GroupNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
     except service.PathDoesNotExist as err:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
     except service.EmptyName as err:
@@ -20,12 +95,16 @@ def create_bookmark(payload: BookmarkCreate, session: SessionDep) -> BookmarkRea
     return BookmarkRead.model_validate(bookmark)
 
 
-@router.get("", response_model=list[BookmarkRead])
-def list_bookmarks(session: SessionDep) -> list[BookmarkRead]:
-    return [BookmarkRead.model_validate(b) for b in service.list_bookmarks(session)]
+@bookmarks_router.get("", response_model=BookmarkListResponse)
+def list_bookmarks(session: SessionDep) -> BookmarkListResponse:
+    groups, loose = service.list_all_bookmarks(session)
+    return BookmarkListResponse(
+        groups=[BookmarkGroupRead.model_validate(g) for g in groups],
+        loose=[BookmarkRead.model_validate(b) for b in loose],
+    )
 
 
-@router.get("/{bookmark_id}", response_model=BookmarkRead)
+@bookmarks_router.get("/{bookmark_id}", response_model=BookmarkRead)
 def get_bookmark(bookmark_id: int, session: SessionDep) -> BookmarkRead:
     try:
         bookmark = service.get_bookmark(session, bookmark_id)
@@ -34,15 +113,23 @@ def get_bookmark(bookmark_id: int, session: SessionDep) -> BookmarkRead:
     return BookmarkRead.model_validate(bookmark)
 
 
-@router.patch("/{bookmark_id}", response_model=BookmarkRead)
+@bookmarks_router.patch("/{bookmark_id}", response_model=BookmarkRead)
 def update_bookmark(
     bookmark_id: int, payload: BookmarkUpdate, session: SessionDep
 ) -> BookmarkRead:
+    update_group_id = "group_id" in payload.model_fields_set
     try:
         bookmark = service.update_bookmark(
-            session, bookmark_id, name=payload.name, path=payload.path
+            session,
+            bookmark_id,
+            name=payload.name,
+            path=payload.path,
+            group_id=payload.group_id,
+            update_group_id=update_group_id,
         )
     except service.BookmarkNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+    except service.GroupNotFound as err:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
     except service.PathDoesNotExist as err:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
@@ -51,9 +138,24 @@ def update_bookmark(
     return BookmarkRead.model_validate(bookmark)
 
 
-@router.delete("/{bookmark_id}", status_code=status.HTTP_204_NO_CONTENT)
+@bookmarks_router.delete("/{bookmark_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_bookmark(bookmark_id: int, session: SessionDep) -> None:
     try:
         service.delete_bookmark(session, bookmark_id)
     except service.BookmarkNotFound as err:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+
+
+@bookmarks_router.post("/{bookmark_id}/move", response_model=list[BookmarkRead])
+def move_bookmark(
+    bookmark_id: int, payload: MoveRequest, session: SessionDep
+) -> list[BookmarkRead]:
+    try:
+        reordered = service.move_bookmark(session, bookmark_id, payload.to)
+    except service.BookmarkNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+    return [BookmarkRead.model_validate(b) for b in reordered]
+
+
+router.include_router(bookmarks_router)
+router.include_router(groups_router)

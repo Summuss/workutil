@@ -5,6 +5,7 @@ from sqlalchemy import JSON, Boolean, Enum, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, UtcDateTime
+from app.core.ordering import Ordered
 
 
 class BlockKind(StrEnum):
@@ -19,20 +20,6 @@ class BlockKind(StrEnum):
     TEXT = "text"
     IMAGE = "image"
     TABLE = "table"
-
-
-class Ordered:
-    """A row that sits in an explicit place among its siblings.
-
-    Cases within an evidence and blocks within a case are ordered the same
-    way, by the same four buttons, so they carry the same column and share the
-    reordering in `service.py`.
-    """
-
-    #: Where this row sits among its siblings. Contiguous from 0 and rewritten
-    #: whenever the order changes, so "the third sheet" is a countable thing
-    #: rather than something inferred from gaps.
-    order: Mapped[int] = mapped_column()
 
 
 class Evidence(Base):

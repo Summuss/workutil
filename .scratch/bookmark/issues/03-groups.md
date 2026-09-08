@@ -10,13 +10,13 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 迁移:`bookmark_groups` 表 + `bookmarks.group_id`(可空)
-- [ ] `POST /api/bookmark-groups` / `PATCH {id}`(改名)/ `DELETE {id}` / `POST {id}/move`
-- [ ] `POST /api/bookmarks/{id}/move`(组内上下 / 置顶 / 置底)
-- [ ] `PATCH /api/bookmarks/{id}` 能改 `group_id`(移进组、移出成散装)
-- [ ] `GET /api/bookmarks` 返回各组(按 `group.order`)+ 散装
-- [ ] **删组之后成员还在、`group_id` 变空**
-- [ ] 前端:建组 / 改名 / 删组、把书签移进移出、两级排序
-- [ ] HTTP 主接缝测试;`make check` 与 `pnpm build` 通过
+- [x] 迁移:`bookmark_groups` 表 + `bookmarks.group_id`(可空)
+- [x] `POST /api/bookmark-groups` / `PATCH {id}`(改名)/ `DELETE {id}` / `POST {id}/move`
+- [x] `POST /api/bookmarks/{id}/move`(组内上下 / 置顶 / 置底)
+- [x] `PATCH /api/bookmarks/{id}` 能改 `group_id`(移进组、移出成散装)
+- [x] `GET /api/bookmarks` 返回各组(按 `group.order`)+ 散装
+- [x] **删组之后成员还在、`group_id` 变空**
+- [x] 前端:建组 / 改名 / 删组、把书签移进移出、两级排序
+- [x] HTTP 主接缝测试;`make check` 与 `pnpm build` 通过

@@ -1,78 +1,235 @@
-import { useCallback } from "react";
+import { useCallback, useState, type FormEvent } from "react";
 
+import { messageOf } from "../../shared/api";
 import { useLoad } from "../../shared/useLoad";
 import {
   createBookmark,
+  createBookmarkGroup,
   deleteBookmark,
+  deleteBookmarkGroup,
   listBookmarks,
+  moveBookmark,
+  moveBookmarkGroup,
   updateBookmark,
+  updateBookmarkGroup,
 } from "./api";
 import { BookmarkForm } from "./BookmarkForm";
+import { BookmarkGroupSection } from "./BookmarkGroupSection";
 import { BookmarkItem } from "./BookmarkItem";
 import type {
-  Bookmark,
   BookmarkCreatePayload,
+  BookmarkListResponse,
   BookmarkUpdatePayload,
+  MoveDirection,
 } from "./types";
 
 export function BookmarkPage() {
   const {
     value: loaded,
-    setValue: setBookmarks,
+    setValue: setLoaded,
     loading,
     error,
     setError,
-  } = useLoad<Bookmark[]>(() => listBookmarks());
-  const bookmarks = loaded ?? [];
+  } = useLoad<BookmarkListResponse>(() => listBookmarks());
+
+  const [newGroupName, setNewGroupName] = useState("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [groupError, setGroupError] = useState<string | null>(null);
+
+  const groups = loaded?.groups ?? [];
+  const loose = loaded?.loose ?? [];
+  const hasItems = groups.length > 0 || loose.length > 0;
+
+  const refresh = useCallback(async () => {
+    try {
+      const data = await listBookmarks();
+      setLoaded(data);
+    } catch (cause) {
+      setError(messageOf(cause, "刷新书签失败"));
+    }
+  }, [setLoaded, setError]);
 
   const handleRegister = useCallback(
     async (payload: BookmarkCreatePayload) => {
-      const created = await createBookmark(payload);
-      setBookmarks((current) => [created, ...(current ?? [])]);
+      await createBookmark(payload);
+      await refresh();
       setError(null);
     },
-    [setBookmarks, setError],
+    [refresh, setError],
   );
 
-  const handleUpdate = useCallback(
-    async (id: number, payload: BookmarkUpdatePayload) => {
-      const updated = await updateBookmark(id, payload);
-      setBookmarks((current) =>
-        (current ?? []).map((b) => (b.id === id ? updated : b)),
+  const handleCreateGroup = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      const cleanName = newGroupName.trim();
+      if (!cleanName || creatingGroup) return;
+
+      setCreatingGroup(true);
+      setGroupError(null);
+      try {
+        await createBookmarkGroup({ name: cleanName });
+        setNewGroupName("");
+        await refresh();
+      } catch (cause) {
+        setGroupError(messageOf(cause, "创建组失败"));
+      } finally {
+        setCreatingGroup(false);
+      }
+    },
+    [newGroupName, creatingGroup, refresh],
+  );
+
+  const handleRenameGroup = useCallback(
+    async (id: number, name: string) => {
+      const updated = await updateBookmarkGroup(id, { name });
+      setLoaded((curr) =>
+        curr
+          ? {
+              ...curr,
+              groups: curr.groups.map((g) =>
+                g.id === id ? { ...g, name: updated.name } : g,
+              ),
+            }
+          : null,
       );
     },
-    [setBookmarks],
+    [setLoaded],
   );
 
-  const handleDelete = useCallback(
+  const handleDeleteGroup = useCallback(
+    async (id: number) => {
+      await deleteBookmarkGroup(id);
+      await refresh();
+    },
+    [refresh],
+  );
+
+  const handleMoveGroup = useCallback(
+    async (id: number, to: MoveDirection) => {
+      const reordered = await moveBookmarkGroup(id, to);
+      setLoaded((curr) =>
+        curr
+          ? {
+              ...curr,
+              groups: reordered,
+            }
+          : null,
+      );
+    },
+    [setLoaded],
+  );
+
+  const handleUpdateBookmark = useCallback(
+    async (id: number, payload: BookmarkUpdatePayload) => {
+      await updateBookmark(id, payload);
+      await refresh();
+    },
+    [refresh],
+  );
+
+  const handleDeleteBookmark = useCallback(
     async (id: number) => {
       await deleteBookmark(id);
-      setBookmarks((current) => (current ?? []).filter((b) => b.id !== id));
+      await refresh();
     },
-    [setBookmarks],
+    [refresh],
+  );
+
+  const handleMoveBookmark = useCallback(
+    async (id: number, to: MoveDirection) => {
+      await moveBookmark(id, to);
+      await refresh();
+    },
+    [refresh],
   );
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
-      <BookmarkForm onRegister={handleRegister} />
+      <BookmarkForm groups={groups} onRegister={handleRegister} />
+
+      {/* New Group form */}
+      <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-3 shadow-xs">
+        <form
+          onSubmit={(e) => void handleCreateGroup(e)}
+          className="flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={newGroupName}
+            onChange={(e) => setNewGroupName(e.target.value)}
+            placeholder="新建组 (例如: 每日必开、项目工程)"
+            className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+          />
+          <button
+            type="submit"
+            disabled={creatingGroup || newGroupName.trim() === ""}
+            className="cursor-pointer shrink-0 rounded-md bg-slate-800 px-3.5 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          >
+            {creatingGroup ? "创建中…" : "新建组"}
+          </button>
+        </form>
+        {groupError !== null && (
+          <p className="text-xs text-red-600">{groupError}</p>
+        )}
+      </div>
 
       {error !== null && <p className="text-xs text-red-600">{error}</p>}
 
-      {bookmarks.length === 0 ? (
+      {!hasItems ? (
         <p className="py-8 text-center text-sm text-slate-400">
           {loading ? "载入中…" : "还没有书签。在上方粘贴路径登记第一个。"}
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {bookmarks.map((bookmark) => (
-            <BookmarkItem
-              key={bookmark.id}
-              bookmark={bookmark}
-              onUpdate={handleUpdate}
-              onDelete={handleDelete}
+        <div className="flex flex-col gap-6">
+          {/* Groups list */}
+          {groups.map((group, idx) => (
+            <BookmarkGroupSection
+              key={group.id}
+              group={group}
+              groups={groups}
+              at={idx}
+              count={groups.length}
+              onRenameGroup={handleRenameGroup}
+              onDeleteGroup={handleDeleteGroup}
+              onMoveGroup={handleMoveGroup}
+              onUpdateBookmark={handleUpdateBookmark}
+              onDeleteBookmark={handleDeleteBookmark}
+              onMoveBookmark={handleMoveBookmark}
             />
           ))}
-        </ul>
+
+          {/* Loose bookmarks section */}
+          <section className="flex flex-col gap-2 rounded-lg border border-slate-200/90 bg-slate-50/50 p-3.5">
+            <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-slate-700">📌</span>
+                <h2 className="text-sm font-semibold text-slate-800">散装书签</h2>
+                <span className="text-xs text-slate-400">({loose.length})</span>
+              </div>
+            </div>
+
+            {loose.length === 0 ? (
+              <p className="py-4 text-center text-xs text-slate-400">
+                暂无散装书签。
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-2">
+                {loose.map((bookmark, idx) => (
+                  <BookmarkItem
+                    key={bookmark.id}
+                    bookmark={bookmark}
+                    groups={groups}
+                    at={idx}
+                    count={loose.length}
+                    onUpdate={handleUpdateBookmark}
+                    onDelete={handleDeleteBookmark}
+                    onMove={handleMoveBookmark}
+                  />
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
       )}
     </main>
   );
