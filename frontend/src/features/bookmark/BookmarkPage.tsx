@@ -10,6 +10,9 @@ import {
   listBookmarks,
   moveBookmark,
   moveBookmarkGroup,
+  openBookmark,
+  openBookmarkGroup,
+  revealBookmark,
   updateBookmark,
   updateBookmarkGroup,
 } from "./api";
@@ -23,6 +26,12 @@ import type {
   MoveDirection,
 } from "./types";
 
+interface Notice {
+  type: "info" | "success" | "warning";
+  message: string;
+  details?: string[];
+}
+
 export function BookmarkPage() {
   const {
     value: loaded,
@@ -35,6 +44,7 @@ export function BookmarkPage() {
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   const groups = loaded?.groups ?? [];
   const loose = loaded?.loose ?? [];
@@ -143,6 +153,55 @@ export function BookmarkPage() {
     [refresh],
   );
 
+  const handleOpenBookmark = useCallback(async (id: number) => {
+    try {
+      await openBookmark(id);
+      setNotice(null);
+    } catch (cause) {
+      setNotice({
+        type: "info",
+        message: messageOf(cause, "打开失败"),
+      });
+    }
+  }, []);
+
+  const handleRevealBookmark = useCallback(async (id: number) => {
+    try {
+      await revealBookmark(id);
+      setNotice(null);
+    } catch (cause) {
+      setNotice({
+        type: "info",
+        message: messageOf(cause, "定位文件失败"),
+      });
+    }
+  }, []);
+
+  const handleOpenGroup = useCallback(async (id: number) => {
+    try {
+      const result = await openBookmarkGroup(id);
+      if (result.skipped.length === 0) {
+        setNotice({
+          type: "success",
+          message: `已打开全部 ${result.opened.length} 个书签`,
+        });
+      } else {
+        setNotice({
+          type: "warning",
+          message: `已打开 ${result.opened.length} 个书签，跳过 ${result.skipped.length} 个失效项：`,
+          details: result.skipped.map(
+            (s) => `「${s.name}」: ${s.reason} (${s.path})`,
+          ),
+        });
+      }
+    } catch (cause) {
+      setNotice({
+        type: "info",
+        message: messageOf(cause, "一键打开失败"),
+      });
+    }
+  }, []);
+
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
       <BookmarkForm groups={groups} onRegister={handleRegister} />
@@ -173,6 +232,36 @@ export function BookmarkPage() {
         )}
       </div>
 
+      {notice !== null && (
+        <div
+          className={`flex items-start justify-between gap-3 rounded-lg border p-3 text-xs ${
+            notice.type === "success"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : notice.type === "warning"
+                ? "border-amber-200 bg-amber-50 text-amber-800"
+                : "border-blue-200 bg-blue-50 text-blue-800"
+          }`}
+        >
+          <div className="flex flex-col gap-1">
+            <span className="font-medium">{notice.message}</span>
+            {notice.details && notice.details.length > 0 && (
+              <ul className="list-disc space-y-0.5 pl-4 text-slate-600">
+                {notice.details.map((d, i) => (
+                  <li key={i}>{d}</li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setNotice(null)}
+            className="cursor-pointer text-slate-400 hover:text-slate-700"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {error !== null && <p className="text-xs text-red-600">{error}</p>}
 
       {!hasItems ? (
@@ -192,9 +281,12 @@ export function BookmarkPage() {
               onRenameGroup={handleRenameGroup}
               onDeleteGroup={handleDeleteGroup}
               onMoveGroup={handleMoveGroup}
+              onOpenGroup={handleOpenGroup}
               onUpdateBookmark={handleUpdateBookmark}
               onDeleteBookmark={handleDeleteBookmark}
               onMoveBookmark={handleMoveBookmark}
+              onOpenBookmark={handleOpenBookmark}
+              onRevealBookmark={handleRevealBookmark}
             />
           ))}
 
@@ -224,6 +316,8 @@ export function BookmarkPage() {
                     onUpdate={handleUpdateBookmark}
                     onDelete={handleDeleteBookmark}
                     onMove={handleMoveBookmark}
+                    onOpen={handleOpenBookmark}
+                    onReveal={handleRevealBookmark}
                   />
                 ))}
               </ul>

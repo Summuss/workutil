@@ -4,15 +4,15 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import PurePosixPath
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
-from starlette.responses import Response
+from starlette.responses import JSONResponse, Response
 from starlette.types import Scope
 
 from app.core.config import HOST, PORT, Settings, load_settings
 from app.core.db import create_db_engine, create_session_factory, migrate_to_head
-from app.core.platform import Platform, get_default_platform
+from app.core.platform import Platform, UnsupportedPlatformError, get_default_platform
 from app.modules.registry import ROUTERS
 
 
@@ -77,6 +77,15 @@ def create_app(
     app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
     app.state.platform = platform or get_default_platform()
+
+    @app.exception_handler(UnsupportedPlatformError)
+    async def unsupported_platform_handler(
+        request: Request, exc: UnsupportedPlatformError
+    ) -> JSONResponse:
+        return JSONResponse(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            content={"detail": str(exc)},
+        )
 
     for router in ROUTERS:
         app.include_router(router, prefix="/api")

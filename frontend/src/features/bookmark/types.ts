@@ -44,3 +44,22 @@ export interface BookmarkGroupCreatePayload {
 export interface BookmarkGroupUpdatePayload {
   name: string;
 }
+
+export interface OpenedBookmark {
+  id: number;
+  name: string;
+  path: string;
+}
+
+export interface SkippedBookmark {
+  id: number;
+  name: string;
+  path: string;
+  reason: string;
+}
+
+export interface BookmarkGroupOpenResponse {
+  opened: OpenedBookmark[];
+  skipped: SkippedBookmark[];
+}
+

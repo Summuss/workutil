@@ -11,6 +11,8 @@ interface BookmarkItemProps {
   onUpdate: (id: number, payload: BookmarkUpdatePayload) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   onMove: (id: number, to: MoveDirection) => Promise<void>;
+  onOpen: (id: number) => Promise<void>;
+  onReveal: (id: number) => Promise<void>;
 }
 
 const MOVES: {
@@ -36,6 +38,8 @@ export function BookmarkItem({
   onUpdate,
   onDelete,
   onMove,
+  onOpen,
+  onReveal,
 }: BookmarkItemProps) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(bookmark.name);
@@ -44,7 +48,29 @@ export function BookmarkItem({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [opening, setOpening] = useState(false);
+  const [revealing, setRevealing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleOpen() {
+    if (opening) return;
+    setOpening(true);
+    try {
+      await onOpen(bookmark.id);
+    } finally {
+      setOpening(false);
+    }
+  }
+
+  async function handleReveal() {
+    if (revealing) return;
+    setRevealing(true);
+    try {
+      await onReveal(bookmark.id);
+    } finally {
+      setRevealing(false);
+    }
+  }
 
   function startEditing() {
     setName(bookmark.name);
@@ -197,7 +223,28 @@ export function BookmarkItem({
         </p>
       </div>
 
-      <div className="flex shrink-0 items-center gap-1">
+      <div className="flex shrink-0 items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => void handleOpen()}
+            disabled={opening}
+            className="cursor-pointer rounded bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
+          >
+            {opening ? "打开中…" : "打开"}
+          </button>
+          {!bookmark.is_directory && (
+            <button
+              type="button"
+              onClick={() => void handleReveal()}
+              disabled={revealing}
+              className="cursor-pointer rounded bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-200 hover:text-slate-900 disabled:opacity-50"
+            >
+              {revealing ? "定位中…" : "打开所在文件夹"}
+            </button>
+          )}
+        </div>
+
         <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-hover:opacity-100">
           {MOVES.map((move) => (
             <button

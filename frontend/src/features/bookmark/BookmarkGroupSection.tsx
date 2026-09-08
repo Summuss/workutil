@@ -16,9 +16,12 @@ interface BookmarkGroupSectionProps {
   onRenameGroup: (id: number, name: string) => Promise<void>;
   onDeleteGroup: (id: number) => Promise<void>;
   onMoveGroup: (id: number, to: MoveDirection) => Promise<void>;
+  onOpenGroup: (id: number) => Promise<void>;
   onUpdateBookmark: (id: number, payload: BookmarkUpdatePayload) => Promise<void>;
   onDeleteBookmark: (id: number) => Promise<void>;
   onMoveBookmark: (id: number, to: MoveDirection) => Promise<void>;
+  onOpenBookmark: (id: number) => Promise<void>;
+  onRevealBookmark: (id: number) => Promise<void>;
 }
 
 const MOVES: {
@@ -44,16 +47,30 @@ export function BookmarkGroupSection({
   onRenameGroup,
   onDeleteGroup,
   onMoveGroup,
+  onOpenGroup,
   onUpdateBookmark,
   onDeleteBookmark,
   onMoveBookmark,
+  onOpenBookmark,
+  onRevealBookmark,
 }: BookmarkGroupSectionProps) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(group.name);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [openingGroup, setOpeningGroup] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  async function handleOpenGroup() {
+    if (openingGroup || group.bookmarks.length === 0) return;
+    setOpeningGroup(true);
+    try {
+      await onOpenGroup(group.id);
+    } finally {
+      setOpeningGroup(false);
+    }
+  }
 
   function startRename() {
     setName(group.name);
@@ -161,6 +178,15 @@ export function BookmarkGroupSection({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleOpenGroup()}
+            disabled={openingGroup || group.bookmarks.length === 0}
+            className="cursor-pointer rounded bg-slate-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {openingGroup ? "正在打开…" : "一键全开"}
+          </button>
+
           {/* Group 4-way reorder buttons */}
           <div className="flex items-center gap-0.5">
             {MOVES.map((move) => (
@@ -215,6 +241,8 @@ export function BookmarkGroupSection({
               onUpdate={onUpdateBookmark}
               onDelete={onDeleteBookmark}
               onMove={onMoveBookmark}
+              onOpen={onOpenBookmark}
+              onReveal={onRevealBookmark}
             />
           ))}
         </ul>

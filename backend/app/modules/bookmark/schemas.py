@@ -62,3 +62,28 @@ class BookmarkListResponse(BaseModel):
 
     groups: list[BookmarkGroupRead]
     loose: list[BookmarkRead]
+
+
+class BookmarkActionResponse(BaseModel):
+    ok: bool = True
+    id: int
+    name: str
+    path: str
+
+
+class OpenedBookmark(BaseModel):
+    id: int
+    name: str
+    path: str
+
+
+class SkippedBookmark(BaseModel):
+    id: int
+    name: str
+    path: str
+    reason: str
+
+
+class BookmarkGroupOpenResponse(BaseModel):
+    opened: list[OpenedBookmark]
+    skipped: list[SkippedBookmark]

@@ -4,6 +4,7 @@ import type {
   BookmarkCreatePayload,
   BookmarkGroup,
   BookmarkGroupCreatePayload,
+  BookmarkGroupOpenResponse,
   BookmarkGroupUpdatePayload,
   BookmarkListResponse,
   BookmarkUpdatePayload,
@@ -36,6 +37,14 @@ export function moveBookmark(
   return post<Bookmark[]>(`/bookmarks/${id}/move`, { to });
 }
 
+export function openBookmark(id: number): Promise<void> {
+  return post<void>(`/bookmarks/${id}/open`);
+}
+
+export function revealBookmark(id: number): Promise<void> {
+  return post<void>(`/bookmarks/${id}/reveal`);
+}
+
 export function createBookmarkGroup(
   payload: BookmarkGroupCreatePayload,
 ): Promise<BookmarkGroup> {
@@ -59,3 +68,8 @@ export function moveBookmarkGroup(
 ): Promise<BookmarkGroup[]> {
   return post<BookmarkGroup[]>(`/bookmark-groups/${id}/move`, { to });
 }
+
+export function openBookmarkGroup(id: number): Promise<BookmarkGroupOpenResponse> {
+  return post<BookmarkGroupOpenResponse>(`/bookmark-groups/${id}/open`);
+}
+

@@ -17,14 +17,15 @@
 
 **Blocked by:** 01, 02
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `POST /api/bookmarks/{id}/open` —— 调平台层
-- [ ] `POST /api/bookmarks/{id}/reveal` —— 文件夹书签回 **422**
-- [ ] `POST /api/bookmark-groups/{id}/open` —— 按 `order` 串行、间隔 200ms、返回 `opened` / `skipped`
-- [ ] 组里有失效项时**其余照常打开**,失效那条在 `skipped` 里带原因
-- [ ] 开发平台(Linux)上调这三个接口 → **501 + 一句人话**,前端显示成提示而不是崩掉
-- [ ] 前端:书签上的「打开」「打开所在文件夹」、组上的「一键全开」,以及开完之后的汇总提示
-- [ ] 主接缝测试(用 01 的 fake 平台层):**按 `order` 收到全部有效路径、失效那条没被传下去**
-- [ ] 主接缝测试:Linux 上的错误路径回 501 而不是 500
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `POST /api/bookmarks/{id}/open` —— 调平台层
+- [x] `POST /api/bookmarks/{id}/reveal` —— 文件夹书签回 **422**
+- [x] `POST /api/bookmark-groups/{id}/open` —— 按 `order` 串行、间隔 200ms、返回 `opened` / `skipped`
+- [x] 组里有失效项时**其余照常打开**,失效那条在 `skipped` 里带原因
+- [x] 开发平台(Linux)上调这三个接口 → **501 + 一句人话**,前端显示成提示而不是崩掉
+- [x] 前端:书签上的「打开」「打开所在文件夹」、组上的「一键全开」,以及开完之后的汇总提示
+- [x] 主接缝测试(用 01 的 fake 平台层):**按 `order` 收到全部有效路径、失效那条没被传下去**
+- [x] 主接缝测试:Linux 上的错误路径回 501 而不是 500
+- [x] `make check` 与 `pnpm build` 通过
+

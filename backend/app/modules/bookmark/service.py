@@ -1,5 +1,6 @@
 """What you can do with bookmarks and bookmark groups. Knows nothing about HTTP."""
 
+import time
 from pathlib import Path
 
 from sqlalchemy import select
@@ -7,7 +8,13 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.db import utc_now
 from app.core.ordering import Move, renumber, reorder
+from app.core.platform import Platform
 from app.modules.bookmark.models import Bookmark, BookmarkGroup
+from app.modules.bookmark.schemas import (
+    BookmarkGroupOpenResponse,
+    OpenedBookmark,
+    SkippedBookmark,
+)
 
 
 class PathDoesNotExist(ValueError):
@@ -24,6 +31,10 @@ class BookmarkNotFound(LookupError):
 
 class GroupNotFound(LookupError):
     """No bookmark group has that id."""
+
+
+class CannotRevealDirectory(ValueError):
+    """A directory cannot be revealed because doing so reveals its parent."""
 
 
 def _clean_path(raw_path: str) -> str:
@@ -269,3 +280,59 @@ def list_all_bookmarks(
     groups = _groups_in_order(session)
     loose = _loose_bookmarks_in_order(session)
     return groups, loose
+
+
+def open_bookmark(session: Session, bookmark_id: int, platform: Platform) -> Bookmark:
+    bookmark = get_bookmark(session, bookmark_id)
+    if not Path(bookmark.path).exists():
+        raise PathDoesNotExist("这个路径现在不存在")
+    platform.open(bookmark.path)
+    return bookmark
+
+
+def reveal_bookmark(session: Session, bookmark_id: int, platform: Platform) -> Bookmark:
+    bookmark = get_bookmark(session, bookmark_id)
+    if bookmark.is_directory:
+        raise CannotRevealDirectory("文件夹书签不支持定位所在文件夹")
+    if not Path(bookmark.path).exists():
+        raise PathDoesNotExist("这个路径现在不存在")
+    platform.reveal(bookmark.path)
+    return bookmark
+
+
+def open_group(
+    session: Session,
+    group_id: int,
+    platform: Platform,
+    interval_seconds: float = 0.2,
+) -> BookmarkGroupOpenResponse:
+    group = get_group(session, group_id)
+    members = _bookmarks_in_group(session, group.id)
+    opened: list[OpenedBookmark] = []
+    skipped: list[SkippedBookmark] = []
+
+    for member in members:
+        if not Path(member.path).exists():
+            skipped.append(
+                SkippedBookmark(
+                    id=member.id,
+                    name=member.name,
+                    path=member.path,
+                    reason="路径不存在",
+                )
+            )
+            continue
+
+        if opened and interval_seconds > 0:
+            time.sleep(interval_seconds)
+
+        platform.open(member.path)
+        opened.append(
+            OpenedBookmark(
+                id=member.id,
+                name=member.name,
+                path=member.path,
+            )
+        )
+
+    return BookmarkGroupOpenResponse(opened=opened, skipped=skipped)

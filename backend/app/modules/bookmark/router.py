@@ -5,11 +5,14 @@ Forwarding only — the behaviour lives in service.py.
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.core.deps import SessionDep
+from app.core.deps import PlatformDep, SessionDep
+from app.core.platform import UnsupportedPlatformError
 from app.modules.bookmark import service
 from app.modules.bookmark.schemas import (
+    BookmarkActionResponse,
     BookmarkCreate,
     BookmarkGroupCreate,
+    BookmarkGroupOpenResponse,
     BookmarkGroupRead,
     BookmarkGroupUpdate,
     BookmarkListResponse,
@@ -71,6 +74,18 @@ def move_group(
     except service.GroupNotFound as err:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
     return [BookmarkGroupRead.model_validate(g) for g in groups]
+
+
+@groups_router.post("/{group_id}/open", response_model=BookmarkGroupOpenResponse)
+def open_group(
+    group_id: int, session: SessionDep, platform: PlatformDep
+) -> BookmarkGroupOpenResponse:
+    try:
+        return service.open_group(session, group_id, platform)
+    except service.GroupNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+    except UnsupportedPlatformError as err:
+        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, str(err)) from err
 
 
 # --- Bookmarks ---
@@ -155,6 +170,42 @@ def move_bookmark(
     except service.BookmarkNotFound as err:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
     return [BookmarkRead.model_validate(b) for b in reordered]
+
+
+@bookmarks_router.post("/{bookmark_id}/open", response_model=BookmarkActionResponse)
+def open_bookmark(
+    bookmark_id: int, session: SessionDep, platform: PlatformDep
+) -> BookmarkActionResponse:
+    try:
+        bookmark = service.open_bookmark(session, bookmark_id, platform)
+    except service.BookmarkNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+    except service.PathDoesNotExist as err:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+    except UnsupportedPlatformError as err:
+        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, str(err)) from err
+    return BookmarkActionResponse(
+        ok=True, id=bookmark.id, name=bookmark.name, path=bookmark.path
+    )
+
+
+@bookmarks_router.post("/{bookmark_id}/reveal", response_model=BookmarkActionResponse)
+def reveal_bookmark(
+    bookmark_id: int, session: SessionDep, platform: PlatformDep
+) -> BookmarkActionResponse:
+    try:
+        bookmark = service.reveal_bookmark(session, bookmark_id, platform)
+    except service.BookmarkNotFound as err:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
+    except service.CannotRevealDirectory as err:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
+    except service.PathDoesNotExist as err:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
+    except UnsupportedPlatformError as err:
+        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, str(err)) from err
+    return BookmarkActionResponse(
+        ok=True, id=bookmark.id, name=bookmark.name, path=bookmark.path
+    )
 
 
 router.include_router(bookmarks_router)

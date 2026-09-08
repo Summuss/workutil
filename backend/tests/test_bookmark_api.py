@@ -8,6 +8,9 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from tests.conftest import workutil_at
+from tests.fake_platform import FakePlatform
+
 
 def test_create_file_bookmark(client: TestClient, tmp_path: Path) -> None:
     sample_file = tmp_path / "test.txt"
@@ -520,3 +523,200 @@ def test_delete_bookmark_in_group_renumbers_siblings(
     g = client.get("/api/bookmarks").json()["groups"][0]
     assert [b["name"] for b in g["bookmarks"]] == ["B0", "B2"]
     assert [b["order"] for b in g["bookmarks"]] == [0, 1]
+
+
+# --- Ticket 04: Open and Reveal Seam Tests ---
+
+
+def test_open_file_bookmark_via_fake_platform(
+    data_dir: Path, tmp_path: Path, fake_platform: FakePlatform
+) -> None:
+    sample = tmp_path / "target.txt"
+    sample.write_text("content")
+
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        b = client.post(
+            "/api/bookmarks",
+            json={"name": "打开测试", "path": str(sample)},
+        ).json()
+
+        res = client.post(f"/api/bookmarks/{b['id']}/open")
+        assert res.status_code == 200
+        assert res.json()["ok"] is True
+        assert fake_platform.opened == [str(sample)]
+
+
+def test_open_directory_bookmark_via_fake_platform(
+    data_dir: Path, tmp_path: Path, fake_platform: FakePlatform
+) -> None:
+    sample_dir = tmp_path / "project_dir"
+    sample_dir.mkdir()
+
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        b = client.post(
+            "/api/bookmarks",
+            json={"name": "目录书签", "path": str(sample_dir)},
+        ).json()
+
+        res = client.post(f"/api/bookmarks/{b['id']}/open")
+        assert res.status_code == 200
+        assert fake_platform.opened == [str(sample_dir)]
+
+
+def test_open_nonexistent_bookmark_returns_400(
+    data_dir: Path, tmp_path: Path, fake_platform: FakePlatform
+) -> None:
+    sample = tmp_path / "temp.txt"
+    sample.write_text("temp")
+
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        b = client.post(
+            "/api/bookmarks",
+            json={"name": "将被删除", "path": str(sample)},
+        ).json()
+
+        sample.unlink()  # deleted from filesystem
+
+        res = client.post(f"/api/bookmarks/{b['id']}/open")
+        assert res.status_code == 400
+        assert "不存在" in res.json()["detail"]
+        assert fake_platform.opened == []
+
+
+def test_reveal_file_bookmark_via_fake_platform(
+    data_dir: Path, tmp_path: Path, fake_platform: FakePlatform
+) -> None:
+    sample = tmp_path / "file.txt"
+    sample.write_text("hello")
+
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        b = client.post(
+            "/api/bookmarks",
+            json={"name": "文件定位", "path": str(sample)},
+        ).json()
+
+        res = client.post(f"/api/bookmarks/{b['id']}/reveal")
+        assert res.status_code == 200
+        assert fake_platform.revealed == [str(sample)]
+
+
+def test_reveal_directory_bookmark_returns_422(
+    data_dir: Path, tmp_path: Path, fake_platform: FakePlatform
+) -> None:
+    sample_dir = tmp_path / "somedir"
+    sample_dir.mkdir()
+
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        b = client.post(
+            "/api/bookmarks",
+            json={"name": "目录书签", "path": str(sample_dir)},
+        ).json()
+
+        res = client.post(f"/api/bookmarks/{b['id']}/reveal")
+        assert res.status_code == 422
+        assert "文件夹书签不支持" in res.json()["detail"]
+        assert fake_platform.revealed == []
+
+
+def test_open_group_serial_order_and_skips_stale_items(
+    data_dir: Path, tmp_path: Path, fake_platform: FakePlatform
+) -> None:
+    f1 = tmp_path / "file1.txt"
+    f1.write_text("1")
+    f2 = tmp_path / "file2.txt"
+    f2.write_text("2")
+    f3 = tmp_path / "file3.txt"
+    f3.write_text("3")
+
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        group = client.post("/api/bookmark-groups", json={"name": "工作必开"}).json()
+        gid = group["id"]
+
+        b1 = client.post(
+            "/api/bookmarks", json={"name": "F1", "path": str(f1), "group_id": gid}
+        ).json()
+        b2 = client.post(
+            "/api/bookmarks", json={"name": "F2", "path": str(f2), "group_id": gid}
+        ).json()
+        b3 = client.post(
+            "/api/bookmarks", json={"name": "F3", "path": str(f3), "group_id": gid}
+        ).json()
+
+        # Simulate f2 being stale (deleted or moved away)
+        f2.unlink()
+
+        # Open the group
+        res = client.post(f"/api/bookmark-groups/{gid}/open")
+        assert res.status_code == 200
+        data = res.json()
+
+        # Check summary response: opened contains F1 and F3 in order
+        assert len(data["opened"]) == 2
+        assert data["opened"][0]["id"] == b1["id"]
+        assert data["opened"][0]["name"] == "F1"
+        assert data["opened"][0]["path"] == str(f1)
+        assert data["opened"][1]["id"] == b3["id"]
+        assert data["opened"][1]["name"] == "F3"
+        assert data["opened"][1]["path"] == str(f3)
+
+        # Check skipped contains F2 with clear reason
+        assert len(data["skipped"]) == 1
+        assert data["skipped"][0]["id"] == b2["id"]
+        assert data["skipped"][0]["name"] == "F2"
+        assert data["skipped"][0]["path"] == str(f2)
+        assert "路径不存在" in data["skipped"][0]["reason"]
+
+        # Crucial seam assertion: fake platform received ONLY valid paths in order,
+        # stale path was NEVER handed down!
+        assert fake_platform.opened == [str(f1), str(f3)]
+
+
+def test_open_empty_group_returns_empty_summary(
+    data_dir: Path, fake_platform: FakePlatform
+) -> None:
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        group = client.post("/api/bookmark-groups", json={"name": "空组"}).json()
+        res = client.post(f"/api/bookmark-groups/{group['id']}/open")
+        assert res.status_code == 200
+        assert res.json() == {"opened": [], "skipped": []}
+        assert fake_platform.opened == []
+
+
+def test_open_nonexistent_group_returns_404(
+    data_dir: Path, fake_platform: FakePlatform
+) -> None:
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        res = client.post("/api/bookmark-groups/99999/open")
+        assert res.status_code == 404
+
+
+def test_linux_platform_error_path_returns_501(
+    client: TestClient, tmp_path: Path
+) -> None:
+    # client uses the default LinuxPlatform on Linux
+    sample_file = tmp_path / "valid.txt"
+    sample_file.write_text("hello")
+
+    group = client.post("/api/bookmark-groups", json={"name": "Linux测试组"}).json()
+    b = client.post(
+        "/api/bookmarks",
+        json={"name": "测试", "path": str(sample_file), "group_id": group["id"]},
+    ).json()
+
+    # 1. POST open -> 501
+    res_open = client.post(f"/api/bookmarks/{b['id']}/open")
+    assert res_open.status_code == 501
+    detail_open = res_open.json()["detail"]
+    assert "Linux" in detail_open or "不支持" in detail_open
+
+    # 2. POST reveal -> 501
+    res_reveal = client.post(f"/api/bookmarks/{b['id']}/reveal")
+    assert res_reveal.status_code == 501
+    detail_reveal = res_reveal.json()["detail"]
+    assert "Linux" in detail_reveal or "不支持" in detail_reveal
+
+    # 3. POST group open -> 501
+    res_group = client.post(f"/api/bookmark-groups/{group['id']}/open")
+    assert res_group.status_code == 501
+    detail_group = res_group.json()["detail"]
+    assert "Linux" in detail_group or "不支持" in detail_group
