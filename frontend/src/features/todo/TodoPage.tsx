@@ -92,7 +92,7 @@ export function TodoPage() {
           if (!curr) return null;
           return {
             ...curr,
-            todos: [...curr.todos, updated],
+            todos: [...curr.todos, updated].sort((a, b) => a.order - b.order),
             completed: curr.completed.filter((t) => t.id !== id),
           };
         });
