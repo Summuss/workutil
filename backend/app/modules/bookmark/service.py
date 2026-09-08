@@ -48,12 +48,19 @@ def validate_path(raw_path: str) -> tuple[str, bool]:
 
     Returns the cleaned path string and whether it is a directory.
     Raises PathDoesNotExist with user-facing message if absent.
+
+    Requires an absolute path: a relative one resolves against whatever the
+    backend process's current working directory happens to be at open-time,
+    which is not something registration can promise stays fixed (a bookmark
+    is meant to survive a restart, not just the session it was made in).
     """
     cleaned = _clean_path(raw_path)
     if not cleaned:
         raise PathDoesNotExist("这个路径现在不存在")
 
     target = Path(cleaned)
+    if not target.is_absolute():
+        raise PathDoesNotExist("请粘贴绝对路径，不支持相对路径")
     if not target.exists():
         raise PathDoesNotExist("这个路径现在不存在")
 
@@ -326,7 +333,23 @@ def open_group(
         if opened and interval_seconds > 0:
             time.sleep(interval_seconds)
 
-        platform.open(member.path)
+        try:
+            platform.open(member.path)
+        except OSError as exc:
+            # A real machine refusing to open a given path (no application
+            # associated, permission denied, a dangling shortcut, ...) is the
+            # same "skip it, keep going" story as a stale path — the button
+            # promises the other members get opened, not a clean transaction.
+            skipped.append(
+                SkippedBookmark(
+                    id=member.id,
+                    name=member.name,
+                    path=member.path,
+                    reason=str(exc),
+                )
+            )
+            continue
+
         opened.append(
             OpenedBookmark(
                 id=member.id,

@@ -6,7 +6,6 @@ Forwarding only — the behaviour lives in service.py.
 from fastapi import APIRouter, HTTPException, status
 
 from app.core.deps import PlatformDep, SessionDep
-from app.core.platform import UnsupportedPlatformError
 from app.modules.bookmark import service
 from app.modules.bookmark.schemas import (
     BookmarkActionResponse,
@@ -84,8 +83,6 @@ def open_group(
         return service.open_group(session, group_id, platform)
     except service.GroupNotFound as err:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
-    except UnsupportedPlatformError as err:
-        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, str(err)) from err
 
 
 # --- Bookmarks ---
@@ -182,8 +179,6 @@ def open_bookmark(
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
     except service.PathDoesNotExist as err:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
-    except UnsupportedPlatformError as err:
-        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, str(err)) from err
     return BookmarkActionResponse(
         ok=True, id=bookmark.id, name=bookmark.name, path=bookmark.path
     )
@@ -201,8 +196,6 @@ def reveal_bookmark(
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
     except service.PathDoesNotExist as err:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(err)) from err
-    except UnsupportedPlatformError as err:
-        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, str(err)) from err
     return BookmarkActionResponse(
         ok=True, id=bookmark.id, name=bookmark.name, path=bookmark.path
     )

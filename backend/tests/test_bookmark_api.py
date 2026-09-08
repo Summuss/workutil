@@ -8,6 +8,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from app.core.platform import LinuxPlatform
 from tests.conftest import workutil_at
 from tests.fake_platform import FakePlatform
 
@@ -58,6 +59,19 @@ def test_create_bookmark_refuses_nonexistent_path(
     )
     assert response.status_code == 400
     assert response.json()["detail"] == "这个路径现在不存在"
+
+
+def test_create_bookmark_refuses_relative_path(client: TestClient) -> None:
+    """A relative path resolves against the backend process's CWD, which is
+    not something registration can promise stays fixed across restarts —
+    reject it at registration time rather than let it silently point
+    somewhere else later."""
+    response = client.post(
+        "/api/bookmarks",
+        json={"name": "相对路径", "path": "app/main.py"},
+    )
+    assert response.status_code == 400
+    assert "绝对路径" in response.json()["detail"]
 
 
 def test_create_bookmark_strips_surrounding_quotes(
@@ -450,6 +464,26 @@ def test_transfer_bookmark_between_groups_and_loose(
     assert back_to_g1["order"] == 1  # appended after b2
 
 
+def test_update_bookmark_name_only_does_not_change_group(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """Renaming a bookmark must not silently evict it from its group. The
+    PATCH endpoint only touches group_id when the field is explicitly present
+    in the request body (`model_fields_set`) — this guards that distinction
+    against a future simplification that reads `payload.group_id` unconditionally."""
+    sample = tmp_path / "grouped.txt"
+    sample.write_text("x")
+    group = client.post("/api/bookmark-groups", json={"name": "G"}).json()
+    b = client.post(
+        "/api/bookmarks",
+        json={"name": "旧名", "path": str(sample), "group_id": group["id"]},
+    ).json()
+
+    updated = client.patch(f"/api/bookmarks/{b['id']}", json={"name": "新名"}).json()
+    assert updated["name"] == "新名"
+    assert updated["group_id"] == group["id"]
+
+
 def test_delete_group_keeps_members_as_loose(
     client: TestClient, tmp_path: Path
 ) -> None:
@@ -671,6 +705,46 @@ def test_open_group_serial_order_and_skips_stale_items(
         assert fake_platform.opened == [str(f1), str(f3)]
 
 
+def test_open_group_skips_item_platform_refuses_to_open(
+    data_dir: Path, tmp_path: Path
+) -> None:
+    """A real platform.open() can raise even for a path that exists — no
+    application associated, permission denied, a dangling shortcut. That
+    failure must be skipped like a stale path, not sink the whole group
+    (the same "opened / skipped, never all-or-nothing" discipline)."""
+    f1 = tmp_path / "file1.txt"
+    f1.write_text("1")
+    f2 = tmp_path / "file2.dat"
+    f2.write_text("2")
+    f3 = tmp_path / "file3.txt"
+    f3.write_text("3")
+
+    fake_platform = FakePlatform(fail_open_for={str(f2)})
+
+    with workutil_at(data_dir, platform=fake_platform) as client:
+        group = client.post("/api/bookmark-groups", json={"name": "工作必开"}).json()
+        gid = group["id"]
+
+        b1 = client.post(
+            "/api/bookmarks", json={"name": "F1", "path": str(f1), "group_id": gid}
+        ).json()
+        b2 = client.post(
+            "/api/bookmarks", json={"name": "F2", "path": str(f2), "group_id": gid}
+        ).json()
+        b3 = client.post(
+            "/api/bookmarks", json={"name": "F3", "path": str(f3), "group_id": gid}
+        ).json()
+
+        res = client.post(f"/api/bookmark-groups/{gid}/open")
+        assert res.status_code == 200
+        data = res.json()
+
+        assert [o["id"] for o in data["opened"]] == [b1["id"], b3["id"]]
+        assert [s["id"] for s in data["skipped"]] == [b2["id"]]
+        assert data["skipped"][0]["reason"]  # the OS's own message, not blank
+        assert fake_platform.opened == [str(f1), str(f3)]
+
+
 def test_open_empty_group_returns_empty_summary(
     data_dir: Path, fake_platform: FakePlatform
 ) -> None:
@@ -690,33 +764,34 @@ def test_open_nonexistent_group_returns_404(
         assert res.status_code == 404
 
 
-def test_linux_platform_error_path_returns_501(
-    client: TestClient, tmp_path: Path
-) -> None:
-    # client uses the default LinuxPlatform on Linux
+def test_linux_platform_error_path_returns_501(data_dir: Path, tmp_path: Path) -> None:
+    # Inject LinuxPlatform explicitly rather than lean on the `client`
+    # fixture's host-based default: this test is about the Linux error path
+    # itself, not about which OS happens to be running `make test`.
     sample_file = tmp_path / "valid.txt"
     sample_file.write_text("hello")
 
-    group = client.post("/api/bookmark-groups", json={"name": "Linux测试组"}).json()
-    b = client.post(
-        "/api/bookmarks",
-        json={"name": "测试", "path": str(sample_file), "group_id": group["id"]},
-    ).json()
+    with workutil_at(data_dir, platform=LinuxPlatform()) as client:
+        group = client.post("/api/bookmark-groups", json={"name": "Linux测试组"}).json()
+        b = client.post(
+            "/api/bookmarks",
+            json={"name": "测试", "path": str(sample_file), "group_id": group["id"]},
+        ).json()
 
-    # 1. POST open -> 501
-    res_open = client.post(f"/api/bookmarks/{b['id']}/open")
-    assert res_open.status_code == 501
-    detail_open = res_open.json()["detail"]
-    assert "Linux" in detail_open or "不支持" in detail_open
+        # 1. POST open -> 501
+        res_open = client.post(f"/api/bookmarks/{b['id']}/open")
+        assert res_open.status_code == 501
+        detail_open = res_open.json()["detail"]
+        assert "Linux" in detail_open or "不支持" in detail_open
 
-    # 2. POST reveal -> 501
-    res_reveal = client.post(f"/api/bookmarks/{b['id']}/reveal")
-    assert res_reveal.status_code == 501
-    detail_reveal = res_reveal.json()["detail"]
-    assert "Linux" in detail_reveal or "不支持" in detail_reveal
+        # 2. POST reveal -> 501
+        res_reveal = client.post(f"/api/bookmarks/{b['id']}/reveal")
+        assert res_reveal.status_code == 501
+        detail_reveal = res_reveal.json()["detail"]
+        assert "Linux" in detail_reveal or "不支持" in detail_reveal
 
-    # 3. POST group open -> 501
-    res_group = client.post(f"/api/bookmark-groups/{group['id']}/open")
-    assert res_group.status_code == 501
-    detail_group = res_group.json()["detail"]
-    assert "Linux" in detail_group or "不支持" in detail_group
+        # 3. POST group open -> 501
+        res_group = client.post(f"/api/bookmark-groups/{group['id']}/open")
+        assert res_group.status_code == 501
+        detail_group = res_group.json()["detail"]
+        assert "Linux" in detail_group or "不支持" in detail_group

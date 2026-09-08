@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from unittest.mock import patch
 
@@ -37,6 +38,10 @@ def test_linux_platform_raises_unsupported_platform_error() -> None:
     assert "不支持" in str(exc_info_reveal.value)
 
 
+@pytest.mark.skipif(
+    sys.platform in ("win32", "darwin"),
+    reason="exercises sys.platform dispatch on the host actually running tests",
+)
 def test_default_platform_on_linux_is_linux_platform() -> None:
     platform = get_default_platform()
     assert isinstance(platform, LinuxPlatform)
