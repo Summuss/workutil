@@ -38,8 +38,8 @@ export type BlockKind = "text" | "image" | "table";
  * blocks do without one.
  *
  * Each kind fills its own payload and leaves the others empty: `text` for a
- * paragraph, `image_url` for a screenshot. Switch on `kind`, never on which
- * field happens to be filled.
+ * paragraph, `image_url` for a screenshot, `rows` and `has_header` for a query
+ * result. Switch on `kind`, never on which field happens to be filled.
  */
 export interface Block {
   id: number;
@@ -48,6 +48,10 @@ export interface Block {
   label: string | null;
   text: string;
   image_url: string | null;
+  /** The cells of a table, cut when it was pasted and never cut again. */
+  rows: string[][];
+  /** Whether the first row is column names — never guessed, one click to flip. */
+  has_header: boolean;
 }
 
 /** One case with what is in it — a case at a time, not the whole workbook. */

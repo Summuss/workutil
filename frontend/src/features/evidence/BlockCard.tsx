@@ -2,18 +2,41 @@ import { useState } from "react";
 
 import { InlineEdit } from "../../shared/InlineEdit";
 import { BlockTextArea } from "./BlockTextArea";
+import { TableBlockView } from "./TableBlockView";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
 import type { Block, Move } from "./types";
+
+/**
+ * Everything that can be done to a table, which is everything one kind of
+ * block can do that the others cannot.
+ *
+ * One prop rather than five: they arrive together, they are ignored together
+ * by the other two kinds, and a table gaining an operation should not widen
+ * every block's interface. There is no `onAddRow` and there never will be —
+ * the reason is on the server, beside the endpoints that refuse to grow one.
+ */
+export interface TableActions {
+  onHeader: (hasHeader: boolean) => Promise<void>;
+  onCell: (row: number, column: number, value: string) => Promise<boolean>;
+  onDeleteRow: (row: number) => Promise<void>;
+  onDeleteColumn: (column: number) => Promise<void>;
+  /** Takes back a wrong guess — this was a log, not a query result. */
+  onAsText: () => Promise<void>;
+}
 
 interface BlockCardProps {
   block: Block;
   at: number;
   count: number;
   busy: boolean;
+  /** Set when this block is one the server has just guessed the kind of, which
+      is what puts the confirmation under it. */
+  guessed: boolean;
   onEditText: (text: string) => Promise<boolean>;
   onLabel: (label: string) => Promise<boolean>;
   onMove: (to: Move) => Promise<void>;
   onDelete: () => Promise<void>;
+  table: TableActions;
 }
 
 /** Blocks stack downwards, so the same four moves point up and down here. */
@@ -35,21 +58,25 @@ const LABEL_FIELD =
  * a stack trace out of what you just pasted is an everyday move here too, and
  * drag-selecting text ends in a click that would throw the selection away.
  *
- * A block never changes kind, so only a text block offers that button: an
- * image is retaken and re-pasted, not edited.
+ * A block changes kind exactly once and in one direction: a table the server
+ * read out of a paste can be told it was a log all along. Nothing else does —
+ * an image is retaken and re-pasted, not edited.
  */
 export function BlockCard({
   block,
   at,
   count,
   busy,
+  guessed,
   onEditText,
   onLabel,
   onMove,
   onDelete,
+  table,
 }: BlockCardProps) {
   const [editingText, setEditingText] = useState(false);
   const [editingLabel, setEditingLabel] = useState(false);
+  const [editingTable, setEditingTable] = useState(false);
 
   async function commitText(text: string): Promise<boolean> {
     const accepted = await onEditText(text);
@@ -123,6 +150,43 @@ export function BlockCard({
               编辑
             </button>
           )}
+          {block.kind === "table" && (
+            <>
+              {/* Stated rather than toggled blind: the button says which way
+                  it will go, and the first row is redrawn the moment it does. */}
+              <button
+                type="button"
+                title="第一行是不是列名 —— 工具猜不出来,由你说了算"
+                disabled={busy}
+                onClick={() => void table.onHeader(!block.has_header)}
+                className={TOOL_BUTTON}
+              >
+                {block.has_header ? "取消表头" : "设为表头"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => setEditingTable(!editingTable)}
+                className={TOOL_BUTTON}
+              >
+                {editingTable ? "完成" : "编辑"}
+              </button>
+              {/* Also here, and not only in the confirmation below, because a
+                  wrong guess is often noticed later — on the read-through
+                  before exporting, a day after the paste. The confirmation is
+                  the one-click version while it is still fresh; this is the
+                  door that is still there tomorrow. */}
+              <button
+                type="button"
+                title="识别错了?把它变回一段纯文字,原文一字不差"
+                disabled={busy}
+                onClick={() => void table.onAsText()}
+                className={TOOL_BUTTON}
+              >
+                改为文字
+              </button>
+            </>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -135,9 +199,17 @@ export function BlockCard({
       </div>
 
       {/* The body is the one part that belongs to a kind; everything above
-          this line belongs to all of them. The table body arrives in ticket
-          06. */}
-      {block.kind === "image" ? (
+          this line belongs to all of them. */}
+      {block.kind === "table" ? (
+        <TableBlockView
+          block={block}
+          busy={busy}
+          editing={editingTable}
+          onCell={table.onCell}
+          onDeleteRow={table.onDeleteRow}
+          onDeleteColumn={table.onDeleteColumn}
+        />
+      ) : block.kind === "image" ? (
         /* Shown whole, scaled down to the card. The file on disk is the
            original — the only resizing this tool does happens on the copy
            inside an exported workbook (design.md §6 F5).
@@ -164,6 +236,30 @@ export function BlockCard({
         <pre className="overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-800">
           {block.text}
         </pre>
+      )}
+
+      {/* The guess, said out loud, with the way out of it beside it.
+          Recognising a table is a guess that will sometimes be wrong — an
+          indented log has every mark of one — so it costs nothing when right
+          and one click when not. It is also the receipt for the paste: this is
+          the line that says the thing you just pasted went in (spec 粘贴时的类型判别).
+          It is ignorable and it goes on its own: nothing has to be dismissed,
+          and it is gone on the next visit to this case — the toolbar keeps the
+          correction itself, so what expires here is the reminder, not the way
+          out. The kind is checked as well as the guess: correcting one leaves
+          its id in `guessed`, and this line has to go the moment it does. */}
+      {guessed && block.kind === "table" && (
+        <p className="text-xs text-slate-400">
+          识别为表格,{block.rows.length} 行 {block.rows[0]?.length ?? 0} 列 ·{" "}
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void table.onAsText()}
+            className="cursor-pointer underline underline-offset-2 hover:text-slate-700 disabled:cursor-default disabled:opacity-40"
+          >
+            改为纯文字
+          </button>
+        </p>
       )}
     </article>
   );

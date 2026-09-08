@@ -56,10 +56,39 @@ class ImageBlockCreate(BaseModel):
     label: str | None = None
 
 
-#: The kinds a block can be created as, told apart by `kind`. `table` is
-#: missing rather than accepted-and-ignored: a block claiming a kind with no
-#: payload behind it is worse than a refusal. Ticket 06 adds it here.
-BlockCreate = Annotated[TextBlockCreate | ImageBlockCreate, Field(discriminator="kind")]
+class PastedBlockCreate(BaseModel):
+    """Whatever was on the clipboard, for the server to make sense of.
+
+    `paste` is not one of the three kinds — it is the absence of one. Cutting a
+    clipboard into cells is where the kind is decided, and that parsing is on
+    this side of the wire (design.md §6 F5), so the frontend says what it has
+    rather than what it wants and reads the kind off the block that comes back.
+
+    `html` is the compatibility flavour, present when the copy came from a web
+    page or Excel. The tool this is for puts only `text/plain` on the
+    clipboard, which is why tabs are the main path and this is the fallback.
+
+    Screenshots do not arrive this way: an image is known to be one before it
+    leaves the browser, and it travels as `ImageBlockCreate`.
+    """
+
+    kind: Literal["paste"]
+    text: str
+    html: str | None = None
+    label: str | None = None
+
+
+#: The ways a block can be created, told apart by `kind`. A block claiming a
+#: kind with no payload behind it is refused here rather than in the service.
+#:
+#: There is no `table` member, and that is not an omission: a table is never
+#: asked for, only recognised. It has exactly one origin — a paste the server
+#: read as a query result — and letting a caller declare one would mean letting
+#: it hand over rows nothing ever cut.
+BlockCreate = Annotated[
+    TextBlockCreate | ImageBlockCreate | PastedBlockCreate,
+    Field(discriminator="kind"),
+]
 
 
 class BlockTextEdit(BaseModel):
@@ -74,16 +103,37 @@ class BlockLabelEdit(BaseModel):
     label: str | None = None
 
 
+class TableCellEdit(BaseModel):
+    """A new value for one cell, stored exactly as it is typed."""
+
+    value: str
+
+
+class TableHeaderEdit(BaseModel):
+    """Whether a table's first row is column names.
+
+    Stated rather than toggled, so the answer does not depend on what the
+    screen believed when it asked.
+    """
+
+    has_header: bool
+
+
 class BlockRead(BaseModel):
     """A block as the case shows it.
 
     Every kind is read through this one shape, each leaving the payloads that
     are not its own empty: `text` for a paragraph, `image_url` for a
-    screenshot. The screen switches on `kind`, not on which field is filled.
+    screenshot, `rows` and `has_header` for a query result. The screen switches
+    on `kind`, not on which field is filled.
 
     The URL is built here rather than left to the browser to assemble out of an
     id and a filename: where an image is reachable is the server's to say, the
     way it is for a memo (`service.evidence_images_url`).
+
+    The paste a table was cut from is deliberately not here. It is kept so a
+    wrong guess can be taken back (`EvidenceBlock.table_source`), and the way
+    to take it back is to ask for that — not to re-send the text.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -94,6 +144,8 @@ class BlockRead(BaseModel):
     label: str | None
     text: str
     image_url: str | None = None
+    rows: list[list[str]] = []
+    has_header: bool = False
 
     @classmethod
     def of(cls, block: EvidenceBlock, evidence_id: int) -> "BlockRead":
@@ -108,6 +160,8 @@ class BlockRead(BaseModel):
                 if block.kind is BlockKind.IMAGE
                 else None
             ),
+            rows=block.rows,
+            has_header=block.has_header,
         )
 
 

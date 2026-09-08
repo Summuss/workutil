@@ -75,6 +75,91 @@ export function addTextBlock(
 }
 
 /**
+ * Whatever was on the clipboard, for the server to make sense of.
+ *
+ * `kind: "paste"` is not one of the three kinds — it is the absence of one.
+ * Cutting a clipboard into cells is what decides between a query result and a
+ * paragraph, and that parsing lives on the server (design.md §6 F5), so this
+ * says what it has and reads the kind off the block that comes back.
+ *
+ * `html` is the compatibility flavour, sent when the copy came from a web page
+ * or Excel. The tool this is for puts only `text/plain` on the clipboard.
+ */
+export function addPastedBlock(
+  evidenceId: number,
+  caseId: number,
+  text: string,
+  html: string | null,
+): Promise<Block> {
+  return post<Block>(blocksAt(evidenceId, caseId), {
+    kind: "paste",
+    text,
+    html,
+  });
+}
+
+/** Takes back a table the server guessed wrong: it was a log all along. */
+export function turnBlockIntoText(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+): Promise<Block> {
+  return post<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/as-text`);
+}
+
+/** Says whether a table's first row is column names — stated, not toggled. */
+export function setTableHeader(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  hasHeader: boolean,
+): Promise<Block> {
+  return put<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/header`, {
+    has_header: hasHeader,
+  });
+}
+
+export function setTableCell(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  row: number,
+  column: number,
+  value: string,
+): Promise<Block> {
+  return put<Block>(
+    `${blocksAt(evidenceId, caseId)}/${blockId}/cells/${row}/${column}`,
+    { value },
+  );
+}
+
+/**
+ * Takes a row or a column out. There is deliberately no function that puts one
+ * in, here or on the server, which is where the reason is written down.
+ *
+ * Both answer with the whole table, the way a move answers with the whole order.
+ */
+export function deleteTableRow(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  row: number,
+): Promise<Block> {
+  return del<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/rows/${row}`);
+}
+
+export function deleteTableColumn(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  column: number,
+): Promise<Block> {
+  return del<Block>(
+    `${blocksAt(evidenceId, caseId)}/${blockId}/columns/${column}`,
+  );
+}
+
+/**
  * One pasted screenshot, one block.
  *
  * Posted the moment it is pasted rather than held for a save: an image block

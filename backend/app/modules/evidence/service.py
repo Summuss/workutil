@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.core import images
 from app.core.db import utc_now
 from app.core.images import IncomingImage
+from app.modules.evidence import tables
 from app.modules.evidence.models import (
     BlockKind,
     Evidence,
@@ -73,8 +74,16 @@ class BlockNotFound(LookupError):
     """No block has that id — or it belongs to a different case."""
 
 
+class CellNotFound(LookupError):
+    """No such row or column in this table."""
+
+
 class EmptyBlockText(ValueError):
     """A text block with nothing in it."""
+
+
+class EmptyTable(ValueError):
+    """The last row or column of a table, which would leave nothing."""
 
 
 class WrongBlockKind(ValueError):
@@ -365,10 +374,9 @@ def _renumber(rows: Sequence[Ordered]) -> None:
 
 # --- Blocks -----------------------------------------------------------------
 #
-# The bottom layer: what is actually inside a case. `TEXT` and `IMAGE` exist;
-# the table block arrives in ticket 06 and reuses everything here except the
-# payload it carries. Labelling, ordering and finding a block are the same for
-# every kind — only what is added, edited and cleaned up differs.
+# The bottom layer: what is actually inside a case. Labelling, ordering,
+# finding and deleting a block are the same for all three kinds — only the
+# payload each carries, and the way it is edited, differ.
 
 
 class CaseContent(NamedTuple):
@@ -496,6 +504,67 @@ def add_image_block(
     return block
 
 
+def add_table_block(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    rows: list[list[str]],
+    source: str,
+    label: str | None = None,
+) -> EvidenceBlock:
+    """Append a query result to a case, keeping its rows and columns.
+
+    `has_header` starts true because it has to start somewhere and cannot be
+    worked out: whether a DB client copies the column names is a setting inside
+    that client (design.md §6 F5). It is one click to flip.
+
+    `source` is the paste these rows were cut from, kept so that a wrong guess
+    can be taken back whole — see `turn_block_into_text`.
+    """
+    case = get_case(session, evidence_id, case_id)
+
+    block = EvidenceBlock(
+        case_id=case.id,
+        kind=BlockKind.TABLE,
+        rows=rows,
+        has_header=True,
+        table_source=source,
+        label=_clean_label(label),
+        order=len(_blocks_in_order(session, case.id)),
+    )
+    session.add(block)
+    session.commit()
+    return block
+
+
+def add_pasted_block(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    text: str,
+    html: str | None = None,
+    label: str | None = None,
+) -> EvidenceBlock:
+    """Append whatever was on the clipboard, as whichever kind it turns out be.
+
+    The one place the kind of a pasted block is decided. Screenshots do not
+    come through here — the browser knows an image when it holds one — so what
+    is left is the guess between a query result and a paragraph, and that guess
+    belongs on this side of the wire with the parsing (design.md §6 F5).
+
+    A paste with nothing in it is refused before the guess rather than after:
+    text that is only tabs and newlines is technically a table of empty cells,
+    and an empty block of either kind is a block to delete, not to make.
+    """
+    if not text.strip():
+        raise EmptyBlockText("剪贴板里什么都没有")
+
+    rows = tables.table_in(text, html)
+    if rows is None:
+        return add_text_block(session, evidence_id, case_id, text, label)
+    return add_table_block(session, evidence_id, case_id, rows, text, label)
+
+
 def _image_names(blocks: Sequence[EvidenceBlock]) -> list[str]:
     """The files these blocks are, ignoring the ones that are not images.
 
@@ -583,6 +652,142 @@ def delete_block(
     session.commit()
 
     _discard_images(images_dir, evidence_id, doomed)
+
+
+# --- Inside a table ---------------------------------------------------------
+#
+# What can be done to a query result once it is in a case: mask a cell, take
+# out a column that should not be delivered, say whether the first row is
+# column names.
+#
+# What cannot be done, anywhere in this codebase, is add a row or a column. The
+# rows came out of a database; a tool that can add one is a tool that can put a
+# value into an evidence that no system ever produced, which is the one thing an
+# evidence must not be able to say (spec Out of Scope). This is the only place
+# that reason is written down — everywhere else the absence is what says it.
+#
+# The cutting itself is in `tables.py`, as values in and values out. Each of
+# these assigns the new list it gets back rather than changing the one that is
+# there: SQLAlchemy tracks a JSON column by identity, so a cell changed in
+# place is a change it cannot see and would never write down.
+
+
+def _table_block(
+    session: Session, evidence_id: int, case_id: int, block_id: int
+) -> EvidenceBlock:
+    """One table of this case — or a refusal, if that block is another kind."""
+    block = get_block(session, evidence_id, case_id, block_id)
+    if block.kind is not BlockKind.TABLE:
+        raise WrongBlockKind("这一段不是表格")
+    return block
+
+
+def _refuse_missing(at: int, count: int) -> None:
+    """Stop here unless there really is a row or a column at `at`.
+
+    A path carries whatever number was put in it, negative ones included, and
+    Python would happily read `rows[-1]` as the last row rather than as the
+    mistake it is.
+    """
+    if not 0 <= at < count:
+        raise CellNotFound(f"no row or column {at} in a table of {count}")
+
+
+def set_table_cell(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    row: int,
+    column: int,
+    value: str,
+) -> EvidenceBlock:
+    """Rewrite one cell — masking what should not be delivered, mostly.
+
+    Stored exactly as typed, spaces and all: an evidence says what was seen.
+    """
+    block = _table_block(session, evidence_id, case_id, block_id)
+    _refuse_missing(row, len(block.rows))
+    _refuse_missing(column, len(block.rows[row]))
+
+    block.rows = tables.with_cell(block.rows, row, column, value)
+    session.commit()
+    return block
+
+
+def delete_table_row(
+    session: Session, evidence_id: int, case_id: int, block_id: int, row: int
+) -> EvidenceBlock:
+    """Take one row out, header row included.
+
+    `has_header` says how to draw the first row, not which row is pinned down:
+    dropping the header leaves the row below it as the new first row, which is
+    what deleting a header of column names you did not want should do.
+    """
+    block = _table_block(session, evidence_id, case_id, block_id)
+    _refuse_missing(row, len(block.rows))
+    if len(block.rows) <= 1:
+        raise EmptyTable("表格不能一行都不剩 —— 整段不要的话删掉它")
+
+    block.rows = tables.without_row(block.rows, row)
+    session.commit()
+    return block
+
+
+def delete_table_column(
+    session: Session, evidence_id: int, case_id: int, block_id: int, column: int
+) -> EvidenceBlock:
+    """Take one column out of every row at once.
+
+    The everyday reason a table is edited at all: a result set carries columns
+    nobody outside the team should see, and they go from the whole table or
+    they have not gone.
+    """
+    block = _table_block(session, evidence_id, case_id, block_id)
+    _refuse_missing(column, len(block.rows[0]))
+    if len(block.rows[0]) <= 1:
+        raise EmptyTable("表格不能一列都不剩 —— 整段不要的话删掉它")
+
+    block.rows = tables.without_column(block.rows, column)
+    session.commit()
+    return block
+
+
+def set_table_header(
+    session: Session, evidence_id: int, case_id: int, block_id: int, has_header: bool
+) -> EvidenceBlock:
+    """Say whether the first row is column names.
+
+    Set rather than toggled, so saying it twice says the same thing — and so
+    the answer does not depend on what the screen believed when it asked.
+    """
+    block = _table_block(session, evidence_id, case_id, block_id)
+    block.has_header = has_header
+    session.commit()
+    return block
+
+
+def turn_block_into_text(
+    session: Session, evidence_id: int, case_id: int, block_id: int
+) -> EvidenceBlock:
+    """Take back a wrong guess: this was never a table, it was a log.
+
+    The paste comes back exactly as it arrived, because that is what was kept
+    for this (`EvidenceBlock.table_source`) — rebuilding it out of the cells
+    could not, since unquoting is not something that runs backwards.
+
+    The block stays the same block: its heading and its place among the others
+    were not part of the mistake.
+    """
+    block = _table_block(session, evidence_id, case_id, block_id)
+
+    block.kind = BlockKind.TEXT
+    block.text = _clean_block_text(block.table_source)
+    block.table_source = ""
+    block.has_header = False
+    block.rows = []
+    session.commit()
+    return block
 
 
 def move_block(

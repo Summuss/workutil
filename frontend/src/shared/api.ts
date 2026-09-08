@@ -54,7 +54,9 @@ export function messageOf(cause: unknown, fallback: string): string {
   return cause instanceof Error ? cause.message : fallback;
 }
 
-export function post<T>(path: string, payload: unknown): Promise<T> {
+/** `payload` is optional: a POST can be a verb whose object the server already
+    has, and then there is nothing to send. */
+export function post<T>(path: string, payload?: unknown): Promise<T> {
   return request<T>(path, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -78,8 +80,10 @@ export function put<T>(path: string, payload: unknown): Promise<T> {
   });
 }
 
-export function del(path: string): Promise<void> {
-  return request<void>(path, {
+/** Deleting usually answers with nothing, but not always — so what comes back
+    is left to the caller to name. */
+export function del<T = void>(path: string): Promise<T> {
+  return request<T>(path, {
     method: "DELETE",
   });
 }

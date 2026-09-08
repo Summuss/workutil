@@ -1,17 +1,26 @@
+import { useState } from "react";
+
 import { readImage } from "../../shared/images";
 import { useEditRunner } from "../../shared/useEditRunner";
 import { useLoad } from "../../shared/useLoad";
 import {
   addImageBlock,
+  addPastedBlock,
   addTextBlock,
   deleteBlock,
+  deleteTableColumn,
+  deleteTableRow,
   editBlockText,
   getCase,
   moveBlock,
   setBlockLabel,
+  setTableCell,
+  setTableHeader,
+  turnBlockIntoText,
 } from "./api";
 import { BlockCard } from "./BlockCard";
 import { BlockTextArea } from "./BlockTextArea";
+import type { PastedText } from "./clipboard";
 import type { Block, CaseDetail, Move } from "./types";
 
 interface CaseBlocksProps {
@@ -44,6 +53,12 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
 
   const { busy, error: blockError, run } = useEditRunner("操作失败");
 
+  // The blocks whose kind the server worked out during this visit — the only
+  // ones that draw the confirmation. Deliberately not stored: the line is there
+  // to be read once and ignored, and a case reopened tomorrow should show the
+  // tables, not a running commentary on how they were recognised.
+  const [guessed, setGuessed] = useState<ReadonlySet<number>>(new Set());
+
   const blocks = content?.blocks ?? [];
 
   function setBlocks(next: Block[]) {
@@ -55,6 +70,27 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
   function handleAdd(text: string): Promise<boolean> {
     return run(async () => {
       setBlocks([...blocks, await addTextBlock(evidenceId, caseId, text)]);
+    });
+  }
+
+  /**
+   * A paste that might be a query result, cut up by the server.
+   *
+   * What comes back says which kind it turned out to be, and a table is
+   * remembered as a guess so the block draws the confirmation under itself.
+   * That set is only ever added to here: reopening the case clears it, which is
+   * what keeps a line meant as "that landed" from becoming furniture.
+   */
+  async function handleTable(paste: PastedText): Promise<void> {
+    await run(async () => {
+      const added = await addPastedBlock(
+        evidenceId,
+        caseId,
+        paste.text,
+        paste.html,
+      );
+      setGuessed((current) => new Set(current).add(added.id));
+      setBlocks([...blocks, added]);
     });
   }
 
@@ -112,6 +148,58 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     });
   }
 
+  // --- Inside a table -------------------------------------------------------
+  //
+  // Every one of these answers with the whole block, so the table on screen is
+  // always the table the server has — which matters most for the two that
+  // change its shape. Nothing here adds a row or a column, and that is the
+  // point; the reason is on the server.
+
+  async function handleHeader(
+    blockId: number,
+    hasHeader: boolean,
+  ): Promise<void> {
+    await run(async () => {
+      replace(await setTableHeader(evidenceId, caseId, blockId, hasHeader));
+    });
+  }
+
+  function handleCell(
+    blockId: number,
+    row: number,
+    column: number,
+    value: string,
+  ): Promise<boolean> {
+    return run(async () => {
+      replace(
+        await setTableCell(evidenceId, caseId, blockId, row, column, value),
+      );
+    });
+  }
+
+  async function handleDeleteRow(blockId: number, row: number): Promise<void> {
+    await run(async () => {
+      replace(await deleteTableRow(evidenceId, caseId, blockId, row));
+    });
+  }
+
+  async function handleDeleteColumn(
+    blockId: number,
+    column: number,
+  ): Promise<void> {
+    await run(async () => {
+      replace(await deleteTableColumn(evidenceId, caseId, blockId, column));
+    });
+  }
+
+  /** The one click that takes back a wrong guess. The block stays the block —
+      same place, same heading — so nothing but its kind changes. */
+  async function handleAsText(blockId: number): Promise<void> {
+    await run(async () => {
+      replace(await turnBlockIntoText(evidenceId, caseId, blockId));
+    });
+  }
+
   if (content === null) {
     return (
       <p className="py-8 text-center text-sm text-slate-400">
@@ -124,7 +212,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     <div className="flex flex-col gap-3">
       {blocks.length === 0 ? (
         <p className="py-6 text-center text-xs text-slate-400">
-          这个用例还是空的。下面写一段,或者直接粘一张截图。
+          这个用例还是空的。下面写一段,或者直接粘一张截图、一段查询结果。
         </p>
       ) : (
         blocks.map((block, at) => (
@@ -134,10 +222,19 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
             at={at}
             count={blocks.length}
             busy={busy}
+            guessed={guessed.has(block.id)}
             onEditText={(text) => handleEditText(block.id, text)}
             onLabel={(label) => handleLabel(block.id, label)}
             onMove={(to) => handleMove(block.id, to)}
             onDelete={() => handleDelete(block.id)}
+            table={{
+              onHeader: (hasHeader) => handleHeader(block.id, hasHeader),
+              onCell: (row, column, value) =>
+                handleCell(block.id, row, column, value),
+              onDeleteRow: (row) => handleDeleteRow(block.id, row),
+              onDeleteColumn: (column) => handleDeleteColumn(block.id, column),
+              onAsText: () => handleAsText(block.id),
+            }}
           />
         ))
       )}
@@ -149,9 +246,10 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
       <BlockTextArea
         initial=""
         busy={busy}
-        hint="Ctrl+Enter 添加一段 · 截图直接粘贴"
-        placeholder="写一段,粘一段日志,或者粘 / 拖一张截图…"
+        hint="Ctrl+Enter 添加一段 · 截图和查询结果直接粘贴"
+        placeholder="写一段,粘一段日志,或者粘 / 拖一张截图、一段查询结果…"
         onImages={(files) => void handleImages(files)}
+        onTable={(paste) => void handleTable(paste)}
         onCommit={handleAdd}
       />
     </div>

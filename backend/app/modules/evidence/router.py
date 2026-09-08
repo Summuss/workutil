@@ -24,6 +24,9 @@ from app.modules.evidence.schemas import (
     EvidenceRename,
     ImageBlockCreate,
     MoveRequest,
+    PastedBlockCreate,
+    TableCellEdit,
+    TableHeaderEdit,
 )
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])
@@ -45,12 +48,14 @@ def _as_http_error() -> Iterator[None]:
         service.EvidenceNotFound,
         service.CaseNotFound,
         service.BlockNotFound,
+        service.CellNotFound,
     ) as missing:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(missing)) from missing
     except (
         service.InvalidTitle,
         service.InvalidCaseName,
         service.EmptyBlockText,
+        service.EmptyTable,
         service.WrongBlockKind,
         images.InvalidImage,
     ) as invalid:
@@ -159,10 +164,12 @@ def add_block(
     session: SessionDep,
     settings: SettingsDep,
 ) -> BlockRead:
-    """Append a block to a case — one door for every kind.
+    """Append a block to a case — one door for every kind, and for a paste.
 
     Which kind is in the body, and the union it is validated against refuses a
-    kind with no payload behind it before this runs (see `BlockCreate`).
+    kind with no payload behind it before this runs (see `BlockCreate`). A
+    paste says only that it is a paste: what it becomes is worked out in the
+    service, and the answer is the `kind` of the block that comes back.
     """
     with _as_http_error():
         if isinstance(payload, ImageBlockCreate):
@@ -172,6 +179,15 @@ def add_block(
                 case_id,
                 settings.images_dir,
                 payload.image,
+                payload.label,
+            )
+        elif isinstance(payload, PastedBlockCreate):
+            block = service.add_pasted_block(
+                session,
+                evidence_id,
+                case_id,
+                payload.text,
+                payload.html,
                 payload.label,
             )
         else:
@@ -216,6 +232,89 @@ def set_block_label(
     with _as_http_error():
         block = service.set_block_label(
             session, evidence_id, case_id, block_id, payload.label
+        )
+    return BlockRead.of(block, evidence_id)
+
+
+@router.post(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-text", response_model=BlockRead
+)
+def turn_block_into_text(
+    evidence_id: int, case_id: int, block_id: int, session: SessionDep
+) -> BlockRead:
+    """Take back a table the server guessed wrong — this was a log all along.
+
+    No body: the paste it was made of is already here, which is the only way
+    the correction can hand back every character of it (spec 粘贴时的类型判别).
+    """
+    with _as_http_error():
+        block = service.turn_block_into_text(session, evidence_id, case_id, block_id)
+    return BlockRead.of(block, evidence_id)
+
+
+@router.put(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/header",
+    response_model=BlockRead,
+)
+def set_table_header(
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    payload: TableHeaderEdit,
+    session: SessionDep,
+) -> BlockRead:
+    with _as_http_error():
+        block = service.set_table_header(
+            session, evidence_id, case_id, block_id, payload.has_header
+        )
+    return BlockRead.of(block, evidence_id)
+
+
+@router.put(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/cells/{row}/{column}",
+    response_model=BlockRead,
+)
+def set_table_cell(
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    row: int,
+    column: int,
+    payload: TableCellEdit,
+    session: SessionDep,
+) -> BlockRead:
+    with _as_http_error():
+        block = service.set_table_cell(
+            session, evidence_id, case_id, block_id, row, column, payload.value
+        )
+    return BlockRead.of(block, evidence_id)
+
+
+# A DELETE here and no POST, deliberately — the reason is in `service.py`, over
+# the section these forward to.
+@router.delete(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/rows/{row}",
+    response_model=BlockRead,
+)
+def delete_table_row(
+    evidence_id: int, case_id: int, block_id: int, row: int, session: SessionDep
+) -> BlockRead:
+    """Answers with the whole table, the way a move answers with the whole order."""
+    with _as_http_error():
+        block = service.delete_table_row(session, evidence_id, case_id, block_id, row)
+    return BlockRead.of(block, evidence_id)
+
+
+@router.delete(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/columns/{column}",
+    response_model=BlockRead,
+)
+def delete_table_column(
+    evidence_id: int, case_id: int, block_id: int, column: int, session: SessionDep
+) -> BlockRead:
+    with _as_http_error():
+        block = service.delete_table_column(
+            session, evidence_id, case_id, block_id, column
         )
     return BlockRead.of(block, evidence_id)
 

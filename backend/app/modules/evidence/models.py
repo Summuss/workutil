@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import Enum, ForeignKey, Text
+from sqlalchemy import JSON, Boolean, Enum, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.db import Base, UtcDateTime
@@ -91,7 +91,7 @@ class EvidenceBlock(Ordered, Base):
 
     One table holds all three kinds, each carrying the payload its own kind
     needs and leaving the others empty: `text` for `TEXT`, `image_name` for
-    `IMAGE`. The table block brings its own in ticket 06.
+    `IMAGE`, `rows` and `has_header` for `TABLE`.
     """
 
     __tablename__ = "evidence_block"
@@ -122,5 +122,28 @@ class EvidenceBlock(Ordered, Base):
     #: unique within it, which is why deleting a case deletes files one by one
     #: rather than the directory.
     image_name: Mapped[str] = mapped_column(Text, default="")
+    #: The cells of a table block, settled when it was pasted and never cut
+    #: again: a text column in a database can hold a tab, so the moment the
+    #: paste arrives is the only one at which the cell boundaries are still
+    #: known (design.md §6 F5).
+    #:
+    #: A JSON column is tracked by identity, so SQLAlchemy cannot see a list
+    #: changed in place. Every write here assigns a whole new one — the
+    #: functions in `tables.py` return one, which is what makes that the easy
+    #: way round rather than a rule to remember.
+    rows: Mapped[list[list[str]]] = mapped_column(JSON, default=list)
+    #: Whether the first row is column names. Never inferred: whether a DB
+    #: client copies the header depends on a setting inside that client, and
+    #: nothing in the paste says which way it was set. A new table is given
+    #: `True` by `service.add_table_block` and it is one click to flip; the
+    #: `False` here is what the kinds that have no header row carry.
+    has_header: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: The paste a table block was made of, kept verbatim so that recognising
+    #: it wrongly costs one click and not a paragraph. Recognition is a guess
+    #: — an indented log has every mark of a table — and the way back has to
+    #: hand over exactly what arrived, which rows cut from it cannot: unquoting
+    #: is not reversible. It is not part of the table and is never re-cut; the
+    #: rows above stay the truth for as long as the block is one.
+    table_source: Mapped[str] = mapped_column(Text, default="")
 
     case: Mapped[EvidenceCase] = relationship(back_populates="blocks")

@@ -10,4 +10,5 @@ Evidence 里有三种内容:文字、图片、表格。表格来自 DB 客户端
 
 - Block 有 `kind`(`text` / `image` / `table`)。Log 归进 `text`,不单列一类。
 - 表格存 `rows: string[][]` 加一个 `has_header` 标志。**`has_header` 不能靠猜**:IDEA 的 database 工具复制时带不带表头,取决于 Settings → Tools → CSV Formats → TSV 里的「First row is header」,工具这边无从判断第一行是列名还是数据。默认 `true`,UI 上一键可翻转。
+- 表格 Block 另存一份**原始粘贴文本**,只为「改为纯文字」这一条退路服务。这不是上面那句「不存原始 TSV 事后再切」的例外 —— 定型仍在粘贴那一刻完成,那份原文**永远不会被重新切一遍**;它存在是因为识别一定会误判(带缩进的日志),而从 rows 拼回原文做不到:去引号不是可逆操作。改回文字之后它随即清空。
 - 导出时所有单元格统一写成 `@` 文本格式。DB 里的 `007`、`2024-01-01`、18 位 ID 交给 Excel 自动识别会分别变成 `7`、日期序列号、科学计数法,而 evidence 的全部意义就是「我看到的就是这个值」。代价是 Excel 会挂「以文本形式存储的数字」绿色三角 —— 接受它;openpyxl 3.1.5 的 `IgnoredErrors` 类没有接到 worksheet 上,压掉它要拆 xlsx 的 zip 手改 XML,不值得。
