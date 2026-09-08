@@ -94,14 +94,23 @@ export function BookmarkItem({
       return;
     }
 
+    // Only send fields that actually changed. A bookmark whose file has
+    // moved away is exactly the one someone needs to rename without also
+    // re-submitting (and re-validating) a path they didn't touch.
+    const payload: BookmarkUpdatePayload = {};
+    if (cleanName !== bookmark.name) payload.name = cleanName;
+    if (cleanPath !== bookmark.path) payload.path = cleanPath;
+    if (groupId !== bookmark.group_id) payload.group_id = groupId;
+
+    if (Object.keys(payload).length === 0) {
+      setEditing(false);
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
-      await onUpdate(bookmark.id, {
-        name: cleanName,
-        path: cleanPath,
-        group_id: groupId,
-      });
+      await onUpdate(bookmark.id, payload);
       setEditing(false);
     } catch (cause) {
       setError(messageOf(cause, "更新失败"));
