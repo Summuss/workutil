@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { messageOf } from "../../shared/api";
 import { useI18n } from "../../shared/i18n";
+import { TrashIcon } from "../../shared/icons";
 import { formatTime } from "../../shared/time";
 import { useLoad } from "../../shared/useLoad";
 import { createEvidence, deleteEvidence, listEvidence } from "./api";
@@ -71,44 +72,42 @@ export function EvidenceListPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-6 py-6">
-      <form onSubmit={(event) => void create(event)} className="flex gap-2">
+    <main className="mx-auto flex max-w-2xl flex-col gap-3.5 px-8 py-9">
+      <form onSubmit={(event) => void create(event)} className="flex items-center gap-2.5">
         <input
           type="text"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder={t("evidence.create_placeholder")}
-          className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+          className="field-input"
         />
         <button
           type="submit"
           disabled={creating || title.trim() === ""}
-          className="cursor-pointer rounded-md bg-slate-800 px-4 py-2 text-xs text-white hover:bg-slate-700 disabled:opacity-50"
+          className="btn-primary shrink-0"
         >
           {creating ? t("common.creating") : t("evidence.create_button")}
         </button>
       </form>
 
-      {error !== null && <p className="text-xs text-red-600">{error}</p>}
+      {error !== null && (
+        <p className="text-xs" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
 
       {evidence.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-400">
+        <p className="py-8 text-center text-[13px]" style={{ color: "var(--text-faint)" }}>
           {loading ? t("common.loading") : t("evidence.empty_state")}
         </p>
       ) : (
-        <ul className="divide-y divide-slate-200">
+        <ul className="flex flex-col gap-1.5">
           {evidence.map((one) => (
-            <li
-              key={one.id}
-              className="group flex items-center justify-between gap-3 py-2.5"
-            >
-              <Link
-                to={`/evidence/${one.id}`}
-                className="min-w-0 flex-1 truncate text-sm text-slate-700 hover:text-slate-900 hover:underline"
-              >
+            <li key={one.id} className="card group flex items-center justify-between gap-3 px-4 py-2.5">
+              <Link to={`/evidence/${one.id}`} className="min-w-0 flex-1 truncate text-[13.5px] hover:underline">
                 {one.title}
               </Link>
-              <span className="shrink-0 text-xs text-slate-400">
+              <span className="shrink-0 text-xs" style={{ color: "var(--text-faint)" }}>
                 {t("evidence.case_count_with_time", {
                   count: one.case_count,
                   time: formatTime(one.created_at),
@@ -117,9 +116,10 @@ export function EvidenceListPage() {
               <button
                 type="button"
                 onClick={() => void remove(one)}
-                className="shrink-0 cursor-pointer text-xs text-slate-400 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-red-600"
+                className="icon-btn icon-btn-danger shrink-0 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+                title={t("common.delete")}
               >
-                {t("common.delete")}
+                <TrashIcon />
               </button>
             </li>
           ))}

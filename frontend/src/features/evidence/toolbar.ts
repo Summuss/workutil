@@ -1,8 +1,9 @@
+import type { ComponentType } from "react";
+
 import type { Move } from "./types";
 
 /** The small buttons that sit beside a case or a block. */
-export const TOOL_BUTTON =
-  "cursor-pointer rounded px-1.5 py-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-default disabled:opacity-40";
+export const TOOL_BUTTON = "tool-btn";
 
 /**
  * The four ordering buttons, each with the position that leaves it nowhere to
@@ -25,4 +26,7 @@ export const MOVES: {
 ];
 
 /** What one axis calls the four moves. */
-export type MoveLabels = Record<Move, { glyph: string; title: string }>;
+export type MoveLabels = Record<
+  Move,
+  { Icon: ComponentType<{ size?: number }>; title: string }
+>;

@@ -1,26 +1,222 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
 @import "highlight.js/styles/github.css";
+
+:root {
+  --bg: oklch(0.985 0.004 85);
+  --surface: #ffffff;
+  --border: oklch(0.9 0.006 85);
+  --border-strong: oklch(0.85 0.008 85);
+  --text: oklch(0.22 0.01 260);
+  --text-muted: oklch(0.5 0.008 260);
+  --text-faint: oklch(0.62 0.008 260);
+  --accent: oklch(0.52 0.09 265);
+  --accent-strong: oklch(0.42 0.1 265);
+  --accent-tint: oklch(0.94 0.02 265);
+  --danger: oklch(0.5 0.16 25);
+  --danger-tint: oklch(0.94 0.035 25);
+  --warn: oklch(0.55 0.14 65);
+  --warn-tint: oklch(0.94 0.04 65);
+  --success: oklch(0.5 0.11 145);
+  --success-tint: oklch(0.94 0.035 145);
+  --scrim: rgba(15, 12, 8, 0.4);
+  --hover-wash: oklch(0.94 0.006 85);
+  --stripe: oklch(0.97 0.004 85);
+  --sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+}
+
+a {
+  color: var(--accent);
+}
+a:hover {
+  color: var(--accent-strong);
+}
+
+/* ---- shared component classes, mirrored 1:1 from the workutil design mockup ---- */
+
+@layer components {
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-strong);
+  }
+  .btn-primary:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .btn-ghost {
+    background: transparent;
+    border: 1px solid var(--border-strong);
+    color: var(--text-muted);
+    border-radius: 7px;
+    padding: 6px 13px;
+    font-family: var(--sans);
+    font-size: 12.5px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition:
+      color 0.1s,
+      border-color 0.1s;
+  }
+  .btn-ghost:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .btn-ghost:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .icon-btn {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-faint);
+    padding: 5px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition:
+      background 0.1s,
+      color 0.1s;
+  }
+  .icon-btn:hover:not(:disabled) {
+    background: var(--hover-wash);
+    color: var(--text);
+  }
+  .icon-btn:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+  .icon-btn-danger:hover:not(:disabled) {
+    background: var(--danger-tint);
+    color: var(--danger);
+  }
+
+  .field-input {
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 12.5px;
+    font-family: var(--sans);
+    color: var(--text);
+    background: var(--surface);
+    width: 100%;
+  }
+  .field-input::placeholder {
+    color: var(--text-faint);
+  }
+  .field-input:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .field-input:disabled {
+    opacity: 0.6;
+  }
+
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface);
+    transition: border-color 0.1s;
+  }
+  .card:hover {
+    border-color: var(--border-strong);
+  }
+
+  .text-btn {
+    cursor: pointer;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    padding: 0;
+    transition: color 0.1s;
+  }
+  .text-btn:hover:not(:disabled) {
+    color: var(--accent);
+  }
+  .text-btn-danger:hover:not(:disabled) {
+    color: var(--danger);
+  }
+  .text-btn:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .tool-btn {
+    cursor: pointer;
+    border-radius: 5px;
+    padding: 3px 6px;
+    font-size: 11px;
+    color: var(--text-faint);
+    background: transparent;
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition:
+      background 0.1s,
+      color 0.1s;
+  }
+  .tool-btn:hover:not(:disabled) {
+    background: var(--hover-wash);
+    color: var(--text);
+  }
+  .tool-btn:disabled {
+    cursor: default;
+    opacity: 0.35;
+  }
+}
 
 /* Markdown styling inside expanded memos */
 .markdown-body pre {
-  background-color: #f8fafc;
+  background-color: var(--stripe);
   border-radius: 6px;
   padding: 0.75rem 1rem;
   overflow-x: auto;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--mono);
   font-size: 0.8125rem;
   line-height: 1.5;
   margin: 0.5rem 0;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
 }
 
 .markdown-body code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--mono);
 }
 
 .markdown-body :not(pre) > code {
-  background-color: #f1f5f9;
-  color: #0f172a;
+  background-color: var(--stripe);
+  color: var(--text);
   padding: 0.15rem 0.35rem;
   border-radius: 4px;
   font-size: 0.8125rem;
@@ -51,9 +247,9 @@
 }
 
 .markdown-body blockquote {
-  border-left: 3px solid #cbd5e1;
+  border-left: 3px solid var(--border-strong);
   padding-left: 0.75rem;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 0.4rem 0;
 }
 
@@ -62,21 +258,26 @@
 .markdown-body h3,
 .markdown-body h4 {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--text);
   margin-top: 0.75rem;
   margin-bottom: 0.4rem;
 }
 
-.markdown-body h1 { font-size: 1.125rem; }
-.markdown-body h2 { font-size: 1rem; }
-.markdown-body h3 { font-size: 0.875rem; }
+.markdown-body h1 {
+  font-size: 1.125rem;
+}
+.markdown-body h2 {
+  font-size: 1rem;
+}
+.markdown-body h3 {
+  font-size: 0.875rem;
+}
 
 .markdown-body img {
   max-width: 100%;
   height: auto;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border);
   margin: 0.5rem 0;
   display: block;
 }
-

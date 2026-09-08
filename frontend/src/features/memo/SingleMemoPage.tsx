@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router";
 
 import { messageOf } from "../../shared/api";
 import { useI18n } from "../../shared/i18n";
+import { ArrowLeftIcon } from "../../shared/icons";
 import { getMemo } from "./api";
 import { MemoItem } from "./MemoItem";
 import type { Memo } from "./types";
@@ -53,26 +54,27 @@ export function SingleMemoPage() {
   }, [id]);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-6 py-8">
+    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-8 py-9">
       <div>
         <Link
           to="/"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+          style={{ color: "var(--text-muted)" }}
         >
-          <span>←</span>
+          <ArrowLeftIcon size={13} />
           <span>{t("memo.back_to_all")}</span>
         </Link>
       </div>
 
       {loading && (
-        <div className="py-12 text-center text-sm text-slate-400">
+        <div className="py-12 text-center text-sm" style={{ color: "var(--text-faint)" }}>
           {t("common.loading")}
         </div>
       )}
 
       {!loading && error && (
-        <div className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-xs">
-          <p className="text-slate-600">{error}</p>
+        <div className="card p-8 text-center text-sm" style={{ color: "var(--text-muted)" }}>
+          <p>{error}</p>
         </div>
       )}
 

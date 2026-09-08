@@ -2,6 +2,14 @@ import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
 import { t } from "../../shared/i18n";
+import {
+  ChevronsDownIcon,
+  ChevronsUpIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EditIcon,
+  TrashIcon,
+} from "../../shared/icons";
 import type {
   Bookmark,
   BookmarkGroup,
@@ -23,21 +31,23 @@ interface BookmarkItemProps {
   onReveal: (id: number) => Promise<void>;
 }
 
-
 const MOVES: {
   to: MoveDirection;
-  glyph: string;
+  Icon: typeof ChevronUpIcon;
   titleKey: string;
   stuck: (at: number, count: number) => boolean;
 }[] = [
-  { to: "top", glyph: "⤒", titleKey: "bookmark.move_item_top", stuck: (at) => at === 0 },
-  { to: "up", glyph: "↑", titleKey: "bookmark.move_item_up", stuck: (at) => at === 0 },
-  { to: "down", glyph: "↓", titleKey: "bookmark.move_item_down", stuck: (at, count) => at === count - 1 },
-  { to: "bottom", glyph: "⤓", titleKey: "bookmark.move_item_bottom", stuck: (at, count) => at === count - 1 },
+  { to: "top", Icon: ChevronsUpIcon, titleKey: "bookmark.move_item_top", stuck: (at) => at === 0 },
+  { to: "up", Icon: ChevronUpIcon, titleKey: "bookmark.move_item_up", stuck: (at) => at === 0 },
+  { to: "down", Icon: ChevronDownIcon, titleKey: "bookmark.move_item_down", stuck: (at, count) => at === count - 1 },
+  { to: "bottom", Icon: ChevronsDownIcon, titleKey: "bookmark.move_item_bottom", stuck: (at, count) => at === count - 1 },
 ];
 
-const TOOL_BUTTON =
-  "cursor-pointer rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:cursor-default disabled:opacity-25";
+const STATUS_STYLE: Record<BookmarkStatus, { dot: string; bg: string; color: string; border: string }> = {
+  unknown: { dot: "var(--text-faint)", bg: "var(--stripe)", color: "var(--text-muted)", border: "var(--border)" },
+  valid: { dot: "var(--success)", bg: "var(--success-tint)", color: "var(--success)", border: "var(--success-tint)" },
+  stale: { dot: "var(--danger)", bg: "var(--danger-tint)", color: "var(--danger)", border: "var(--danger-tint)" },
+};
 
 export function BookmarkItem({
   bookmark,
@@ -157,25 +167,29 @@ export function BookmarkItem({
 
   if (editing) {
     return (
-      <li className="rounded-md border border-slate-300 bg-white p-3 shadow-xs">
+      <li className="card p-3">
         <form onSubmit={(e) => void handleSave(e)} className="flex flex-col gap-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">{t("bookmark.name_label")}</label>
+              <label className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
+                {t("bookmark.name_label")}
+              </label>
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="rounded border border-slate-200 px-2.5 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+                className="field-input"
                 autoFocus
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">{t("bookmark.group_label")}</label>
+              <label className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
+                {t("bookmark.group_label")}
+              </label>
               <select
                 value={groupId ?? ""}
                 onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
-                className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+                className="field-input"
               >
                 <option value="">{t("bookmark.loose_option")}</option>
                 {groups.map((g) => (
@@ -188,29 +202,37 @@ export function BookmarkItem({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-medium text-slate-500">{t("bookmark.path_label")}</label>
+            <label className="text-[11px] font-medium" style={{ color: "var(--text-muted)" }}>
+              {t("bookmark.path_label")}
+            </label>
             <input
               type="text"
               value={path}
               onChange={(e) => setPath(e.target.value)}
-              className="rounded border border-slate-200 px-2.5 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
+              className="field-input"
             />
           </div>
 
-          {error !== null && <p className="text-xs text-red-600">{error}</p>}
+          {error !== null && (
+            <p className="text-xs" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+          )}
 
           <div className="mt-1 flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={cancelEditing}
-              className="cursor-pointer rounded px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-100"
+              className="btn-ghost"
+              style={{ fontSize: "11.5px", padding: "5px 12px", borderRadius: "6px" }}
             >
               {t("common.cancel")}
             </button>
             <button
               type="submit"
               disabled={saving || name.trim() === "" || path.trim() === ""}
-              className="cursor-pointer rounded bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+              className="btn-primary"
+              style={{ fontSize: "11.5px", padding: "5px 12px", borderRadius: "6px" }}
             >
               {saving ? t("common.saving") : t("common.save")}
             </button>
@@ -221,88 +243,84 @@ export function BookmarkItem({
   }
 
   const isStale = status === "stale";
+  const statusStyle = STATUS_STYLE[status];
 
   return (
     <li
-      className={`group flex items-center justify-between gap-3 rounded-md px-3 py-2.5 shadow-xs transition-colors ${
-        isStale
-          ? "border border-dashed border-slate-300 bg-slate-100/60 hover:bg-slate-100/90"
-          : "bg-white hover:bg-slate-50/80"
-      }`}
+      className="group flex items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 transition-colors"
+      style={{
+        border: isStale ? "1px dashed var(--border-strong)" : "1px solid var(--border)",
+        background: isStale ? "var(--stripe)" : "var(--surface)",
+      }}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span
-            className={`truncate text-sm font-medium ${
-              isStale ? "text-slate-600" : "text-slate-800"
-            }`}
+            className="truncate text-[13.5px] font-medium"
+            style={{ color: isStale ? "var(--text-muted)" : "var(--text)" }}
           >
             {bookmark.name}
           </span>
           <span
-            className={`inline-block rounded px-1.5 py-0.5 text-[10px] font-medium ${
+            className="inline-block shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={
               bookmark.is_directory
-                ? "bg-amber-50 text-amber-700 border border-amber-200"
-                : "bg-sky-50 text-sky-700 border border-sky-200"
-            }`}
+                ? { background: "var(--warn-tint)", color: "var(--warn)" }
+                : { background: "var(--accent-tint)", color: "var(--accent-strong)" }
+            }
           >
             {bookmark.is_directory ? t("bookmark.folder") : t("bookmark.file")}
           </span>
 
-          {status === "unknown" && (
+          <span
+            className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium"
+            style={{ background: statusStyle.bg, color: statusStyle.color }}
+            title={
+              status === "unknown"
+                ? t("bookmark.status_unknown_title")
+                : status === "valid"
+                  ? t("bookmark.status_valid_title")
+                  : t("bookmark.status_stale_title")
+            }
+          >
             <span
-              className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500"
-              title={t("bookmark.status_unknown_title")}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse" />
-              {t("bookmark.status_unknown")}
-            </span>
-          )}
-          {status === "valid" && (
-            <span
-              className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
-              title={t("bookmark.status_valid_title")}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              {t("bookmark.status_valid")}
-            </span>
-          )}
-          {status === "stale" && (
-            <span
-              className="inline-flex items-center gap-1 rounded border border-slate-300 bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 shadow-xs"
-              title={t("bookmark.status_stale_title")}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-              {t("bookmark.status_stale")}
-            </span>
-          )}
+              className={`h-1.5 w-1.5 rounded-full ${status === "unknown" ? "animate-pulse" : ""}`}
+              style={{ background: statusStyle.dot }}
+            />
+            {status === "unknown"
+              ? t("bookmark.status_unknown")
+              : status === "valid"
+                ? t("bookmark.status_valid")
+                : t("bookmark.status_stale")}
+          </span>
         </div>
 
         {isStale ? (
-          <p className="mt-0.5 truncate text-xs font-mono" title={bookmark.path}>
-            <span className="line-through text-slate-400">{bookmark.path}</span>
-            <span className="ml-1.5 font-sans text-[11px] font-normal text-rose-600">
+          <p className="mt-1 truncate text-xs" style={{ fontFamily: "var(--mono)" }} title={bookmark.path}>
+            <span style={{ color: "var(--text-faint)", textDecoration: "line-through" }}>{bookmark.path}</span>
+            <span className="ml-1.5 text-[11px] font-normal" style={{ fontFamily: "var(--sans)", color: "var(--danger)" }}>
               {t("bookmark.path_not_found_tag")}
             </span>
           </p>
         ) : (
-          <p className="mt-0.5 truncate text-xs text-slate-400 font-mono" title={bookmark.path}>
+          <p
+            className="mt-1 truncate text-xs"
+            style={{ fontFamily: "var(--mono)", color: "var(--text-faint)" }}
+            title={bookmark.path}
+          >
             {bookmark.path}
           </p>
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2.5">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => void handleOpen()}
             disabled={opening}
-            className={`cursor-pointer rounded px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-              isStale
-                ? "bg-slate-200/80 text-slate-500 hover:bg-slate-300 hover:text-slate-800"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
-            }`}
+            className="btn-ghost"
+            style={{ fontSize: "11.5px", padding: "5px 11px", borderRadius: "6px" }}
           >
             {opening ? t("bookmark.opening") : t("bookmark.open")}
           </button>
@@ -311,11 +329,8 @@ export function BookmarkItem({
               type="button"
               onClick={() => void handleReveal()}
               disabled={revealing}
-              className={`cursor-pointer rounded px-2 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
-                isStale
-                  ? "bg-slate-200/80 text-slate-500 hover:bg-slate-300 hover:text-slate-800"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-              }`}
+              className="btn-ghost"
+              style={{ fontSize: "11.5px", padding: "5px 11px", borderRadius: "6px" }}
             >
               {revealing ? t("bookmark.revealing") : t("bookmark.reveal")}
             </button>
@@ -323,35 +338,32 @@ export function BookmarkItem({
         </div>
 
         <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-hover:opacity-100">
-          {MOVES.map((move) => (
+          {MOVES.map(({ to, Icon, titleKey, stuck }) => (
             <button
-              key={move.to}
+              key={to}
               type="button"
-              title={t(move.titleKey)}
-              disabled={moving || move.stuck(at, count)}
-              onClick={() => void handleMove(move.to)}
-              className={TOOL_BUTTON}
+              title={t(titleKey)}
+              disabled={moving || stuck(at, count)}
+              onClick={() => void handleMove(to)}
+              className="tool-btn"
             >
-              {move.glyph}
+              <Icon size={12} />
             </button>
           ))}
         </div>
 
-        <div className="ml-1 flex shrink-0 items-center gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-          <button
-            type="button"
-            onClick={startEditing}
-            className="cursor-pointer text-xs text-slate-500 hover:text-slate-800"
-          >
-            {t("common.edit")}
+        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <button type="button" onClick={startEditing} className="icon-btn" title={t("common.edit")}>
+            <EditIcon />
           </button>
           <button
             type="button"
             onClick={() => void handleDelete()}
             disabled={deleting}
-            className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
+            className="icon-btn icon-btn-danger"
+            title={t("common.delete")}
           >
-            {deleting ? t("common.deleting") : t("common.delete")}
+            <TrashIcon />
           </button>
         </div>
       </div>

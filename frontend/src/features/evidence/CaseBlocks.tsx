@@ -204,16 +204,16 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
 
   if (content === null) {
     return (
-      <p className="py-8 text-center text-sm text-slate-400">
+      <p className="py-8 text-center text-[13px]" style={{ color: "var(--text-faint)" }}>
         {loading ? t("common.loading") : (error ?? t("evidence.open_case_failed"))}
       </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3.5">
       {blocks.length === 0 ? (
-        <p className="py-6 text-center text-xs text-slate-400">
+        <p className="py-6 text-center text-xs" style={{ color: "var(--text-faint)" }}>
           {t("evidence.case_empty_hint")}
         </p>
       ) : (
@@ -242,7 +242,9 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
       )}
 
       {blockError !== null && (
-        <p className="text-xs text-red-600">{blockError}</p>
+        <p className="text-xs" style={{ color: "var(--danger)" }}>
+          {blockError}
+        </p>
       )}
 
       <BlockTextArea

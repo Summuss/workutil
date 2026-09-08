@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useI18n } from "../../shared/i18n";
+import { XIcon } from "../../shared/icons";
 import type { Block } from "./types";
 
 interface TableBlockViewProps {
@@ -12,10 +13,15 @@ interface TableBlockViewProps {
   onDeleteColumn: (column: number) => Promise<void>;
 }
 
-const CELL = "border border-slate-200 px-2 py-1 align-top";
-const HEADER_CELL = `${CELL} bg-[#87e7ad] font-semibold text-slate-900`;
-const CUT_BUTTON =
-  "cursor-pointer rounded px-1 text-slate-300 hover:bg-red-50 hover:text-red-600 disabled:cursor-default disabled:opacity-40";
+const CELL = "px-2.5 py-1.5 align-top";
+const CELL_STYLE = { border: "1px solid var(--border)" } as const;
+const HEADER_CELL_STYLE = {
+  border: "1px solid var(--border)",
+  background: "var(--accent-tint)",
+  color: "var(--accent-strong)",
+  fontWeight: 600,
+} as const;
+const CUT_BUTTON = "icon-btn icon-btn-danger";
 
 /**
  * A query result with its rows and columns intact — the whole point of the kind.
@@ -44,8 +50,8 @@ export function TableBlockView({
   const columns = block.rows[0]?.length ?? 0;
 
   return (
-    <div className="overflow-x-auto">
-      <table className="border-collapse text-xs text-slate-800">
+    <div className="overflow-x-auto rounded-md" style={{ border: "1px solid var(--border)" }}>
+      <table className="border-collapse text-xs" style={{ color: "var(--text)" }}>
         {editing && (
           <thead>
             <tr>
@@ -61,7 +67,7 @@ export function TableBlockView({
                     onClick={() => void onDeleteColumn(column)}
                     className={CUT_BUTTON}
                   >
-                    ✕
+                    <XIcon size={11} />
                   </button>
                 </th>
               ))}
@@ -80,7 +86,7 @@ export function TableBlockView({
                     onClick={() => void onDeleteRow(row)}
                     className={CUT_BUTTON}
                   >
-                    ✕
+                    <XIcon size={11} />
                   </button>
                 </td>
               )}
@@ -136,7 +142,7 @@ function TableCell({ value, header, busy, editing, onCommit }: TableCellProps) {
 
   if (!editing) {
     return (
-      <td className={`${header ? HEADER_CELL : CELL} whitespace-pre-wrap`}>
+      <td className={`${CELL} whitespace-pre-wrap`} style={header ? HEADER_CELL_STYLE : CELL_STYLE}>
         {value}
       </td>
     );
@@ -151,7 +157,7 @@ function TableCell({ value, header, busy, editing, onCommit }: TableCellProps) {
   }
 
   return (
-    <td className={header ? HEADER_CELL : CELL}>
+    <td className={CELL} style={header ? HEADER_CELL_STYLE : CELL_STYLE}>
       <input
         type="text"
         value={draft}
@@ -168,7 +174,8 @@ function TableCell({ value, header, busy, editing, onCommit }: TableCellProps) {
             setDraft(value);
           }
         }}
-        className="w-full min-w-24 bg-transparent font-mono text-xs outline-none focus:bg-white"
+        className="w-full min-w-24 bg-transparent text-xs outline-none"
+        style={{ fontFamily: "var(--mono)" }}
       />
     </td>
   );

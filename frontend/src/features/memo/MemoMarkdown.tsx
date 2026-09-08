@@ -12,7 +12,7 @@ interface MemoMarkdownProps {
  */
 export function MemoMarkdown({ content }: MemoMarkdownProps) {
   return (
-    <div className="markdown-body text-sm leading-relaxed text-slate-800 break-words">
+    <div className="markdown-body break-words text-[13.5px] leading-relaxed" style={{ color: "var(--text)" }}>
       <ReactMarkdown rehypePlugins={[rehypeHighlight]}>
         {content}
       </ReactMarkdown>

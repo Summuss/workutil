@@ -23,7 +23,8 @@ export function HighlightText({ text, query }: HighlightTextProps) {
         part.toLowerCase() === q.toLowerCase() ? (
           <mark
             key={index}
-            className="rounded-xs bg-amber-200 px-0.5 font-medium text-slate-900"
+            className="rounded-xs px-0.5 font-medium"
+            style={{ background: "var(--warn-tint)", color: "var(--text)" }}
           >
             {part}
           </mark>

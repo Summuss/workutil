@@ -8,6 +8,7 @@ import {
 
 import { messageOf } from "../../shared/api";
 import { t } from "../../shared/i18n";
+import { ArrowRightIcon, ChevronUpIcon, EditIcon, TrashIcon } from "../../shared/icons";
 import { formatTime } from "../../shared/time";
 import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, updateMemo } from "./api";
@@ -25,6 +26,8 @@ interface MemoItemProps {
   onUpdate: (updated: Memo) => void;
   onDelete: (id: number) => void;
 }
+
+const META_TEXT = { fontFamily: "var(--mono)", color: "var(--text-faint)" } as const;
 
 /**
  * One memo in the list: a single line, or the whole thing.
@@ -121,7 +124,6 @@ export function MemoItem({
     }
   }
 
-
   async function handleDelete() {
     if (deleting) {
       return;
@@ -161,21 +163,32 @@ export function MemoItem({
     const unshown = (memo.snippet_total ?? snippets.length) - snippets.length;
 
     return (
-      <li className="py-2.5">
+      <li className="card px-4 py-3">
         <button
           type="button"
           onClick={onToggleExpand}
-          className="group flex w-full cursor-pointer items-center justify-between text-left font-mono text-sm text-slate-700 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400"
+          className="group flex w-full cursor-pointer items-center justify-between gap-3 text-left"
         >
-          <span className="flex items-center gap-2 truncate">
-            <span className="truncate">{firstLine(memo.body)}</span>
+          <span className="flex min-w-0 items-center gap-2">
+            <span
+              className="truncate"
+              style={{ fontFamily: "var(--mono)", fontSize: "13.5px", color: "var(--text)" }}
+            >
+              {firstLine(memo.body)}
+            </span>
             {memo.image_count > 0 && (
-              <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-sans text-xs text-slate-500">
+              <span
+                className="shrink-0 rounded-full px-2 py-0.5 text-[10.5px]"
+                style={{ fontFamily: "var(--mono)", background: "var(--hover-wash)", color: "var(--text-muted)" }}
+              >
                 {t("memo.image_count", { count: memo.image_count })}
               </span>
             )}
           </span>
-          <span className="ml-2 shrink-0 text-xs text-slate-400 opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100">
+          <span
+            className="shrink-0 text-[11px] opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100"
+            style={{ color: "var(--text-faint)" }}
+          >
             {isUnsaved ? t("memo.unsaved") : t("memo.expand")}
           </span>
         </button>
@@ -183,14 +196,17 @@ export function MemoItem({
         {/* Outside the button on purpose: a snippet is the line you came to
             copy, and text inside a button cannot be dragged over. */}
         {snippets.length > 0 && (
-          <div className="mt-1.5 flex flex-col gap-1 border-l-2 border-slate-200 pl-2.5 font-mono">
+          <div
+            className="mt-2 flex flex-col gap-1 pl-2.5"
+            style={{ borderLeft: "2px solid var(--border)", fontFamily: "var(--mono)" }}
+          >
             {snippets.map((snippet, index) => (
-              <div key={index} className="truncate text-xs leading-relaxed text-slate-500">
+              <div key={index} className="truncate text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
                 <HighlightText text={snippet} query={searchQuery ?? ""} />
               </div>
             ))}
             {unshown > 0 && (
-              <div className="text-xs text-slate-400">
+              <div className="text-xs" style={{ color: "var(--text-faint)" }}>
                 {t("memo.search_more_matches", { count: unshown })}
               </div>
             )}
@@ -201,94 +217,103 @@ export function MemoItem({
   }
 
   return (
-    <li className="py-3">
-      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 text-xs text-slate-400">
-          <div className="flex items-center gap-2">
-            <span>{t("memo.created_at", { time: formatTime(memo.created_at) })}</span>
-            {isModified && <span>{t("memo.updated_at", { time: formatTime(memo.updated_at) })}</span>}
-            {memo.image_count > 0 && <span>{t("memo.image_count_with_dot", { count: memo.image_count })}</span>}
-            {isUnsaved && <span className="text-amber-600">{t("memo.unsaved_with_dot")}</span>}
-          </div>
-          <div className="flex items-center gap-3">
-            {!editing && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setShowConvertToTodo(true)}
-                  className="cursor-pointer text-slate-400 hover:text-slate-600"
-                >
-                  {t("memo.to_todo")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="cursor-pointer text-slate-400 hover:text-slate-600"
-                >
-                  {t("common.edit")}
-                </button>
-              </>
-            )}
-            <button
-              type="button"
-              onClick={() => void handleDelete()}
-              disabled={deleting}
-              className="cursor-pointer text-slate-400 hover:text-red-600 disabled:opacity-50"
-            >
-              {deleting ? t("common.deleting") : t("common.delete")}
-            </button>
-            <button
-              type="button"
-              onClick={onToggleExpand}
-              className="cursor-pointer text-slate-400 hover:text-slate-600"
-            >
-              {t("memo.collapse")}
-            </button>
-          </div>
+    <li className="card px-4 py-3.5">
+      <div className="flex items-center justify-between pb-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="flex items-center gap-2 text-[11px]" style={META_TEXT}>
+          <span>{t("memo.created_at", { time: formatTime(memo.created_at) })}</span>
+          {isModified && <span>{t("memo.updated_at", { time: formatTime(memo.updated_at) })}</span>}
+          {memo.image_count > 0 && <span>{t("memo.image_count_with_dot", { count: memo.image_count })}</span>}
+          {isUnsaved && <span style={{ color: "var(--warn)" }}>{t("memo.unsaved_with_dot")}</span>}
         </div>
+        <div className="flex items-center gap-1">
+          {!editing && (
+            <>
+              <button
+                type="button"
+                onClick={() => setShowConvertToTodo(true)}
+                className="btn-ghost mr-1"
+                style={{ fontSize: "11px", padding: "4px 9px", borderRadius: "5px" }}
+              >
+                <ArrowRightIcon />
+                {t("memo.to_todo")}
+              </button>
+              <button type="button" onClick={() => setEditing(true)} className="icon-btn" title={t("common.edit")}>
+                <EditIcon />
+              </button>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleDelete()}
+            disabled={deleting}
+            className="icon-btn icon-btn-danger"
+            title={t("common.delete")}
+          >
+            <TrashIcon />
+          </button>
+          <button type="button" onClick={onToggleExpand} className="icon-btn" title={t("memo.collapse")}>
+            <ChevronUpIcon />
+          </button>
+        </div>
+      </div>
 
-        {editing ? (
-          <div className="mt-3">
-            <textarea
-              ref={focusEnd}
-              value={draft}
-              onChange={(event) => changeDraft(event.target.value)}
-              onKeyDown={handleEditorKeyDown}
-              onPaste={handlePaste}
-              onDrop={handleDrop}
-              onDragOver={handleDragOver}
-              rows={Math.min(20, Math.max(3, draft.split("\n").length))}
-              spellCheck={false}
-              placeholder={t("memo.edit_placeholder")}
-              className="w-full resize-y rounded-md border border-slate-200 bg-slate-50/50 p-2.5 font-mono text-xs leading-relaxed text-slate-900 outline-none focus:border-slate-400 focus:bg-white focus:ring-1 focus:ring-slate-300"
-            />
+      {editing ? (
+        <div className="mt-3">
+          <textarea
+            ref={focusEnd}
+            value={draft}
+            onChange={(event) => changeDraft(event.target.value)}
+            onKeyDown={handleEditorKeyDown}
+            onPaste={handlePaste}
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+            rows={Math.min(20, Math.max(3, draft.split("\n").length))}
+            spellCheck={false}
+            placeholder={t("memo.edit_placeholder")}
+            className="field-input resize-y leading-relaxed"
+            style={{ fontFamily: "var(--mono)", fontSize: "13px" }}
+          />
 
-            <div className="mt-2 flex min-h-5 items-center justify-between text-xs">
-              <span className="text-red-600">{error}</span>
-              <div className="flex items-center gap-3">
-                <span className="text-slate-400">
-                  {saving ? t("common.saving") : t("memo.ctrl_enter_save_esc_close")}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void save()}
-                  disabled={saving || draft.trim() === ""}
-                  className="cursor-pointer rounded-sm bg-slate-800 px-3 py-1 text-xs text-white hover:bg-slate-700 disabled:opacity-50"
-                >
-                  {t("common.save")}
-                </button>
-              </div>
+          <div className="mt-2 flex items-center justify-between">
+            <span className="text-xs" style={{ color: "var(--danger)" }}>
+              {error}
+            </span>
+            <div className="flex items-center gap-2.5">
+              <span className="text-[11px]" style={META_TEXT}>
+                {saving ? t("common.saving") : t("memo.ctrl_enter_save_esc_close")}
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditing(false)}
+                className="btn-ghost"
+                style={{ fontSize: "11.5px", padding: "5px 12px", borderRadius: "6px" }}
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void save()}
+                disabled={saving || draft.trim() === ""}
+                className="btn-primary"
+                style={{ fontSize: "11.5px", padding: "5px 12px", borderRadius: "6px" }}
+              >
+                {t("common.save")}
+              </button>
             </div>
           </div>
-        ) : (
-          // Nothing here reacts to a click: dragging across a stack trace to
-          // copy it must stay a selection.
-          <div className="mt-3">
-            {error && <p className="mb-2 text-xs text-red-600">{error}</p>}
-            <MemoMarkdown content={memo.body} />
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        // Nothing here reacts to a click: dragging across a stack trace to
+        // copy it must stay a selection.
+        <div className="mt-3">
+          {error && (
+            <p className="mb-2 text-xs" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+          )}
+          <MemoMarkdown content={memo.body} />
+        </div>
+      )}
 
       {showConvertToTodo && (
         <ConvertToTodoModal

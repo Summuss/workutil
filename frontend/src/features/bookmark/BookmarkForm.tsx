@@ -8,9 +8,10 @@ import type { BookmarkCreatePayload, BookmarkGroup } from "./types";
 interface BookmarkFormProps {
   groups: BookmarkGroup[];
   onRegister: (payload: BookmarkCreatePayload) => Promise<void>;
+  onCancel: () => void;
 }
 
-export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
+export function BookmarkForm({ groups, onRegister, onCancel }: BookmarkFormProps) {
   const [path, setPath] = useState("");
   const [name, setName] = useState("");
   const [groupId, setGroupId] = useState<number | null>(null);
@@ -61,12 +62,9 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
   }
 
   return (
-    <form
-      onSubmit={(e) => void handleSubmit(e)}
-      className="flex flex-col gap-3 rounded-lg border border-slate-200 bg-white p-4 shadow-sm"
-    >
+    <form onSubmit={(e) => void handleSubmit(e)} className="card flex flex-col gap-2.5 p-4">
       <div className="flex flex-col gap-1">
-        <label htmlFor="bookmark-path" className="text-xs font-medium text-slate-700">
+        <label htmlFor="bookmark-path" className="text-[11px]" style={{ color: "var(--text-muted)" }}>
           {t("bookmark.path_label")}
         </label>
         <input
@@ -75,14 +73,14 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
           value={path}
           onChange={(e) => handlePathChange(e.target.value)}
           placeholder={t("bookmark.path_placeholder")}
-          className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+          className="field-input"
           autoFocus
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
-          <label htmlFor="bookmark-name" className="text-xs font-medium text-slate-700">
+          <label htmlFor="bookmark-name" className="text-[11px]" style={{ color: "var(--text-muted)" }}>
             {t("bookmark.name_label")}
           </label>
           <input
@@ -91,19 +89,19 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
             placeholder={t("bookmark.name_placeholder")}
-            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+            className="field-input"
           />
         </div>
 
         <div className="flex flex-col gap-1">
-          <label htmlFor="bookmark-group" className="text-xs font-medium text-slate-700">
+          <label htmlFor="bookmark-group" className="text-[11px]" style={{ color: "var(--text-muted)" }}>
             {t("bookmark.group_label")}
           </label>
           <select
             id="bookmark-group"
             value={groupId ?? ""}
             onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
-            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+            className="field-input"
           >
             <option value="">{t("bookmark.no_group_option")}</option>
             {groups.map((g) => (
@@ -115,13 +113,26 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
         </div>
       </div>
 
-      {error !== null && <p className="text-xs text-red-600">{error}</p>}
+      {error !== null && (
+        <p className="text-[11.5px]" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="btn-ghost"
+          style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}
+        >
+          {t("common.cancel")}
+        </button>
         <button
           type="submit"
           disabled={submitting || path.trim() === "" || name.trim() === ""}
-          className="cursor-pointer rounded-md bg-slate-800 px-4 py-2 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+          className="btn-primary"
+          style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}
         >
           {submitting ? t("bookmark.submitting") : t("bookmark.submit_button")}
         </button>
@@ -129,4 +140,3 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
     </form>
   );
 }
-

@@ -14,7 +14,11 @@ interface MemoListProps {
 }
 
 function Placeholder({ children }: { children: string }) {
-  return <p className="py-8 text-center text-sm text-slate-400">{children}</p>;
+  return (
+    <p className="py-8 text-center text-[13px]" style={{ color: "var(--text-faint)" }}>
+      {children}
+    </p>
+  );
 }
 
 /** The memos, newest first — the order the backend sends them in. */
@@ -42,7 +46,11 @@ export function MemoList({
 
   if (memos.length === 0) {
     if (error !== null) {
-      return <p className="py-8 text-center text-sm text-red-600">{error}</p>;
+      return (
+        <p className="py-8 text-center text-[13px]" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      );
     }
     if (loading) {
       return <Placeholder>{t("common.loading")}</Placeholder>;
@@ -57,13 +65,16 @@ export function MemoList({
     return <Placeholder>{t("memo.empty_state")}</Placeholder>;
   }
 
-
   // Anything already written shows, even if the rest is still loading or the
   // load failed — a memo just saved must never be hidden behind a spinner.
   return (
     <>
-      {error !== null && <p className="pb-2 text-sm text-red-600">{error}</p>}
-      <ul className="divide-y divide-slate-200">
+      {error !== null && (
+        <p className="pb-2 text-[13px]" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
+      <ul className="flex flex-col gap-2">
         {memos.map((memo) => (
           <MemoItem
             key={memo.id}

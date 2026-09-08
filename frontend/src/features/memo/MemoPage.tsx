@@ -107,7 +107,7 @@ export function MemoPage() {
   }, []);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-8 py-9">
       <MemoComposer onSave={save} />
       <MemoSearchBar onChange={handleSearch} />
       <MemoList

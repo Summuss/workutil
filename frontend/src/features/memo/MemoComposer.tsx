@@ -68,7 +68,7 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="card flex flex-col p-4">
       <textarea
         ref={textarea}
         value={body}
@@ -77,19 +77,30 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
         onPaste={handlePaste}
         onDrop={handleDrop}
         onDragOver={handleDragOver}
-        rows={5}
+        rows={3}
         spellCheck={false}
         placeholder={t("memo.composer_placeholder")}
-        className="w-full resize-y rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm leading-relaxed text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
+        className="w-full resize-y border-none bg-transparent leading-relaxed outline-none"
+        style={{ fontFamily: "var(--mono)", fontSize: "13.5px", color: "var(--text)" }}
       />
-      <div className="flex min-h-5 items-center justify-between text-xs">
-        <span className="text-red-600">{error}</span>
-        <span className="text-slate-400">
+      <div className="mt-2 flex items-center justify-end gap-2.5">
+        {error !== null && (
+          <span className="mr-auto text-xs" style={{ color: "var(--danger)" }}>
+            {error}
+          </span>
+        )}
+        <span className="text-[11.5px]" style={{ fontFamily: "var(--mono)", color: "var(--text-faint)" }}>
           {saving ? t("common.saving") : t("memo.ctrl_enter_save")}
         </span>
+        <button
+          type="button"
+          onClick={() => void save()}
+          disabled={saving || body.trim() === ""}
+          className="btn-primary"
+        >
+          {t("common.save")}
+        </button>
       </div>
     </div>
   );
 }
-
-

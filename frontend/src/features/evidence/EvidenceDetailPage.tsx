@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
+import { ArrowLeftIcon } from "../../shared/icons";
 import { useEditRunner } from "../../shared/useEditRunner";
 import { useLoad } from "../../shared/useLoad";
 import {
@@ -18,8 +19,7 @@ import { CaseBlocks } from "./CaseBlocks";
 import { CaseTabs } from "./CaseTabs";
 import type { Case, EvidenceDetail, Move } from "./types";
 
-const TITLE_FIELD =
-  "min-w-0 flex-1 rounded-md border border-slate-400 bg-white px-2 py-1 text-base text-slate-900 focus:outline-none focus:ring-1 focus:ring-slate-300";
+const TITLE_FIELD = "field-input min-w-0 flex-1";
 
 /**
  * One evidence: its title, its cases, and the case you are working in.
@@ -124,12 +124,12 @@ export function EvidenceDetailPage() {
 
   if (evidence === null) {
     return (
-      <main className="mx-auto max-w-3xl px-6 py-8">
-        <p className="text-center text-sm text-slate-400">
+      <main className="mx-auto max-w-2xl px-8 py-9">
+        <p className="text-center text-[13px]" style={{ color: "var(--text-faint)" }}>
           {loading ? t("common.loading") : (error ?? t("evidence.not_found"))}
         </p>
         <p className="mt-3 text-center text-xs">
-          <Link to="/evidence" className="text-slate-400 hover:text-slate-700">
+          <Link to="/evidence" style={{ color: "var(--text-faint)" }}>
             {t("evidence.back_to_list_full")}
           </Link>
         </p>
@@ -138,12 +138,14 @@ export function EvidenceDetailPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-6 py-6">
-      <div className="flex items-center gap-2">
+    <main className="mx-auto flex max-w-2xl flex-col gap-3.5 px-8 py-9">
+      <div className="flex items-center gap-2.5">
         <Link
           to="/evidence"
-          className="shrink-0 text-xs text-slate-400 hover:text-slate-700"
+          className="inline-flex shrink-0 items-center gap-1 text-xs"
+          style={{ color: "var(--text-faint)" }}
         >
+          <ArrowLeftIcon size={12} />
           {t("evidence.back_to_list_short")}
         </Link>
         {editingTitle ? (
@@ -159,7 +161,7 @@ export function EvidenceDetailPage() {
             type="button"
             title={t("evidence.click_to_rename")}
             onClick={() => setEditingTitle(true)}
-            className="min-w-0 flex-1 cursor-pointer truncate text-left text-base font-semibold text-slate-900 hover:text-slate-600"
+            className="min-w-0 flex-1 cursor-pointer truncate text-left text-base font-semibold"
           >
             {evidence.title}
           </button>
@@ -178,9 +180,8 @@ export function EvidenceDetailPage() {
               event.preventDefault();
             }
           }}
-          className={`shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 ${
-            cases.length === 0 ? "pointer-events-none opacity-40" : ""
-          }`}
+          className="btn-ghost shrink-0"
+          style={cases.length === 0 ? { pointerEvents: "none", opacity: 0.4 } : undefined}
           title={cases.length === 0 ? t("evidence.export_no_cases") : t("evidence.export_excel")}
         >
           {t("evidence.export_excel")}
@@ -188,7 +189,9 @@ export function EvidenceDetailPage() {
       </div>
 
       {(error ?? titleEdit.error) !== null && (
-        <p className="text-xs text-red-600">{error ?? titleEdit.error}</p>
+        <p className="text-xs" style={{ color: "var(--danger)" }}>
+          {error ?? titleEdit.error}
+        </p>
       )}
 
       <CaseTabs
@@ -204,7 +207,10 @@ export function EvidenceDetailPage() {
       />
 
       {selectedId === null ? (
-        <div className="rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-xs text-slate-400">
+        <div
+          className="rounded-lg px-4 py-10 text-center text-xs"
+          style={{ border: "1px dashed var(--border-strong)", color: "var(--text-faint)" }}
+        >
           {t("evidence.no_cases_hint")}
         </div>
       ) : (

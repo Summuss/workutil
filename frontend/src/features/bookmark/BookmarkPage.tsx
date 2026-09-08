@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 
 import { messageOf } from "../../shared/api";
 import { useLoad } from "../../shared/useLoad";
+import { PlusIcon, XIcon } from "../../shared/icons";
 import {
   checkBookmarks,
   createBookmark,
@@ -36,6 +37,12 @@ interface Notice {
   details?: string[];
 }
 
+const NOTICE_STYLE: Record<Notice["type"], { border: string; bg: string; color: string }> = {
+  success: { border: "var(--success)", bg: "var(--success-tint)", color: "var(--success)" },
+  warning: { border: "var(--warn)", bg: "var(--warn-tint)", color: "var(--warn)" },
+  info: { border: "var(--accent)", bg: "var(--accent-tint)", color: "var(--accent-strong)" },
+};
+
 export function BookmarkPage() {
   const { t } = useI18n();
   const {
@@ -46,6 +53,8 @@ export function BookmarkPage() {
     setError,
   } = useLoad<BookmarkListResponse>(() => listBookmarks());
 
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [showNewGroupForm, setShowNewGroupForm] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [groupError, setGroupError] = useState<string | null>(null);
@@ -156,6 +165,7 @@ export function BookmarkPage() {
       const created = await createBookmark(payload);
       await refreshList();
       setError(null);
+      setShowAddForm(false);
       void checkOne(created.id);
     },
     [refreshList, setError, checkOne],
@@ -172,6 +182,7 @@ export function BookmarkPage() {
       try {
         await createBookmarkGroup({ name: cleanName });
         setNewGroupName("");
+        setShowNewGroupForm(false);
         await refreshList();
       } catch (cause) {
         setGroupError(messageOf(cause, t("bookmark.create_group_failed")));
@@ -306,74 +317,103 @@ export function BookmarkPage() {
   }, [t]);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
-      <BookmarkForm groups={groups} onRegister={handleRegister} />
-
-      {/* New Group form */}
-      <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-3 shadow-xs">
-        <form
-          onSubmit={(e) => void handleCreateGroup(e)}
-          className="flex items-center gap-2"
+    <main className="mx-auto flex max-w-2xl flex-col gap-4 px-8 py-9">
+      <div className="flex gap-2.5">
+        <button
+          type="button"
+          onClick={() => setShowAddForm((prev) => !prev)}
+          className="btn-ghost"
         >
-          <input
-            type="text"
-            value={newGroupName}
-            onChange={(e) => setNewGroupName(e.target.value)}
-            placeholder={t("bookmark.new_group_placeholder")}
-            className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
-          />
-          <button
-            type="submit"
-            disabled={creatingGroup || newGroupName.trim() === ""}
-            className="cursor-pointer shrink-0 rounded-md bg-slate-800 px-3.5 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-          >
-            {creatingGroup ? t("common.creating") : t("bookmark.create_group_button")}
-          </button>
-        </form>
-        {groupError !== null && (
-          <p className="text-xs text-red-600">{groupError}</p>
-        )}
+          <PlusIcon />
+          {t("bookmark.submit_button")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowNewGroupForm((prev) => !prev)}
+          className="btn-ghost"
+        >
+          <PlusIcon />
+          {t("bookmark.create_group_button")}
+        </button>
       </div>
+
+      {showAddForm && (
+        <BookmarkForm groups={groups} onRegister={handleRegister} onCancel={() => setShowAddForm(false)} />
+      )}
+
+      {showNewGroupForm && (
+        <div className="card flex items-center gap-2.5 p-3.5">
+          <form
+            onSubmit={(e) => void handleCreateGroup(e)}
+            className="flex flex-1 items-center gap-2.5"
+          >
+            <input
+              type="text"
+              value={newGroupName}
+              onChange={(e) => setNewGroupName(e.target.value)}
+              placeholder={t("bookmark.new_group_placeholder")}
+              autoFocus
+              className="field-input flex-1"
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewGroupForm(false)}
+              className="btn-ghost"
+              style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}
+            >
+              {t("common.cancel")}
+            </button>
+            <button
+              type="submit"
+              disabled={creatingGroup || newGroupName.trim() === ""}
+              className="btn-primary"
+              style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}
+            >
+              {creatingGroup ? t("common.creating") : t("bookmark.create_group_button")}
+            </button>
+          </form>
+        </div>
+      )}
+      {groupError !== null && (
+        <p className="text-xs" style={{ color: "var(--danger)" }}>
+          {groupError}
+        </p>
+      )}
 
       {notice !== null && (
         <div
-          className={`flex items-start justify-between gap-3 rounded-lg border p-3 text-xs ${
-            notice.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-              : notice.type === "warning"
-                ? "border-amber-200 bg-amber-50 text-amber-800"
-                : "border-blue-200 bg-blue-50 text-blue-800"
-          }`}
+          className="flex items-start justify-between gap-3 rounded-lg p-3 text-xs"
+          style={{ border: `1px solid ${NOTICE_STYLE[notice.type].border}`, background: NOTICE_STYLE[notice.type].bg, color: NOTICE_STYLE[notice.type].color }}
         >
           <div className="flex flex-col gap-1">
             <span className="font-medium">{notice.message}</span>
             {notice.details && notice.details.length > 0 && (
-              <ul className="list-disc space-y-0.5 pl-4 text-slate-600">
+              <ul className="list-disc space-y-0.5 pl-4" style={{ color: "var(--text-muted)" }}>
                 {notice.details.map((d, i) => (
                   <li key={i}>{d}</li>
                 ))}
               </ul>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => setNotice(null)}
-            className="cursor-pointer text-slate-400 hover:text-slate-700"
-          >
-            ✕
+          <button type="button" onClick={() => setNotice(null)} className="icon-btn">
+            <XIcon size={11} />
           </button>
         </div>
       )}
 
-      {error !== null && <p className="text-xs text-red-600">{error}</p>}
+      {error !== null && (
+        <p className="text-xs" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
 
       {!hasItems ? (
-        <p className="py-8 text-center text-sm text-slate-400">
+        <p className="py-8 text-center text-[13px]" style={{ color: "var(--text-faint)" }}>
           {loading ? t("common.loading") : t("bookmark.empty_state")}
         </p>
       ) : (
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center justify-between px-1 text-xs text-slate-500">
+        <div className="flex flex-col gap-5">
+          <div className="flex items-center justify-between px-1 text-xs" style={{ color: "var(--text-muted)" }}>
             <div className="flex items-center gap-2">
               <span>
                 {t("bookmark.total_count", {
@@ -386,7 +426,10 @@ export function BookmarkPage() {
                 const all = [...groups.flatMap((g) => g.bookmarks), ...loose];
                 const staleCount = all.filter((b) => statusMap[b.id] === "stale").length;
                 return staleCount > 0 ? (
-                  <span className="rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[11px] font-medium text-rose-700">
+                  <span
+                    className="rounded-full px-2 py-0.5 text-[11px] font-medium"
+                    style={{ border: "1px solid var(--danger-tint)", background: "var(--danger-tint)", color: "var(--danger)" }}
+                  >
                     {t("bookmark.stale_count", { count: staleCount })}
                   </span>
                 ) : null;
@@ -399,7 +442,7 @@ export function BookmarkPage() {
                 void runCheck();
               }}
               disabled={checking}
-              className="cursor-pointer text-xs text-slate-500 hover:text-slate-800 disabled:opacity-50"
+              className="text-btn"
             >
               {checking ? t("bookmark.checking") : t("bookmark.recheck")}
             </button>
@@ -427,23 +470,22 @@ export function BookmarkPage() {
           ))}
 
           {/* Loose bookmarks section */}
-          <section className="flex flex-col gap-2 rounded-lg border border-slate-200/90 bg-slate-50/50 p-3.5">
-            <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
+          <section className="card flex flex-col gap-2.5 p-4">
+            <div className="flex items-center justify-between pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-slate-700">📌</span>
-                <h2 className="text-sm font-semibold text-slate-800">
-                  {t("bookmark.loose_bookmarks")}
-                </h2>
-                <span className="text-xs text-slate-400">({loose.length})</span>
+                <h2 className="text-[13.5px] font-medium">{t("bookmark.loose_bookmarks")}</h2>
+                <span className="text-xs" style={{ color: "var(--text-faint)" }}>
+                  ({loose.length})
+                </span>
               </div>
             </div>
 
             {loose.length === 0 ? (
-              <p className="py-4 text-center text-xs text-slate-400">
+              <p className="py-4 text-center text-xs" style={{ color: "var(--text-faint)" }}>
                 {t("bookmark.loose_empty")}
               </p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="flex flex-col gap-1.5">
                 {loose.map((bookmark, idx) => (
                   <BookmarkItem
                     key={bookmark.id}

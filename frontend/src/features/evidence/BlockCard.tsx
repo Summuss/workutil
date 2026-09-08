@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
+import { ChevronsDownIcon, ChevronsUpIcon, ChevronDownIcon, ChevronUpIcon, EditIcon, TrashIcon } from "../../shared/icons";
 import { BlockTextArea } from "./BlockTextArea";
 import { TableBlockView } from "./TableBlockView";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
@@ -40,8 +41,7 @@ interface BlockCardProps {
   table: TableActions;
 }
 
-const LABEL_FIELD =
-  "min-w-0 flex-1 rounded-md border border-slate-400 bg-white px-2 py-0.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300";
+const LABEL_FIELD = "field-input min-w-0 flex-1";
 
 /**
  * One block: its heading, its content, and what can be done to it.
@@ -73,10 +73,10 @@ export function BlockCard({
   const [editingTable, setEditingTable] = useState(false);
 
   const moveLabels: MoveLabels = {
-    top: { glyph: "⤒", title: t("evidence.move_block_top") },
-    up: { glyph: "↑", title: t("evidence.move_block_up") },
-    down: { glyph: "↓", title: t("evidence.move_block_down") },
-    bottom: { glyph: "⤓", title: t("evidence.move_block_bottom") },
+    top: { Icon: ChevronsUpIcon, title: t("evidence.move_block_top") },
+    up: { Icon: ChevronUpIcon, title: t("evidence.move_block_up") },
+    down: { Icon: ChevronDownIcon, title: t("evidence.move_block_down") },
+    bottom: { Icon: ChevronsDownIcon, title: t("evidence.move_block_bottom") },
   };
 
   async function commitText(text: string): Promise<boolean> {
@@ -102,7 +102,7 @@ export function BlockCard({
   }
 
   return (
-    <article className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2.5">
+    <article className="card flex flex-col gap-2 px-4 py-3">
       <div className="flex items-center gap-1">
         {editingLabel ? (
           <InlineEdit
@@ -120,15 +120,16 @@ export function BlockCard({
             onClick={() => setEditingLabel(true)}
             className={
               block.label === null
-                ? "cursor-pointer text-xs text-slate-300 hover:text-slate-600"
-                : "min-w-0 flex-1 cursor-pointer truncate text-left text-xs font-semibold text-slate-700 hover:text-slate-900"
+                ? "cursor-pointer text-xs"
+                : "min-w-0 flex-1 cursor-pointer truncate text-left text-xs font-semibold"
             }
+            style={{ color: block.label === null ? "var(--text-faint)" : "var(--text-muted)" }}
           >
             {block.label ?? t("evidence.add_label_button")}
           </button>
         )}
 
-        <div className="ml-auto flex shrink-0 items-center text-xs">
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
           {MOVES.map(({ to, stuck }) => (
             <button
               key={to}
@@ -138,7 +139,10 @@ export function BlockCard({
               onClick={() => void onMove(to)}
               className={TOOL_BUTTON}
             >
-              {moveLabels[to].glyph}
+              {(() => {
+                const Icon = moveLabels[to].Icon;
+                return <Icon size={12} />;
+              })()}
             </button>
           ))}
           {block.kind === "text" && (
@@ -146,9 +150,10 @@ export function BlockCard({
               type="button"
               disabled={busy || editingText}
               onClick={() => setEditingText(true)}
-              className={TOOL_BUTTON}
+              className="icon-btn"
+              title={t("common.edit")}
             >
-              {t("common.edit")}
+              <EditIcon size={12} />
             </button>
           )}
           {block.kind === "table" && (
@@ -192,9 +197,10 @@ export function BlockCard({
             type="button"
             disabled={busy}
             onClick={() => void remove()}
-            className={`${TOOL_BUTTON} hover:text-red-600`}
+            className="icon-btn icon-btn-danger"
+            title={t("common.delete")}
           >
-            {t("common.delete")}
+            <TrashIcon size={12} />
           </button>
         </div>
       </div>
@@ -221,7 +227,8 @@ export function BlockCard({
           <img
             src={block.image_url}
             alt={block.label ?? t("evidence.screenshot_alt")}
-            className="max-w-full self-start rounded border border-slate-200"
+            className="max-w-full self-start rounded-md"
+            style={{ border: "1px solid var(--border)" }}
           />
         )
       ) : editingText ? (
@@ -234,7 +241,10 @@ export function BlockCard({
           onCancel={() => setEditingText(false)}
         />
       ) : (
-        <pre className="overflow-x-auto font-mono text-xs leading-relaxed whitespace-pre-wrap text-slate-800">
+        <pre
+          className="overflow-x-auto whitespace-pre-wrap text-xs leading-relaxed"
+          style={{ fontFamily: "var(--mono)", color: "var(--text)" }}
+        >
           {block.text}
         </pre>
       )}
@@ -250,7 +260,7 @@ export function BlockCard({
           out. The kind is checked as well as the guess: correcting one leaves
           its id in `guessed`, and this line has to go the moment it does. */}
       {guessed && block.kind === "table" && (
-        <p className="text-xs text-slate-400">
+        <p className="text-xs" style={{ color: "var(--text-faint)" }}>
           {t("evidence.table_detected", {
             rows: block.rows.length,
             cols: block.rows[0]?.length ?? 0,
@@ -259,7 +269,8 @@ export function BlockCard({
             type="button"
             disabled={busy}
             onClick={() => void table.onAsText()}
-            className="cursor-pointer underline underline-offset-2 hover:text-slate-700 disabled:cursor-default disabled:opacity-40"
+            className="cursor-pointer underline underline-offset-2 disabled:cursor-default disabled:opacity-40"
+            style={{ color: "var(--text-muted)" }}
           >
             {t("evidence.convert_to_plain_text")}
           </button>

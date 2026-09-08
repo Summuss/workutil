@@ -114,7 +114,7 @@ export function BlockTextArea({
   }
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1.5">
       <textarea
         autoFocus={autoFocus}
         value={draft}
@@ -126,9 +126,10 @@ export function BlockTextArea({
         rows={4}
         spellCheck={false}
         placeholder={placeholder}
-        className="w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 font-mono text-xs leading-relaxed text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-400 focus:ring-1 focus:ring-slate-200"
+        className="field-input resize-y leading-relaxed"
+        style={{ fontFamily: "var(--mono)", fontSize: "13px" }}
       />
-      <p className="text-right text-xs text-slate-400">
+      <p className="text-right text-xs" style={{ color: "var(--text-faint)" }}>
         {busy ? t("common.saving") : hint}
       </p>
     </div>

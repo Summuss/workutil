@@ -2,6 +2,7 @@ import { useCallback, useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
 import { useI18n } from "../../shared/i18n";
+import { ChevronDownIcon, ChevronRightIcon, XIcon } from "../../shared/icons";
 import { useLoad } from "../../shared/useLoad";
 import {
   completeTodo,
@@ -170,103 +171,110 @@ export function TodoPage() {
   );
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
+    <main className="mx-auto flex max-w-2xl flex-col gap-3.5 px-8 py-9">
       {/* Low friction input form: enter to save */}
-      <div className="flex flex-col gap-1.5 rounded-lg border border-slate-200 bg-white p-3 shadow-xs">
-        <form onSubmit={(e) => void handleCreate(e)} className="flex items-center gap-2">
+      <form
+        onSubmit={(e) => void handleCreate(e)}
+        className="flex items-center gap-2 rounded-[9px] px-3.5 py-2.5"
+        style={{ border: "1px solid var(--border-strong)", background: "var(--surface)" }}
+      >
+        <input
+          type="text"
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          placeholder={t("todo.composer_placeholder")}
+          autoFocus
+          className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] outline-none"
+          style={{ color: "var(--text)" }}
+        />
+        <div className="flex items-center gap-1">
           <input
-            type="text"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder={t("todo.composer_placeholder")}
-            autoFocus
-            className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+            type="date"
+            value={newDueDate}
+            onChange={(e) => setNewDueDate(e.target.value)}
+            title={t("todo.optional_due_date")}
+            className="field-input"
+            style={{ width: "auto" }}
           />
-          <div className="flex items-center gap-1">
-            <input
-              type="date"
-              value={newDueDate}
-              onChange={(e) => setNewDueDate(e.target.value)}
-              title={t("todo.optional_due_date")}
-              className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
-            />
-            {newDueDate && (
-              <button
-                type="button"
-                onClick={() => setNewDueDate("")}
-                title={t("todo.clear_date")}
-                className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 px-1"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-          <button
-            type="submit"
-            disabled={creating || newTitle.trim() === ""}
-            className="cursor-pointer shrink-0 rounded-md bg-slate-800 px-4 py-2 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
-          >
-            {creating ? t("common.saving") : t("common.add")}
-          </button>
-        </form>
-        {actionError !== null && (
-          <p className="text-xs text-red-600 px-1">{actionError}</p>
-        )}
-      </div>
+          {newDueDate && (
+            <button
+              type="button"
+              onClick={() => setNewDueDate("")}
+              title={t("todo.clear_date")}
+              className="icon-btn"
+            >
+              <XIcon size={11} />
+            </button>
+          )}
+        </div>
+        <button
+          type="submit"
+          disabled={creating || newTitle.trim() === ""}
+          className="btn-primary shrink-0"
+        >
+          {creating ? t("common.saving") : t("common.add")}
+        </button>
+      </form>
+      {actionError !== null && (
+        <p className="px-1 text-xs" style={{ color: "var(--danger)" }}>
+          {actionError}
+        </p>
+      )}
 
       {error !== null && (
-        <div className="rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+        <div
+          className="rounded-md p-3 text-xs"
+          style={{ border: "1px solid var(--danger-tint)", background: "var(--danger-tint)", color: "var(--danger)" }}
+        >
           {error}
         </div>
       )}
 
       {/* Active todos list */}
-      <section className="flex flex-col gap-3">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          {t("todo.active_header", { count: todos.length })}
-        </h2>
-
-        {loading ? (
-          <p className="py-4 text-center text-xs text-slate-400">{t("common.loading")}</p>
-        ) : todos.length === 0 ? (
-          <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
-            {t("todo.empty_state")}
-          </div>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {todos.map((todo, index) => (
-              <TodoItem
-                key={todo.id}
-                todo={todo}
-                isCompleted={false}
-                at={index}
-                count={todos.length}
-                onToggle={handleComplete}
-                onUpdate={handleUpdate}
-                onDelete={handleDelete}
-                onMove={handleMove}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
+      {loading ? (
+        <p className="py-4 text-center text-xs" style={{ color: "var(--text-faint)" }}>
+          {t("common.loading")}
+        </p>
+      ) : todos.length === 0 ? (
+        <div
+          className="rounded-lg p-8 text-center text-xs"
+          style={{ border: "1px dashed var(--border-strong)", color: "var(--text-faint)" }}
+        >
+          {t("todo.empty_state")}
+        </div>
+      ) : (
+        <ul className="flex flex-col gap-1.5">
+          {todos.map((todo, index) => (
+            <TodoItem
+              key={todo.id}
+              todo={todo}
+              isCompleted={false}
+              at={index}
+              count={todos.length}
+              onToggle={handleComplete}
+              onUpdate={handleUpdate}
+              onDelete={handleDelete}
+              onMove={handleMove}
+            />
+          ))}
+        </ul>
+      )}
 
       {/* Completed section: default collapsed */}
       {completed.length > 0 && (
-        <section className="mt-2 flex flex-col gap-3">
-          <div>
-            <button
-              type="button"
-              onClick={() => setCompletedOpen((prev) => !prev)}
-              className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-200/50 hover:text-slate-800 transition-colors"
-            >
-              <span className="text-[10px]">{completedOpen ? "▼" : "▶"}</span>
-              <span>{t("todo.completed_header", { count: completed.length })}</span>
-            </button>
-          </div>
+        <section className="mt-1.5 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={() => setCompletedOpen((prev) => !prev)}
+            className="flex cursor-pointer items-center gap-1.5 py-2 text-[12.5px]"
+            style={{ color: "var(--text-muted)" }}
+          >
+            {completedOpen ? <ChevronDownIcon size={13} /> : <ChevronRightIcon size={13} />}
+            <span>{t("todo.completed_header", { count: completed.length })}</span>
+          </button>
 
           {completedOpen && (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-1.5">
               {completed.map((todo) => (
                 <TodoItem
                   key={todo.id}

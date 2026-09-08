@@ -2,6 +2,13 @@ import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
 import { t } from "../../shared/i18n";
+import {
+  ChevronsDownIcon,
+  ChevronsUpIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  FolderIcon,
+} from "../../shared/icons";
 import { BookmarkItem } from "./BookmarkItem";
 import type {
   BookmarkGroup,
@@ -29,19 +36,15 @@ interface BookmarkGroupSectionProps {
 
 const MOVES: {
   to: MoveDirection;
-  glyph: string;
+  Icon: typeof ChevronUpIcon;
   titleKey: string;
   stuck: (at: number, count: number) => boolean;
 }[] = [
-  { to: "top", glyph: "⤒", titleKey: "bookmark.move_group_top", stuck: (at) => at === 0 },
-  { to: "up", glyph: "↑", titleKey: "bookmark.move_group_up", stuck: (at) => at === 0 },
-  { to: "down", glyph: "↓", titleKey: "bookmark.move_group_down", stuck: (at, count) => at === count - 1 },
-  { to: "bottom", glyph: "⤓", titleKey: "bookmark.move_group_bottom", stuck: (at, count) => at === count - 1 },
+  { to: "top", Icon: ChevronsUpIcon, titleKey: "bookmark.move_group_top", stuck: (at) => at === 0 },
+  { to: "up", Icon: ChevronUpIcon, titleKey: "bookmark.move_group_up", stuck: (at) => at === 0 },
+  { to: "down", Icon: ChevronDownIcon, titleKey: "bookmark.move_group_down", stuck: (at, count) => at === count - 1 },
+  { to: "bottom", Icon: ChevronsDownIcon, titleKey: "bookmark.move_group_bottom", stuck: (at, count) => at === count - 1 },
 ];
-
-
-const TOOL_BUTTON =
-  "cursor-pointer rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-200 hover:text-slate-800 disabled:cursor-default disabled:opacity-25";
 
 export function BookmarkGroupSection({
   group,
@@ -136,46 +139,41 @@ export function BookmarkGroupSection({
   }
 
   return (
-    <section className="flex flex-col gap-2 rounded-lg border border-slate-200/90 bg-slate-50/50 p-3.5">
-      <div className="group/header flex items-center justify-between gap-2 border-b border-slate-200/70 pb-2">
+    <section className="card group/header flex flex-col gap-2.5 p-4">
+      <div className="flex items-center justify-between gap-2 pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="text-sm font-semibold text-slate-700">📁</span>
+          <FolderIcon style={{ color: "var(--text-faint)" }} />
           {renaming ? (
-            <form
-              onSubmit={(e) => void handleSaveRename(e)}
-              className="flex items-center gap-1.5"
-            >
+            <form onSubmit={(e) => void handleSaveRename(e)} className="flex items-center gap-1.5">
               <input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="rounded border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-900 focus:border-slate-500 focus:outline-none"
+                className="field-input"
+                style={{ width: "auto" }}
                 autoFocus
               />
               <button
                 type="submit"
                 disabled={saving || name.trim() === ""}
-                className="cursor-pointer rounded bg-slate-800 px-2 py-0.5 text-xs text-white hover:bg-slate-700 disabled:opacity-50"
+                className="btn-primary"
+                style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "5px" }}
               >
                 {saving ? "…" : t("common.save")}
               </button>
-              <button
-                type="button"
-                onClick={cancelRename}
-                className="cursor-pointer rounded px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-200"
-              >
+              <button type="button" onClick={cancelRename} className="text-btn">
                 {t("common.cancel")}
               </button>
               {error !== null && (
-                <span className="text-xs text-red-600">{error}</span>
+                <span className="text-xs" style={{ color: "var(--danger)" }}>
+                  {error}
+                </span>
               )}
             </form>
           ) : (
             <div className="flex items-center gap-2 truncate">
-              <h2 className="truncate text-sm font-semibold text-slate-800">
-                {group.name}
-              </h2>
-              <span className="text-xs text-slate-400">
+              <h2 className="truncate text-[13.5px] font-medium">{group.name}</h2>
+              <span className="text-xs" style={{ color: "var(--text-faint)" }}>
                 ({group.bookmarks.length})
               </span>
             </div>
@@ -187,41 +185,38 @@ export function BookmarkGroupSection({
             type="button"
             onClick={() => void handleOpenGroup()}
             disabled={openingGroup || group.bookmarks.length === 0}
-            className="cursor-pointer rounded bg-slate-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+            className="btn-ghost"
+            style={{ fontSize: "12px", padding: "5px 12px", borderRadius: "6px" }}
           >
             {openingGroup ? t("bookmark.opening_group") : t("bookmark.open_all")}
           </button>
 
           {/* Group 4-way reorder buttons */}
           <div className="flex items-center gap-0.5">
-            {MOVES.map((move) => (
+            {MOVES.map(({ to, Icon, titleKey, stuck }) => (
               <button
-                key={move.to}
+                key={to}
                 type="button"
-                title={t(move.titleKey)}
-                disabled={moving || move.stuck(at, count)}
-                onClick={() => void handleMove(move.to)}
-                className={TOOL_BUTTON}
+                title={t(titleKey)}
+                disabled={moving || stuck(at, count)}
+                onClick={() => void handleMove(to)}
+                className="tool-btn"
               >
-                {move.glyph}
+                <Icon size={12} />
               </button>
             ))}
           </div>
 
           {!renaming && (
-            <div className="flex items-center gap-1 opacity-40 transition-opacity group-hover/header:opacity-100">
-              <button
-                type="button"
-                onClick={startRename}
-                className="cursor-pointer text-xs text-slate-500 hover:text-slate-800"
-              >
+            <div className="flex items-center gap-2.5 opacity-40 transition-opacity group-hover/header:opacity-100">
+              <button type="button" onClick={startRename} className="text-btn">
                 {t("bookmark.rename")}
               </button>
               <button
                 type="button"
                 onClick={() => void handleDelete()}
                 disabled={deleting}
-                className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
+                className="text-btn text-btn-danger"
               >
                 {deleting ? t("bookmark.deleting_group") : t("bookmark.delete_group")}
               </button>
@@ -231,12 +226,11 @@ export function BookmarkGroupSection({
       </div>
 
       {group.bookmarks.length === 0 ? (
-        <p className="py-4 text-center text-xs text-slate-400">
+        <p className="py-4 text-center text-xs" style={{ color: "var(--text-faint)" }}>
           {t("bookmark.group_empty")}
         </p>
       ) : (
-
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-1.5">
           {group.bookmarks.map((bookmark, idx) => (
             <BookmarkItem
               key={bookmark.id}

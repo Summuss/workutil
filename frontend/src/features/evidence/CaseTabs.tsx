@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
+import { ChevronsLeftIcon, ChevronsRightIcon, ChevronLeftIcon, ChevronRightIcon, EditIcon, TrashIcon, PlusIcon } from "../../shared/icons";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
 import type { Case, Move } from "./types";
 
@@ -19,8 +20,7 @@ interface CaseTabsProps {
 
 type Editing = { kind: "add" } | { kind: "rename"; caseId: number } | null;
 
-const NAME_FIELD =
-  "w-28 rounded-md border border-slate-400 bg-white px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300";
+const NAME_FIELD = "field-input w-28";
 
 /**
  * The cases of one evidence, in the order they will become sheets.
@@ -45,10 +45,10 @@ export function CaseTabs({
   const [editing, setEditing] = useState<Editing>(null);
 
   const moveLabels: MoveLabels = {
-    top: { glyph: "⇤", title: t("evidence.move_case_top") },
-    up: { glyph: "←", title: t("evidence.move_case_left") },
-    down: { glyph: "→", title: t("evidence.move_case_right") },
-    bottom: { glyph: "⇥", title: t("evidence.move_case_bottom") },
+    top: { Icon: ChevronsLeftIcon, title: t("evidence.move_case_top") },
+    up: { Icon: ChevronLeftIcon, title: t("evidence.move_case_left") },
+    down: { Icon: ChevronRightIcon, title: t("evidence.move_case_right") },
+    bottom: { Icon: ChevronsRightIcon, title: t("evidence.move_case_bottom") },
   };
 
   const selected = cases.find((one) => one.id === selectedId) ?? null;
@@ -82,8 +82,8 @@ export function CaseTabs({
   }
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-slate-200 pb-1.5">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
         {cases.map((one) =>
           editing?.kind === "rename" && editing.caseId === one.id ? (
             <InlineEdit
@@ -104,10 +104,11 @@ export function CaseTabs({
                 setEditing({ kind: "rename", caseId: one.id })
               }
               title={t("evidence.double_click_rename")}
-              className={
+              className="shrink-0 cursor-pointer rounded-md px-3 py-1.5 text-xs transition-colors"
+              style={
                 one.id === selectedId
-                  ? "shrink-0 cursor-pointer rounded-md bg-slate-800 px-3 py-1 font-mono text-xs text-white"
-                  : "shrink-0 cursor-pointer rounded-md px-3 py-1 font-mono text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+                  ? { fontFamily: "var(--mono)", background: "var(--accent)", color: "white" }
+                  : { fontFamily: "var(--mono)", color: "var(--text-muted)" }
               }
             >
               {one.name}
@@ -129,18 +130,23 @@ export function CaseTabs({
             type="button"
             onClick={() => setEditing({ kind: "add" })}
             title={t("evidence.add_case_title")}
-            className="shrink-0 cursor-pointer rounded-md px-2.5 py-1 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            className="icon-btn shrink-0"
+            style={{ border: "1px dashed var(--border-strong)", borderRadius: "6px" }}
           >
-            {t("evidence.add_case_button")}
+            <PlusIcon />
           </button>
         )}
       </div>
 
-      {error !== null && <p className="text-xs text-red-600">{error}</p>}
+      {error !== null && (
+        <p className="text-xs" style={{ color: "var(--danger)" }}>
+          {error}
+        </p>
+      )}
 
       {selected !== null && editing === null && (
         <div className="flex items-center gap-1 text-xs">
-          <span className="mr-1 text-slate-400">
+          <span className="mr-1" style={{ color: "var(--text-faint)" }}>
             {t("evidence.case_position", {
               current: at + 1,
               total: cases.length,
@@ -155,23 +161,28 @@ export function CaseTabs({
               onClick={() => void onMove(selected.id, to)}
               className={TOOL_BUTTON}
             >
-              {moveLabels[to].glyph}
+              {(() => {
+                const Icon = moveLabels[to].Icon;
+                return <Icon size={12} />;
+              })()}
             </button>
           ))}
           <button
             type="button"
             onClick={() => setEditing({ kind: "rename", caseId: selected.id })}
             className={TOOL_BUTTON}
+            title={t("evidence.rename_case")}
           >
-            {t("evidence.rename_case")}
+            <EditIcon size={12} />
           </button>
           <button
             type="button"
             onClick={() => void remove()}
             disabled={busy}
-            className={`${TOOL_BUTTON} hover:text-red-600`}
+            className={`${TOOL_BUTTON} icon-btn-danger`}
+            title={t("common.delete")}
           >
-            {t("common.delete")}
+            <TrashIcon size={12} />
           </button>
         </div>
       )}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 
 
 import { messageOf } from "../../shared/api";
 import { t } from "../../shared/i18n";
+import { XIcon } from "../../shared/icons";
 import { createTodo } from "../todo/api";
 import { firstLine } from "./firstLine";
 import type { Memo } from "./types";
@@ -60,28 +61,26 @@ export function ConvertToTodoModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-xs"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "var(--scrim)" }}
       onClick={onClose}
       onKeyDown={handleKeyDown}
     >
       <div
-        className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-lg"
+        className="card w-full max-w-md p-5"
+        style={{ boxShadow: "0 24px 48px rgba(15,12,8,0.16), 0 8px 16px rgba(15,12,8,0.08)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <h3 className="text-sm font-semibold text-slate-800">{t("memo.convert_to_todo_title")}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            className="cursor-pointer text-sm text-slate-400 hover:text-slate-600"
-          >
-            ✕
+        <div className="flex items-center justify-between pb-3" style={{ borderBottom: "1px solid var(--border)" }}>
+          <h3 className="text-sm font-semibold">{t("memo.convert_to_todo_title")}</h3>
+          <button type="button" onClick={onClose} className="icon-btn">
+            <XIcon />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1">
-            <label htmlFor="todo-title-input" className="text-xs font-medium text-slate-600">
+            <label htmlFor="todo-title-input" className="text-xs font-medium" style={{ color: "var(--text-muted)" }}>
               {t("todo.title_label")}
             </label>
             <input
@@ -91,28 +90,30 @@ export function ConvertToTodoModal({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t("todo.title_placeholder")}
-              className="w-full rounded border border-slate-200 px-3 py-1.5 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+              className="field-input"
+              style={{ fontSize: "13px", padding: "7px 10px" }}
             />
           </div>
 
-          <p className="text-[11px] text-slate-400">
+          <p className="text-[11px]" style={{ color: "var(--text-faint)" }}>
             {t("memo.convert_to_todo_hint")}
           </p>
 
-          {error !== null && <p className="text-xs text-red-600">{error}</p>}
+          {error !== null && (
+            <p className="text-xs" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+          )}
 
           <div className="mt-2 flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="cursor-pointer rounded px-3 py-1.5 text-xs text-slate-500 hover:bg-slate-100"
-            >
+            <button type="button" onClick={onClose} className="btn-ghost" style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}>
               {t("common.cancel")}
             </button>
             <button
               type="submit"
               disabled={submitting || title.trim() === ""}
-              className="cursor-pointer rounded bg-slate-800 px-3.5 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+              className="btn-primary"
+              style={{ fontSize: "12px", padding: "6px 14px", borderRadius: "6px" }}
             >
               {submitting ? t("common.creating") : t("memo.confirm_create_todo")}
             </button>
@@ -122,4 +123,3 @@ export function ConvertToTodoModal({
     </div>
   );
 }
-

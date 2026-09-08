@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { t } from "../../shared/i18n";
+import { SearchIcon, XIcon } from "../../shared/icons";
 
 interface MemoSearchBarProps {
   onChange: (query: string) => void;
@@ -44,39 +45,30 @@ export function MemoSearchBar({ onChange }: MemoSearchBarProps) {
   }
 
   return (
-    <div className="relative flex items-center">
-      <svg
-        className="pointer-events-none absolute left-3 h-4 w-4 text-slate-400"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth={2}
-          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-        />
-      </svg>
+    <div
+      className="flex items-center gap-2.5 rounded-lg px-3.5 py-2.5"
+      style={{ border: "1px solid var(--border)", background: "var(--surface)" }}
+    >
+      <SearchIcon style={{ color: "var(--text-faint)" }} className="shrink-0" />
       <input
         type="text"
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={t("memo.search_placeholder")}
-        className="w-full rounded-md border border-slate-200 bg-white py-2 pr-8 pl-9 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+        className="min-w-0 flex-1 border-none bg-transparent text-[13px] outline-none"
+        style={{ color: "var(--text)" }}
       />
       {query.trim() !== "" && (
         <button
           type="button"
           onClick={clear}
           title={t("memo.search_clear_title")}
-          className="absolute right-2.5 flex h-4 w-4 cursor-pointer items-center justify-center rounded-full text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+          className="icon-btn"
         >
-          ✕
+          <XIcon size={11} />
         </button>
       )}
     </div>
   );
 }
-

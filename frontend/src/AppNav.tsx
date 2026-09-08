@@ -2,14 +2,12 @@ import { NavLink } from "react-router";
 
 import { useI18n, type Language } from "./shared/i18n";
 
-const LINK_BASE =
-  "rounded-md px-2.5 py-1 text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-slate-300";
+const LINK_CLASS = "rounded-md px-3 py-1.5 text-[13.5px] transition-colors";
 
-function linkClass({ isActive }: { isActive: boolean }) {
-  return isActive
-    ? `${LINK_BASE} bg-white font-medium text-slate-900 shadow-sm`
-    : `${LINK_BASE} text-slate-500 hover:bg-white/60 hover:text-slate-800`;
-}
+const LANGUAGES: { id: Language; label: string }[] = [
+  { id: "zh", label: "中文" },
+  { id: "ja", label: "日本語" },
+];
 
 /**
  * The bar that gets you between features.
@@ -21,37 +19,94 @@ export function AppNav() {
   const { language, setLanguage, t } = useI18n();
 
   return (
-    <header className="border-b border-slate-200 bg-slate-100/80">
-      <nav className="mx-auto flex max-w-3xl items-center gap-1 px-6 py-1.5">
-        <span className="mr-2 text-xs font-semibold tracking-wide text-slate-400">
+    <header
+      className="flex h-[52px] shrink-0 items-center justify-between px-8"
+      style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)" }}
+    >
+      <nav className="flex items-center gap-9">
+        <span
+          className="text-sm font-semibold tracking-wide"
+          style={{ fontFamily: "var(--mono)", color: "oklch(0.35 0.01 260)" }}
+        >
           workutil
         </span>
-        <NavLink to="/" end className={linkClass}>
-          {t("nav.memo")}
-        </NavLink>
-        <NavLink to="/evidence" className={linkClass}>
-          {t("nav.evidence")}
-        </NavLink>
-        <NavLink to="/bookmarks" className={linkClass}>
-          {t("nav.bookmarks")}
-        </NavLink>
-        <NavLink to="/todos" className={linkClass}>
-          {t("nav.todo")}
-        </NavLink>
-
-        <div className="ml-auto flex items-center">
-          <select
-            value={language}
-            onChange={(e) => setLanguage(e.target.value as Language)}
-            className="cursor-pointer rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-300"
-            aria-label="Language"
+        <div className="flex gap-1">
+          <NavLink
+            to="/"
+            end
+            style={({ isActive }) => ({
+              background: isActive ? "var(--accent-tint)" : "transparent",
+              color: isActive ? "var(--accent-strong)" : "var(--text-muted)",
+              fontWeight: isActive ? 600 : 400,
+            })}
+            className={LINK_CLASS}
           >
-            <option value="zh">中文</option>
-            <option value="ja">日本語</option>
-          </select>
+            {t("nav.memo")}
+          </NavLink>
+          <NavLink
+            to="/evidence"
+            style={({ isActive }) => ({
+              background: isActive ? "var(--accent-tint)" : "transparent",
+              color: isActive ? "var(--accent-strong)" : "var(--text-muted)",
+              fontWeight: isActive ? 600 : 400,
+            })}
+            className={LINK_CLASS}
+          >
+            {t("nav.evidence")}
+          </NavLink>
+          <NavLink
+            to="/bookmarks"
+            style={({ isActive }) => ({
+              background: isActive ? "var(--accent-tint)" : "transparent",
+              color: isActive ? "var(--accent-strong)" : "var(--text-muted)",
+              fontWeight: isActive ? 600 : 400,
+            })}
+            className={LINK_CLASS}
+          >
+            {t("nav.bookmarks")}
+          </NavLink>
+          <NavLink
+            to="/todos"
+            style={({ isActive }) => ({
+              background: isActive ? "var(--accent-tint)" : "transparent",
+              color: isActive ? "var(--accent-strong)" : "var(--text-muted)",
+              fontWeight: isActive ? 600 : 400,
+            })}
+            className={LINK_CLASS}
+          >
+            {t("nav.todo")}
+          </NavLink>
         </div>
       </nav>
+
+      <div
+        className="flex items-center gap-0.5 rounded-lg p-[3px]"
+        style={{ background: "var(--hover-wash)", fontFamily: "var(--mono)" }}
+        role="radiogroup"
+        aria-label="Language"
+      >
+        {LANGUAGES.map((lang) => {
+          const active = language === lang.id;
+          return (
+            <button
+              key={lang.id}
+              type="button"
+              role="radio"
+              aria-checked={active}
+              onClick={() => setLanguage(lang.id)}
+              className="cursor-pointer rounded-md px-2.5 py-1.5 text-[11.5px] transition-colors"
+              style={{
+                background: active ? "var(--surface)" : "transparent",
+                color: active ? "var(--text)" : "var(--text-faint)",
+                fontWeight: active ? 600 : 400,
+                boxShadow: active ? "0 1px 2px rgba(20,20,30,0.08)" : "none",
+              }}
+            >
+              {lang.label}
+            </button>
+          );
+        })}
+      </div>
     </header>
   );
 }
-
