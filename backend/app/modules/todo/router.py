@@ -25,7 +25,7 @@ router = APIRouter(prefix="/todos", tags=["todo"])
 )
 def create_todo(payload: TodoCreate, session: SessionDep) -> TodoRead:
     try:
-        todo = service.create_todo(session, payload.title)
+        todo = service.create_todo(session, payload.title, due_date=payload.due_date)
     except service.EmptyTitle as err:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
     return TodoRead.model_validate(todo)
@@ -42,8 +42,15 @@ def list_todos(session: SessionDep) -> TodoListResponse:
 
 @router.patch("/{todo_id}", response_model=TodoRead)
 def update_todo(todo_id: int, payload: TodoUpdate, session: SessionDep) -> TodoRead:
+    update_due_date = "due_date" in payload.model_fields_set
     try:
-        todo = service.update_todo(session, todo_id, payload.title)
+        todo = service.update_todo(
+            session,
+            todo_id,
+            raw_title=payload.title,
+            due_date=payload.due_date,
+            update_due_date=update_due_date,
+        )
     except service.TodoNotFound as err:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(err)) from err
     except service.EmptyTitle as err:

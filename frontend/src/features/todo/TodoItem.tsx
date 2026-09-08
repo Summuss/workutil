@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 
-import type { MoveDirection, Todo } from "./types";
+import { getDueDateStatus } from "./dueDateUtil";
+import type { MoveDirection, Todo, TodoUpdatePayload } from "./types";
 
 interface TodoItemProps {
   todo: Todo;
@@ -8,7 +9,7 @@ interface TodoItemProps {
   at?: number;
   count?: number;
   onToggle: (id: number) => Promise<void>;
-  onUpdateTitle: (id: number, title: string) => Promise<void>;
+  onUpdate: (id: number, payload: TodoUpdatePayload) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   onMove?: (id: number, to: MoveDirection) => Promise<void>;
 }
@@ -34,12 +35,13 @@ export function TodoItem({
   at,
   count,
   onToggle,
-  onUpdateTitle,
+  onUpdate,
   onDelete,
   onMove,
 }: TodoItemProps) {
   const [editing, setEditing] = useState(false);
   const [title, setTitle] = useState(todo.title);
+  const [dueDate, setDueDate] = useState(todo.due_date ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -49,7 +51,8 @@ export function TodoItem({
 
   useEffect(() => {
     setTitle(todo.title);
-  }, [todo.title]);
+    setDueDate(todo.due_date ?? "");
+  }, [todo.title, todo.due_date]);
 
   useEffect(() => {
     if (editing) {
@@ -85,7 +88,8 @@ export function TodoItem({
       setError("待办内容不能为空");
       return;
     }
-    if (clean === todo.title) {
+    const cleanDate = dueDate ? dueDate : null;
+    if (clean === todo.title && cleanDate === todo.due_date) {
       setEditing(false);
       setError(null);
       return;
@@ -93,7 +97,10 @@ export function TodoItem({
     setSubmitting(true);
     setError(null);
     try {
-      await onUpdateTitle(todo.id, clean);
+      await onUpdate(todo.id, {
+        title: clean,
+        due_date: cleanDate,
+      });
       setEditing(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "保存失败");
@@ -104,6 +111,7 @@ export function TodoItem({
 
   function handleCancel() {
     setTitle(todo.title);
+    setDueDate(todo.due_date ?? "");
     setEditing(false);
     setError(null);
   }
@@ -118,10 +126,12 @@ export function TodoItem({
     }
   }
 
+  const dueStatus = getDueDateStatus(todo.due_date);
+
   if (editing) {
     return (
       <li className="rounded-md border border-slate-300 bg-white p-2.5 shadow-xs">
-        <form onSubmit={handleSave} className="flex flex-col gap-2">
+        <form onSubmit={handleSave} className="flex flex-col gap-2.5">
           <input
             ref={editInputRef}
             type="text"
@@ -132,9 +142,31 @@ export function TodoItem({
                 handleCancel();
               }
             }}
+            placeholder="待办内容"
             className="w-full rounded border border-slate-200 px-2.5 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
           />
+
+          <div className="flex items-center gap-2 text-xs text-slate-600">
+            <span>截止日期:</span>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="rounded border border-slate-200 px-2 py-0.5 text-xs text-slate-800 focus:border-slate-400 focus:outline-none"
+            />
+            {dueDate && (
+              <button
+                type="button"
+                onClick={() => setDueDate("")}
+                className="cursor-pointer text-xs text-slate-400 hover:text-slate-700"
+              >
+                清除日期
+              </button>
+            )}
+          </div>
+
           {error !== null && <p className="text-xs text-red-600">{error}</p>}
+
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
@@ -204,6 +236,27 @@ export function TodoItem({
         >
           {todo.title}
         </span>
+
+        {/* Due date 3-tier display */}
+        {dueStatus !== "none" && (
+          <span
+            className={`inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[11px] ${
+              isCompleted
+                ? "bg-slate-100 text-slate-400 line-through"
+                : dueStatus === "overdue"
+                  ? "border border-rose-200 bg-rose-50 font-medium text-rose-700"
+                  : dueStatus === "today"
+                    ? "border border-amber-200 bg-amber-50 font-semibold text-amber-700"
+                    : "border border-slate-200 bg-slate-100 text-slate-500"
+            }`}
+          >
+            {dueStatus === "today"
+              ? "今天到期"
+              : dueStatus === "overdue"
+                ? `${todo.due_date} 逾期`
+                : todo.due_date}
+          </span>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-2">

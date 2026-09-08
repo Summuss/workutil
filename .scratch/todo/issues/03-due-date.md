@@ -19,11 +19,11 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `todos.due_date`(可空、只到日)+ 迁移
-- [ ] `PATCH /api/todos/{id}` 能设置与清除 `due_date`;`POST /api/todos` 可带
-- [ ] 前端:设置 / 清除截止日期,三档显示
-- [ ] 排序**不受 `due_date` 影响**
-- [ ] 主接缝测试:`due_date` 不同的两条,顺序仍由 `order` 决定
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `todos.due_date`(可空、只到日)+ 迁移
+- [x] `PATCH /api/todos/{id}` 能设置与清除 `due_date`;`POST /api/todos` 可带
+- [x] 前端:设置 / 清除截止日期,三档显示
+- [x] 排序**不受 `due_date` 影响**
+- [x] 主接缝测试:`due_date` 不同的两条,顺序仍由 `order` 决定
+- [x] `make check` 与 `pnpm build` 通过

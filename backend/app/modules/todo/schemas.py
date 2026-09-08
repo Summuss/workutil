@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict
 
@@ -11,10 +11,12 @@ class MoveRequest(BaseModel):
 
 class TodoCreate(BaseModel):
     title: str
+    due_date: date | None = None
 
 
 class TodoUpdate(BaseModel):
     title: str | None = None
+    due_date: date | None = None
 
 
 class TodoRead(BaseModel):
@@ -25,6 +27,7 @@ class TodoRead(BaseModel):
     id: int
     title: str
     order: int
+    due_date: date | None = None
     completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

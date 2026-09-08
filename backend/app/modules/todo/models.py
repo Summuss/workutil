@@ -1,6 +1,6 @@
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import Text
+from sqlalchemy import Date, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base, UtcDateTime
@@ -18,6 +18,7 @@ class Todo(Ordered, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(Text)
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, nullable=True, index=True
     )

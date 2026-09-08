@@ -1,5 +1,7 @@
 """What you can do with todos. Knows nothing about HTTP."""
 
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -44,7 +46,7 @@ def _unfinished_todos_in_order(session: Session) -> list[Todo]:
     return list(session.scalars(stmt).all())
 
 
-def create_todo(session: Session, raw_title: str) -> Todo:
+def create_todo(session: Session, raw_title: str, due_date: date | None = None) -> Todo:
     title = _clean_title(raw_title)
     unfinished = _unfinished_todos_in_order(session)
     order = (unfinished[-1].order + 1) if unfinished else 0
@@ -52,6 +54,7 @@ def create_todo(session: Session, raw_title: str) -> Todo:
     todo = Todo(
         title=title,
         order=order,
+        due_date=due_date,
         created_at=now,
         updated_at=now,
         completed_at=None,
@@ -62,10 +65,18 @@ def create_todo(session: Session, raw_title: str) -> Todo:
     return todo
 
 
-def update_todo(session: Session, todo_id: int, raw_title: str | None = None) -> Todo:
+def update_todo(
+    session: Session,
+    todo_id: int,
+    raw_title: str | None = None,
+    due_date: date | None = None,
+    update_due_date: bool = False,
+) -> Todo:
     todo = get_todo(session, todo_id)
     if raw_title is not None:
         todo.title = _clean_title(raw_title)
+    if update_due_date:
+        todo.due_date = due_date
     todo.updated_at = utc_now()
     session.commit()
     session.refresh(todo)

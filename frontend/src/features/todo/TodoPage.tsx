@@ -12,7 +12,7 @@ import {
   updateTodo,
 } from "./api";
 import { TodoItem } from "./TodoItem";
-import type { MoveDirection, TodoListResponse } from "./types";
+import type { MoveDirection, TodoListResponse, TodoUpdatePayload } from "./types";
 
 export function TodoPage() {
   const {
@@ -23,6 +23,7 @@ export function TodoPage() {
   } = useLoad<TodoListResponse>(() => listTodos());
 
   const [newTitle, setNewTitle] = useState("");
+  const [newDueDate, setNewDueDate] = useState("");
   const [creating, setCreating] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -39,8 +40,12 @@ export function TodoPage() {
       setCreating(true);
       setActionError(null);
       try {
-        const created = await createTodo({ title: clean });
+        const created = await createTodo({
+          title: clean,
+          due_date: newDueDate ? newDueDate : null,
+        });
         setNewTitle("");
+        setNewDueDate("");
         setLoaded((curr) =>
           curr
             ? {
@@ -55,7 +60,7 @@ export function TodoPage() {
         setCreating(false);
       }
     },
-    [newTitle, creating, setLoaded],
+    [newTitle, newDueDate, creating, setLoaded],
   );
 
   const handleComplete = useCallback(
@@ -98,11 +103,11 @@ export function TodoPage() {
     [setLoaded],
   );
 
-  const handleUpdateTitle = useCallback(
-    async (id: number, title: string) => {
+  const handleUpdate = useCallback(
+    async (id: number, payload: TodoUpdatePayload) => {
       setActionError(null);
       try {
-        const updated = await updateTodo(id, { title });
+        const updated = await updateTodo(id, payload);
         setLoaded((curr) => {
           if (!curr) return null;
           return {
@@ -172,6 +177,25 @@ export function TodoPage() {
             autoFocus
             className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
           />
+          <div className="flex items-center gap-1">
+            <input
+              type="date"
+              value={newDueDate}
+              onChange={(e) => setNewDueDate(e.target.value)}
+              title="可选截止日期"
+              className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
+            />
+            {newDueDate && (
+              <button
+                type="button"
+                onClick={() => setNewDueDate("")}
+                title="清除日期"
+                className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 px-1"
+              >
+                ✕
+              </button>
+            )}
+          </div>
           <button
             type="submit"
             disabled={creating || newTitle.trim() === ""}
@@ -213,7 +237,7 @@ export function TodoPage() {
                 at={index}
                 count={todos.length}
                 onToggle={handleComplete}
-                onUpdateTitle={handleUpdateTitle}
+                onUpdate={handleUpdate}
                 onDelete={handleDelete}
                 onMove={handleMove}
               />
@@ -244,7 +268,7 @@ export function TodoPage() {
                   todo={todo}
                   isCompleted={true}
                   onToggle={handleReopen}
-                  onUpdateTitle={handleUpdateTitle}
+                  onUpdate={handleUpdate}
                   onDelete={handleDelete}
                 />
               ))}

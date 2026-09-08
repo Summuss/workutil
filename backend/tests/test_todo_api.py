@@ -292,3 +292,56 @@ def test_complete_and_reopen_preserves_order_and_position(client: TestClient) ->
     reopened_active = client.get("/api/todos").json()["todos"]
     assert [t["title"] for t in reopened_active] == ["C", "A", "B"]
     assert [t["order"] for t in reopened_active] == [0, 1, 2]
+
+
+def test_create_todo_with_due_date(client: TestClient) -> None:
+    resp = client.post("/api/todos", json={"title": "买书", "due_date": "2026-09-15"})
+    assert resp.status_code == 201
+    assert resp.json()["due_date"] == "2026-09-15"
+
+
+def test_patch_todo_set_and_clear_due_date(client: TestClient) -> None:
+    created = client.post("/api/todos", json={"title": "看文档"}).json()
+    todo_id = created["id"]
+    assert created["due_date"] is None
+
+    # Set due date
+    patch_resp = client.patch(f"/api/todos/{todo_id}", json={"due_date": "2026-09-20"})
+    assert patch_resp.status_code == 200
+    assert patch_resp.json()["due_date"] == "2026-09-20"
+
+    # Patch title only; due_date should remain untouched
+    patch_title = client.patch(f"/api/todos/{todo_id}", json={"title": "新看文档"})
+    assert patch_title.status_code == 200
+    assert patch_title.json()["title"] == "新看文档"
+    assert patch_title.json()["due_date"] == "2026-09-20"
+
+    # Clear due date by sending null
+    clear_resp = client.patch(f"/api/todos/{todo_id}", json={"due_date": None})
+    assert clear_resp.status_code == 200
+    assert clear_resp.json()["due_date"] is None
+
+
+def test_ordering_is_independent_of_due_date(client: TestClient) -> None:
+    """Main seam test for Ticket 03:
+
+    Two todos with different due_dates (e.g. future vs overdue) have their
+    order determined solely by `order`, not by their deadline.
+    """
+    todo_future = client.post(
+        "/api/todos", json={"title": "未来待办", "due_date": "2026-12-31"}
+    ).json()
+    todo_overdue = client.post(
+        "/api/todos", json={"title": "逾期待办", "due_date": "2026-01-01"}
+    ).json()
+
+    # Created order: future is 0, overdue is 1
+    listed = client.get("/api/todos").json()["todos"]
+    assert [t["title"] for t in listed] == ["未来待办", "逾期待办"]
+
+    # Move overdue todo to top -> now overdue is first
+    client.post(f"/api/todos/{todo_overdue['id']}/move", json={"to": "top"})
+    listed_after_move = client.get("/api/todos").json()["todos"]
+    assert [t["title"] for t in listed_after_move] == ["逾期待办", "未来待办"]
+    assert listed_after_move[0]["id"] == todo_overdue["id"]
+    assert listed_after_move[1]["id"] == todo_future["id"]
