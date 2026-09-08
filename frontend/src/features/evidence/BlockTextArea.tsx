@@ -1,5 +1,6 @@
 import { useState, type ClipboardEvent, type KeyboardEvent } from "react";
 
+import { useI18n } from "../../shared/i18n";
 import { imageDropHandlers } from "../../shared/images";
 import { carriesTable, pastedText, type PastedText } from "./clipboard";
 
@@ -49,6 +50,7 @@ export function BlockTextArea({
   onCommit,
   onCancel,
 }: BlockTextAreaProps) {
+  const { t } = useI18n();
   const [draft, setDraft] = useState(initial);
   const images = imageDropHandlers<HTMLTextAreaElement>(onImages);
 
@@ -127,7 +129,7 @@ export function BlockTextArea({
         className="w-full resize-y rounded-md border border-slate-300 bg-white p-2.5 font-mono text-xs leading-relaxed text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-400 focus:ring-1 focus:ring-slate-200"
       />
       <p className="text-right text-xs text-slate-400">
-        {busy ? "保存中…" : hint}
+        {busy ? t("common.saving") : hint}
       </p>
     </div>
   );

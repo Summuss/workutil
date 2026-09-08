@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import { t } from "../../shared/i18n";
 import type {
   Bookmark,
   BookmarkGroup,
@@ -22,16 +23,17 @@ interface BookmarkItemProps {
   onReveal: (id: number) => Promise<void>;
 }
 
+
 const MOVES: {
   to: MoveDirection;
   glyph: string;
-  title: string;
+  titleKey: string;
   stuck: (at: number, count: number) => boolean;
 }[] = [
-  { to: "top", glyph: "⤒", title: "移到最前", stuck: (at) => at === 0 },
-  { to: "up", glyph: "↑", title: "上移一位", stuck: (at) => at === 0 },
-  { to: "down", glyph: "↓", title: "下移一位", stuck: (at, count) => at === count - 1 },
-  { to: "bottom", glyph: "⤓", title: "移到最后", stuck: (at, count) => at === count - 1 },
+  { to: "top", glyph: "⤒", titleKey: "bookmark.move_item_top", stuck: (at) => at === 0 },
+  { to: "up", glyph: "↑", titleKey: "bookmark.move_item_up", stuck: (at) => at === 0 },
+  { to: "down", glyph: "↓", titleKey: "bookmark.move_item_down", stuck: (at, count) => at === count - 1 },
+  { to: "bottom", glyph: "⤓", titleKey: "bookmark.move_item_bottom", stuck: (at, count) => at === count - 1 },
 ];
 
 const TOOL_BUTTON =
@@ -121,14 +123,14 @@ export function BookmarkItem({
       await onUpdate(bookmark.id, payload);
       setEditing(false);
     } catch (cause) {
-      setError(messageOf(cause, "更新失败"));
+      setError(messageOf(cause, t("bookmark.update_failed")));
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete() {
-    if (!window.confirm(`确定删除书签「${bookmark.name}」吗?`)) {
+    if (!window.confirm(t("bookmark.delete_item_confirm", { name: bookmark.name }))) {
       return;
     }
 
@@ -136,7 +138,7 @@ export function BookmarkItem({
     try {
       await onDelete(bookmark.id);
     } catch (cause) {
-      alert(messageOf(cause, "删除失败"));
+      alert(messageOf(cause, t("common.delete_failed")));
       setDeleting(false);
     }
   }
@@ -147,7 +149,7 @@ export function BookmarkItem({
     try {
       await onMove(bookmark.id, to);
     } catch (cause) {
-      alert(messageOf(cause, "移动失败"));
+      alert(messageOf(cause, t("bookmark.move_failed")));
     } finally {
       setMoving(false);
     }
@@ -159,7 +161,7 @@ export function BookmarkItem({
         <form onSubmit={(e) => void handleSave(e)} className="flex flex-col gap-2">
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">名称</label>
+              <label className="text-[11px] font-medium text-slate-500">{t("bookmark.name_label")}</label>
               <input
                 type="text"
                 value={name}
@@ -169,13 +171,13 @@ export function BookmarkItem({
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] font-medium text-slate-500">所属组</label>
+              <label className="text-[11px] font-medium text-slate-500">{t("bookmark.group_label")}</label>
               <select
                 value={groupId ?? ""}
                 onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
                 className="rounded border border-slate-200 px-2 py-1 text-xs text-slate-900 focus:border-slate-400 focus:outline-none"
               >
-                <option value="">散装 (无分组)</option>
+                <option value="">{t("bookmark.loose_option")}</option>
                 {groups.map((g) => (
                   <option key={g.id} value={g.id}>
                     {g.name}
@@ -186,7 +188,7 @@ export function BookmarkItem({
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-medium text-slate-500">路径</label>
+            <label className="text-[11px] font-medium text-slate-500">{t("bookmark.path_label")}</label>
             <input
               type="text"
               value={path}
@@ -203,14 +205,14 @@ export function BookmarkItem({
               onClick={cancelEditing}
               className="cursor-pointer rounded px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-100"
             >
-              取消
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               disabled={saving || name.trim() === "" || path.trim() === ""}
               className="cursor-pointer rounded bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
             >
-              {saving ? "保存中…" : "保存"}
+              {saving ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </form>
@@ -244,34 +246,34 @@ export function BookmarkItem({
                 : "bg-sky-50 text-sky-700 border border-sky-200"
             }`}
           >
-            {bookmark.is_directory ? "文件夹" : "文件"}
+            {bookmark.is_directory ? t("bookmark.folder") : t("bookmark.file")}
           </span>
 
           {status === "unknown" && (
             <span
               className="inline-flex items-center gap-1 rounded border border-slate-200 bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500"
-              title="检测中或尚未验证路径存在性"
+              title={t("bookmark.status_unknown_title")}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-slate-400 animate-pulse" />
-              未知
+              {t("bookmark.status_unknown")}
             </span>
           )}
           {status === "valid" && (
             <span
               className="inline-flex items-center gap-1 rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
-              title="路径有效，文件/目录存在"
+              title={t("bookmark.status_valid_title")}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              有效
+              {t("bookmark.status_valid")}
             </span>
           )}
           {status === "stale" && (
             <span
               className="inline-flex items-center gap-1 rounded border border-slate-300 bg-slate-200 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700 shadow-xs"
-              title="路径不存在或已失效"
+              title={t("bookmark.status_stale_title")}
             >
               <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-              失效
+              {t("bookmark.status_stale")}
             </span>
           )}
         </div>
@@ -280,7 +282,7 @@ export function BookmarkItem({
           <p className="mt-0.5 truncate text-xs font-mono" title={bookmark.path}>
             <span className="line-through text-slate-400">{bookmark.path}</span>
             <span className="ml-1.5 font-sans text-[11px] font-normal text-rose-600">
-              [路径不存在]
+              {t("bookmark.path_not_found_tag")}
             </span>
           </p>
         ) : (
@@ -302,7 +304,7 @@ export function BookmarkItem({
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200 hover:text-slate-900"
             }`}
           >
-            {opening ? "打开中…" : "打开"}
+            {opening ? t("bookmark.opening") : t("bookmark.open")}
           </button>
           {!bookmark.is_directory && (
             <button
@@ -315,7 +317,7 @@ export function BookmarkItem({
                   : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
               }`}
             >
-              {revealing ? "定位中…" : "打开所在文件夹"}
+              {revealing ? t("bookmark.revealing") : t("bookmark.reveal")}
             </button>
           )}
         </div>
@@ -325,7 +327,7 @@ export function BookmarkItem({
             <button
               key={move.to}
               type="button"
-              title={move.title}
+              title={t(move.titleKey)}
               disabled={moving || move.stuck(at, count)}
               onClick={() => void handleMove(move.to)}
               className={TOOL_BUTTON}
@@ -341,7 +343,7 @@ export function BookmarkItem({
             onClick={startEditing}
             className="cursor-pointer text-xs text-slate-500 hover:text-slate-800"
           >
-            编辑
+            {t("common.edit")}
           </button>
           <button
             type="button"
@@ -349,7 +351,7 @@ export function BookmarkItem({
             disabled={deleting}
             className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
           >
-            {deleting ? "删除中…" : "删除"}
+            {deleting ? t("common.deleting") : t("common.delete")}
           </button>
         </div>
       </div>

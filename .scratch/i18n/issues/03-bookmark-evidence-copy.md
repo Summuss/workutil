@@ -8,11 +8,11 @@ Evidence 这边文案面最广:Evidence / Case / Block(文字、图片、表格�
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** closed
 
-- [ ] `features/bookmark/**`、`features/evidence/**` 里的硬编码中文全部替换为 `t(key)`
-- [ ] `zh.json`/`ja.json` 补全这些 key,两边都有对应翻译
-- [ ] 切到日语,过一遍 bookmark 与 evidence 的每个页面(含分组、Case/Block 编辑、表格粘贴确认提示),没有遗留中文
-- [ ] 确认 Excel 导出的文件名与内容未被这次改动影响(仍是既定的日语文件名约定 + 用户原始内容)
-- [ ] key 对齐测试仍然通过
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `features/bookmark/**`、`features/evidence/**` 里的硬编码中文全部替换为 `t(key)`
+- [x] `zh.json`/`ja.json` 补全这些 key,两边都有对应翻译
+- [x] 切到日语,过一遍 bookmark 与 evidence 的每个页面(含分组、Case/Block 编辑、表格粘贴确认提示),没有遗留中文
+- [x] 确认 Excel 导出的文件名与内容未被这次改动影响(仍是既定的日语文件名约定 + 用户原始内容)
+- [x] key 对齐测试仍然通过
+- [x] `make check` 与 `pnpm build` 通过

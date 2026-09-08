@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { InlineEdit } from "../../shared/InlineEdit";
+import { useI18n } from "../../shared/i18n";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
 import type { Case, Move } from "./types";
 
@@ -17,14 +18,6 @@ interface CaseTabsProps {
 }
 
 type Editing = { kind: "add" } | { kind: "rename"; caseId: number } | null;
-
-/** The tabs run left to right, so the four moves do too. */
-const MOVE_LABELS: MoveLabels = {
-  top: { glyph: "⇤", title: "移到最前" },
-  up: { glyph: "←", title: "前移一位" },
-  down: { glyph: "→", title: "后移一位" },
-  bottom: { glyph: "⇥", title: "移到最后" },
-};
 
 const NAME_FIELD =
   "w-28 rounded-md border border-slate-400 bg-white px-2 py-1 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300";
@@ -48,7 +41,15 @@ export function CaseTabs({
   onDelete,
   onMove,
 }: CaseTabsProps) {
+  const { t } = useI18n();
   const [editing, setEditing] = useState<Editing>(null);
+
+  const moveLabels: MoveLabels = {
+    top: { glyph: "⇤", title: t("evidence.move_case_top") },
+    up: { glyph: "←", title: t("evidence.move_case_left") },
+    down: { glyph: "→", title: t("evidence.move_case_right") },
+    bottom: { glyph: "⇥", title: t("evidence.move_case_bottom") },
+  };
 
   const selected = cases.find((one) => one.id === selectedId) ?? null;
   const at = selected ? cases.indexOf(selected) : -1;
@@ -71,7 +72,9 @@ export function CaseTabs({
   async function remove() {
     if (
       selected === null ||
-      !window.confirm(`确定删除用例「${selected.name}」吗?`)
+      !window.confirm(
+        t("evidence.delete_case_confirm", { name: selected.name }),
+      )
     ) {
       return;
     }
@@ -88,7 +91,7 @@ export function CaseTabs({
               initial={one.name}
               busy={busy}
               className={NAME_FIELD}
-              placeholder="用例编号"
+              placeholder={t("evidence.case_name_placeholder")}
               onCommit={commit}
               onCancel={() => setEditing(null)}
             />
@@ -100,7 +103,7 @@ export function CaseTabs({
               onDoubleClick={() =>
                 setEditing({ kind: "rename", caseId: one.id })
               }
-              title="双击改名"
+              title={t("evidence.double_click_rename")}
               className={
                 one.id === selectedId
                   ? "shrink-0 cursor-pointer rounded-md bg-slate-800 px-3 py-1 font-mono text-xs text-white"
@@ -117,7 +120,7 @@ export function CaseTabs({
             initial=""
             busy={busy}
             className={NAME_FIELD}
-            placeholder="用例编号"
+            placeholder={t("evidence.case_name_placeholder")}
             onCommit={commit}
             onCancel={() => setEditing(null)}
           />
@@ -125,10 +128,10 @@ export function CaseTabs({
           <button
             type="button"
             onClick={() => setEditing({ kind: "add" })}
-            title="添加用例"
+            title={t("evidence.add_case_title")}
             className="shrink-0 cursor-pointer rounded-md px-2.5 py-1 text-xs text-slate-400 hover:bg-slate-100 hover:text-slate-700"
           >
-            + 用例
+            {t("evidence.add_case_button")}
           </button>
         )}
       </div>
@@ -138,18 +141,21 @@ export function CaseTabs({
       {selected !== null && editing === null && (
         <div className="flex items-center gap-1 text-xs">
           <span className="mr-1 text-slate-400">
-            第 {at + 1} / {cases.length} 个用例
+            {t("evidence.case_position", {
+              current: at + 1,
+              total: cases.length,
+            })}
           </span>
           {MOVES.map(({ to, stuck }) => (
             <button
               key={to}
               type="button"
-              title={MOVE_LABELS[to].title}
+              title={moveLabels[to].title}
               disabled={busy || stuck(at, cases.length)}
               onClick={() => void onMove(selected.id, to)}
               className={TOOL_BUTTON}
             >
-              {MOVE_LABELS[to].glyph}
+              {moveLabels[to].glyph}
             </button>
           ))}
           <button
@@ -157,7 +163,7 @@ export function CaseTabs({
             onClick={() => setEditing({ kind: "rename", caseId: selected.id })}
             className={TOOL_BUTTON}
           >
-            重命名
+            {t("evidence.rename_case")}
           </button>
           <button
             type="button"
@@ -165,7 +171,7 @@ export function CaseTabs({
             disabled={busy}
             className={`${TOOL_BUTTON} hover:text-red-600`}
           >
-            删除
+            {t("common.delete")}
           </button>
         </div>
       )}

@@ -20,6 +20,7 @@ import {
 import { BookmarkForm } from "./BookmarkForm";
 import { BookmarkGroupSection } from "./BookmarkGroupSection";
 import { BookmarkItem } from "./BookmarkItem";
+import { useI18n } from "../../shared/i18n";
 import type {
   BookmarkCheckItem,
   BookmarkCreatePayload,
@@ -36,6 +37,7 @@ interface Notice {
 }
 
 export function BookmarkPage() {
+  const { t } = useI18n();
   const {
     value: loaded,
     setValue: setLoaded,
@@ -145,9 +147,9 @@ export function BookmarkPage() {
       const data = await listBookmarks();
       setLoaded(data);
     } catch (cause) {
-      setError(messageOf(cause, "刷新书签失败"));
+      setError(messageOf(cause, t("bookmark.refresh_failed")));
     }
-  }, [setLoaded, setError]);
+  }, [setLoaded, setError, t]);
 
   const handleRegister = useCallback(
     async (payload: BookmarkCreatePayload) => {
@@ -172,12 +174,12 @@ export function BookmarkPage() {
         setNewGroupName("");
         await refreshList();
       } catch (cause) {
-        setGroupError(messageOf(cause, "创建组失败"));
+        setGroupError(messageOf(cause, t("bookmark.create_group_failed")));
       } finally {
         setCreatingGroup(false);
       }
     },
-    [newGroupName, creatingGroup, refreshList],
+    [newGroupName, creatingGroup, refreshList, t],
   );
 
   const handleRenameGroup = useCallback(
@@ -258,10 +260,10 @@ export function BookmarkPage() {
     } catch (cause) {
       setNotice({
         type: "info",
-        message: messageOf(cause, "打开失败"),
+        message: messageOf(cause, t("bookmark.open_failed")),
       });
     }
-  }, []);
+  }, [t]);
 
   const handleRevealBookmark = useCallback(async (id: number) => {
     try {
@@ -270,10 +272,10 @@ export function BookmarkPage() {
     } catch (cause) {
       setNotice({
         type: "info",
-        message: messageOf(cause, "定位文件失败"),
+        message: messageOf(cause, t("bookmark.reveal_failed")),
       });
     }
-  }, []);
+  }, [t]);
 
   const handleOpenGroup = useCallback(async (id: number) => {
     try {
@@ -281,12 +283,15 @@ export function BookmarkPage() {
       if (result.skipped.length === 0) {
         setNotice({
           type: "success",
-          message: `已打开全部 ${result.opened.length} 个书签`,
+          message: t("bookmark.opened_all", { count: result.opened.length }),
         });
       } else {
         setNotice({
           type: "warning",
-          message: `已打开 ${result.opened.length} 个书签，跳过 ${result.skipped.length} 个失效项：`,
+          message: t("bookmark.opened_with_skipped", {
+            opened: result.opened.length,
+            skipped: result.skipped.length,
+          }),
           details: result.skipped.map(
             (s) => `「${s.name}」: ${s.reason} (${s.path})`,
           ),
@@ -295,10 +300,10 @@ export function BookmarkPage() {
     } catch (cause) {
       setNotice({
         type: "info",
-        message: messageOf(cause, "一键打开失败"),
+        message: messageOf(cause, t("bookmark.open_group_failed")),
       });
     }
-  }, []);
+  }, [t]);
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-6">
@@ -314,7 +319,7 @@ export function BookmarkPage() {
             type="text"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
-            placeholder="新建组 (例如: 每日必开、项目工程)"
+            placeholder={t("bookmark.new_group_placeholder")}
             className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
           />
           <button
@@ -322,7 +327,7 @@ export function BookmarkPage() {
             disabled={creatingGroup || newGroupName.trim() === ""}
             className="cursor-pointer shrink-0 rounded-md bg-slate-800 px-3.5 py-1.5 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {creatingGroup ? "创建中…" : "新建组"}
+            {creatingGroup ? t("common.creating") : t("bookmark.create_group_button")}
           </button>
         </form>
         {groupError !== null && (
@@ -364,21 +369,25 @@ export function BookmarkPage() {
 
       {!hasItems ? (
         <p className="py-8 text-center text-sm text-slate-400">
-          {loading ? "载入中…" : "还没有书签。在上方粘贴路径登记第一个。"}
+          {loading ? t("common.loading") : t("bookmark.empty_state")}
         </p>
       ) : (
         <div className="flex flex-col gap-6">
           <div className="flex items-center justify-between px-1 text-xs text-slate-500">
             <div className="flex items-center gap-2">
               <span>
-                共 {groups.reduce((acc, g) => acc + g.bookmarks.length, 0) + loose.length} 个书签
+                {t("bookmark.total_count", {
+                  count:
+                    groups.reduce((acc, g) => acc + g.bookmarks.length, 0) +
+                    loose.length,
+                })}
               </span>
               {(() => {
                 const all = [...groups.flatMap((g) => g.bookmarks), ...loose];
                 const staleCount = all.filter((b) => statusMap[b.id] === "stale").length;
                 return staleCount > 0 ? (
                   <span className="rounded border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[11px] font-medium text-rose-700">
-                    {staleCount} 个失效
+                    {t("bookmark.stale_count", { count: staleCount })}
                   </span>
                 ) : null;
               })()}
@@ -392,7 +401,7 @@ export function BookmarkPage() {
               disabled={checking}
               className="cursor-pointer text-xs text-slate-500 hover:text-slate-800 disabled:opacity-50"
             >
-              {checking ? "⏳ 检查中…" : "🔄 重新检查"}
+              {checking ? t("bookmark.checking") : t("bookmark.recheck")}
             </button>
           </div>
 
@@ -422,14 +431,16 @@ export function BookmarkPage() {
             <div className="flex items-center justify-between border-b border-slate-200/70 pb-2">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-semibold text-slate-700">📌</span>
-                <h2 className="text-sm font-semibold text-slate-800">散装书签</h2>
+                <h2 className="text-sm font-semibold text-slate-800">
+                  {t("bookmark.loose_bookmarks")}
+                </h2>
                 <span className="text-xs text-slate-400">({loose.length})</span>
               </div>
             </div>
 
             {loose.length === 0 ? (
               <p className="py-4 text-center text-xs text-slate-400">
-                暂无散装书签。
+                {t("bookmark.loose_empty")}
               </p>
             ) : (
               <ul className="flex flex-col gap-2">

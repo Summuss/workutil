@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { readImage } from "../../shared/images";
+import { useI18n } from "../../shared/i18n";
 import { useEditRunner } from "../../shared/useEditRunner";
 import { useLoad } from "../../shared/useLoad";
 import {
@@ -41,6 +42,7 @@ interface CaseBlocksProps {
  * rather than by which box you aimed at first (spec User Stories 8).
  */
 export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
+  const { t } = useI18n();
   const {
     value: content,
     setValue: setContent,
@@ -51,7 +53,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     [evidenceId, caseId],
   );
 
-  const { busy, error: blockError, run } = useEditRunner("操作失败");
+  const { busy, error: blockError, run } = useEditRunner(t("common.action_failed"));
 
   // The blocks whose kind the server worked out during this visit — the only
   // ones that draw the confirmation. Deliberately not stored: the line is there
@@ -203,7 +205,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
   if (content === null) {
     return (
       <p className="py-8 text-center text-sm text-slate-400">
-        {loading ? "载入中…" : (error ?? "打不开这个用例。")}
+        {loading ? t("common.loading") : (error ?? t("evidence.open_case_failed"))}
       </p>
     );
   }
@@ -212,7 +214,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     <div className="flex flex-col gap-3">
       {blocks.length === 0 ? (
         <p className="py-6 text-center text-xs text-slate-400">
-          这个用例还是空的。下面写一段,或者直接粘一张截图、一段查询结果。
+          {t("evidence.case_empty_hint")}
         </p>
       ) : (
         blocks.map((block, at) => (
@@ -246,8 +248,8 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
       <BlockTextArea
         initial=""
         busy={busy}
-        hint="Ctrl+Enter 添加一段 · 截图和查询结果直接粘贴"
-        placeholder="写一段,粘一段日志,或者粘 / 拖一张截图、一段查询结果…"
+        hint={t("evidence.block_add_hint")}
+        placeholder={t("evidence.block_add_placeholder")}
         onImages={(files) => void handleImages(files)}
         onTable={(paste) => void handleTable(paste)}
         onCommit={handleAdd}

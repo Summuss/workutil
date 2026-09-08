@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import { t } from "../../shared/i18n";
 import { BookmarkItem } from "./BookmarkItem";
 import type {
   BookmarkGroup,
@@ -29,14 +30,15 @@ interface BookmarkGroupSectionProps {
 const MOVES: {
   to: MoveDirection;
   glyph: string;
-  title: string;
+  titleKey: string;
   stuck: (at: number, count: number) => boolean;
 }[] = [
-  { to: "top", glyph: "⤒", title: "移到最前", stuck: (at) => at === 0 },
-  { to: "up", glyph: "↑", title: "上移一位", stuck: (at) => at === 0 },
-  { to: "down", glyph: "↓", title: "下移一位", stuck: (at, count) => at === count - 1 },
-  { to: "bottom", glyph: "⤓", title: "移到最后", stuck: (at, count) => at === count - 1 },
+  { to: "top", glyph: "⤒", titleKey: "bookmark.move_group_top", stuck: (at) => at === 0 },
+  { to: "up", glyph: "↑", titleKey: "bookmark.move_group_up", stuck: (at) => at === 0 },
+  { to: "down", glyph: "↓", titleKey: "bookmark.move_group_down", stuck: (at, count) => at === count - 1 },
+  { to: "bottom", glyph: "⤓", titleKey: "bookmark.move_group_bottom", stuck: (at, count) => at === count - 1 },
 ];
+
 
 const TOOL_BUTTON =
   "cursor-pointer rounded px-1.5 py-0.5 text-xs text-slate-400 hover:bg-slate-200 hover:text-slate-800 disabled:cursor-default disabled:opacity-25";
@@ -97,7 +99,7 @@ export function BookmarkGroupSection({
       await onRenameGroup(group.id, cleanName);
       setRenaming(false);
     } catch (cause) {
-      setError(messageOf(cause, "重命名失败"));
+      setError(messageOf(cause, t("bookmark.rename_group_failed")));
     } finally {
       setSaving(false);
     }
@@ -106,7 +108,7 @@ export function BookmarkGroupSection({
   async function handleDelete() {
     if (
       !window.confirm(
-        `确定删除组「${group.name}」吗? 组内书签将保留并转换为散装书签。`,
+        t("bookmark.delete_group_confirm", { name: group.name }),
       )
     ) {
       return;
@@ -116,7 +118,7 @@ export function BookmarkGroupSection({
     try {
       await onDeleteGroup(group.id);
     } catch (cause) {
-      alert(messageOf(cause, "删除组失败"));
+      alert(messageOf(cause, t("bookmark.delete_group_failed")));
       setDeleting(false);
     }
   }
@@ -127,7 +129,7 @@ export function BookmarkGroupSection({
     try {
       await onMoveGroup(group.id, to);
     } catch (cause) {
-      alert(messageOf(cause, "移动组失败"));
+      alert(messageOf(cause, t("bookmark.move_group_failed")));
     } finally {
       setMoving(false);
     }
@@ -155,14 +157,14 @@ export function BookmarkGroupSection({
                 disabled={saving || name.trim() === ""}
                 className="cursor-pointer rounded bg-slate-800 px-2 py-0.5 text-xs text-white hover:bg-slate-700 disabled:opacity-50"
               >
-                {saving ? "…" : "保存"}
+                {saving ? "…" : t("common.save")}
               </button>
               <button
                 type="button"
                 onClick={cancelRename}
                 className="cursor-pointer rounded px-2 py-0.5 text-xs text-slate-500 hover:bg-slate-200"
               >
-                取消
+                {t("common.cancel")}
               </button>
               {error !== null && (
                 <span className="text-xs text-red-600">{error}</span>
@@ -187,7 +189,7 @@ export function BookmarkGroupSection({
             disabled={openingGroup || group.bookmarks.length === 0}
             className="cursor-pointer rounded bg-slate-800 px-2.5 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            {openingGroup ? "正在打开…" : "一键全开"}
+            {openingGroup ? t("bookmark.opening_group") : t("bookmark.open_all")}
           </button>
 
           {/* Group 4-way reorder buttons */}
@@ -196,7 +198,7 @@ export function BookmarkGroupSection({
               <button
                 key={move.to}
                 type="button"
-                title={move.title}
+                title={t(move.titleKey)}
                 disabled={moving || move.stuck(at, count)}
                 onClick={() => void handleMove(move.to)}
                 className={TOOL_BUTTON}
@@ -213,7 +215,7 @@ export function BookmarkGroupSection({
                 onClick={startRename}
                 className="cursor-pointer text-xs text-slate-500 hover:text-slate-800"
               >
-                改名
+                {t("bookmark.rename")}
               </button>
               <button
                 type="button"
@@ -221,7 +223,7 @@ export function BookmarkGroupSection({
                 disabled={deleting}
                 className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
               >
-                {deleting ? "删组中…" : "删组"}
+                {deleting ? t("bookmark.deleting_group") : t("bookmark.delete_group")}
               </button>
             </div>
           )}
@@ -230,9 +232,10 @@ export function BookmarkGroupSection({
 
       {group.bookmarks.length === 0 ? (
         <p className="py-4 text-center text-xs text-slate-400">
-          此组暂无书签。登记时选择此组，或编辑已有书签移入。
+          {t("bookmark.group_empty")}
         </p>
       ) : (
+
         <ul className="flex flex-col gap-2">
           {group.bookmarks.map((bookmark, idx) => (
             <BookmarkItem

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import { t } from "../../shared/i18n";
 import { extractNameFromPath } from "./pathUtil";
 import type { BookmarkCreatePayload, BookmarkGroup } from "./types";
 
@@ -53,7 +54,7 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
       setName("");
       setUserEditedName(false);
     } catch (cause) {
-      setError(messageOf(cause, "登记失败"));
+      setError(messageOf(cause, t("bookmark.create_failed")));
     } finally {
       setSubmitting(false);
     }
@@ -66,14 +67,14 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
     >
       <div className="flex flex-col gap-1">
         <label htmlFor="bookmark-path" className="text-xs font-medium text-slate-700">
-          路径
+          {t("bookmark.path_label")}
         </label>
         <input
           id="bookmark-path"
           type="text"
           value={path}
           onChange={(e) => handlePathChange(e.target.value)}
-          placeholder="粘贴文件或文件夹路径 (如 Windows 复制路径、macOS 绝对路径)"
+          placeholder={t("bookmark.path_placeholder")}
           className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
           autoFocus
         />
@@ -82,21 +83,21 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-1">
           <label htmlFor="bookmark-name" className="text-xs font-medium text-slate-700">
-            名称
+            {t("bookmark.name_label")}
           </label>
           <input
             id="bookmark-name"
             type="text"
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
-            placeholder="书签显示名称 (粘贴路径后自动预填文件名,可修改)"
+            placeholder={t("bookmark.name_placeholder")}
             className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
           />
         </div>
 
         <div className="flex flex-col gap-1">
           <label htmlFor="bookmark-group" className="text-xs font-medium text-slate-700">
-            所属组
+            {t("bookmark.group_label")}
           </label>
           <select
             id="bookmark-group"
@@ -104,7 +105,7 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
             onChange={(e) => setGroupId(e.target.value ? Number(e.target.value) : null)}
             className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
           >
-            <option value="">散装 (不加入组)</option>
+            <option value="">{t("bookmark.no_group_option")}</option>
             {groups.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -122,9 +123,10 @@ export function BookmarkForm({ groups, onRegister }: BookmarkFormProps) {
           disabled={submitting || path.trim() === "" || name.trim() === ""}
           className="cursor-pointer rounded-md bg-slate-800 px-4 py-2 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
         >
-          {submitting ? "登记中…" : "登记书签"}
+          {submitting ? t("bookmark.submitting") : t("bookmark.submit_button")}
         </button>
       </div>
     </form>
   );
 }
+

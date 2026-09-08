@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { InlineEdit } from "../../shared/InlineEdit";
+import { useI18n } from "../../shared/i18n";
 import { BlockTextArea } from "./BlockTextArea";
 import { TableBlockView } from "./TableBlockView";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
@@ -39,14 +40,6 @@ interface BlockCardProps {
   table: TableActions;
 }
 
-/** Blocks stack downwards, so the same four moves point up and down here. */
-const MOVE_LABELS: MoveLabels = {
-  top: { glyph: "⤒", title: "移到最前" },
-  up: { glyph: "↑", title: "上移一位" },
-  down: { glyph: "↓", title: "下移一位" },
-  bottom: { glyph: "⤓", title: "移到最后" },
-};
-
 const LABEL_FIELD =
   "min-w-0 flex-1 rounded-md border border-slate-400 bg-white px-2 py-0.5 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300";
 
@@ -74,9 +67,17 @@ export function BlockCard({
   onDelete,
   table,
 }: BlockCardProps) {
+  const { t } = useI18n();
   const [editingText, setEditingText] = useState(false);
   const [editingLabel, setEditingLabel] = useState(false);
   const [editingTable, setEditingTable] = useState(false);
+
+  const moveLabels: MoveLabels = {
+    top: { glyph: "⤒", title: t("evidence.move_block_top") },
+    up: { glyph: "↑", title: t("evidence.move_block_up") },
+    down: { glyph: "↓", title: t("evidence.move_block_down") },
+    bottom: { glyph: "⤓", title: t("evidence.move_block_bottom") },
+  };
 
   async function commitText(text: string): Promise<boolean> {
     const accepted = await onEditText(text);
@@ -95,7 +96,7 @@ export function BlockCard({
   async function remove(): Promise<void> {
     // Deleting an image block deletes the screenshot itself, which nothing
     // undoes — hence the same confirmation as any other block, and no more.
-    if (window.confirm("确定删除这一段吗?")) {
+    if (window.confirm(t("evidence.delete_block_confirm"))) {
       await onDelete();
     }
   }
@@ -108,14 +109,14 @@ export function BlockCard({
             initial={block.label ?? ""}
             busy={busy}
             className={LABEL_FIELD}
-            placeholder="小标题,比如「事前準備の DB データ」(留空即不要)"
+            placeholder={t("evidence.block_label_placeholder")}
             onCommit={commitLabel}
             onCancel={() => setEditingLabel(false)}
           />
         ) : (
           <button
             type="button"
-            title={block.label === null ? "加个小标题" : "改小标题"}
+            title={block.label === null ? t("evidence.add_label_title") : t("evidence.edit_label_title")}
             onClick={() => setEditingLabel(true)}
             className={
               block.label === null
@@ -123,7 +124,7 @@ export function BlockCard({
                 : "min-w-0 flex-1 cursor-pointer truncate text-left text-xs font-semibold text-slate-700 hover:text-slate-900"
             }
           >
-            {block.label ?? "+ 小标题"}
+            {block.label ?? t("evidence.add_label_button")}
           </button>
         )}
 
@@ -132,12 +133,12 @@ export function BlockCard({
             <button
               key={to}
               type="button"
-              title={MOVE_LABELS[to].title}
+              title={moveLabels[to].title}
               disabled={busy || stuck(at, count)}
               onClick={() => void onMove(to)}
               className={TOOL_BUTTON}
             >
-              {MOVE_LABELS[to].glyph}
+              {moveLabels[to].glyph}
             </button>
           ))}
           {block.kind === "text" && (
@@ -147,7 +148,7 @@ export function BlockCard({
               onClick={() => setEditingText(true)}
               className={TOOL_BUTTON}
             >
-              编辑
+              {t("common.edit")}
             </button>
           )}
           {block.kind === "table" && (
@@ -156,12 +157,12 @@ export function BlockCard({
                   it will go, and the first row is redrawn the moment it does. */}
               <button
                 type="button"
-                title="第一行是不是列名 —— 工具猜不出来,由你说了算"
+                title={t("evidence.table_header_tooltip")}
                 disabled={busy}
                 onClick={() => void table.onHeader(!block.has_header)}
                 className={TOOL_BUTTON}
               >
-                {block.has_header ? "取消表头" : "设为表头"}
+                {block.has_header ? t("evidence.table_unset_header") : t("evidence.table_set_header")}
               </button>
               <button
                 type="button"
@@ -169,7 +170,7 @@ export function BlockCard({
                 onClick={() => setEditingTable(!editingTable)}
                 className={TOOL_BUTTON}
               >
-                {editingTable ? "完成" : "编辑"}
+                {editingTable ? t("common.done") : t("common.edit")}
               </button>
               {/* Also here, and not only in the confirmation below, because a
                   wrong guess is often noticed later — on the read-through
@@ -178,12 +179,12 @@ export function BlockCard({
                   door that is still there tomorrow. */}
               <button
                 type="button"
-                title="识别错了?把它变回一段纯文字,原文一字不差"
+                title={t("evidence.table_to_text_tooltip")}
                 disabled={busy}
                 onClick={() => void table.onAsText()}
                 className={TOOL_BUTTON}
               >
-                改为文字
+                {t("evidence.table_to_text")}
               </button>
             </>
           )}
@@ -193,7 +194,7 @@ export function BlockCard({
             onClick={() => void remove()}
             className={`${TOOL_BUTTON} hover:text-red-600`}
           >
-            删除
+            {t("common.delete")}
           </button>
         </div>
       </div>
@@ -219,7 +220,7 @@ export function BlockCard({
         block.image_url !== null && (
           <img
             src={block.image_url}
-            alt={block.label ?? "截图"}
+            alt={block.label ?? t("evidence.screenshot_alt")}
             className="max-w-full self-start rounded border border-slate-200"
           />
         )
@@ -228,7 +229,7 @@ export function BlockCard({
           initial={block.text}
           busy={busy}
           autoFocus
-          hint="Ctrl+Enter 保存 · Esc 取消"
+          hint={t("evidence.edit_block_hint")}
           onCommit={commitText}
           onCancel={() => setEditingText(false)}
         />
@@ -250,14 +251,17 @@ export function BlockCard({
           its id in `guessed`, and this line has to go the moment it does. */}
       {guessed && block.kind === "table" && (
         <p className="text-xs text-slate-400">
-          识别为表格,{block.rows.length} 行 {block.rows[0]?.length ?? 0} 列 ·{" "}
+          {t("evidence.table_detected", {
+            rows: block.rows.length,
+            cols: block.rows[0]?.length ?? 0,
+          })}
           <button
             type="button"
             disabled={busy}
             onClick={() => void table.onAsText()}
             className="cursor-pointer underline underline-offset-2 hover:text-slate-700 disabled:cursor-default disabled:opacity-40"
           >
-            改为纯文字
+            {t("evidence.convert_to_plain_text")}
           </button>
         </p>
       )}

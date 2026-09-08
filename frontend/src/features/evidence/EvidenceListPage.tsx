@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router";
 
 import { messageOf } from "../../shared/api";
+import { useI18n } from "../../shared/i18n";
 import { formatTime } from "../../shared/time";
 import { useLoad } from "../../shared/useLoad";
 import { createEvidence, deleteEvidence, listEvidence } from "./api";
@@ -15,6 +16,7 @@ import type { Evidence } from "./types";
  * over; what a full list eventually wants is archiving, not searching.
  */
 export function EvidenceListPage() {
+  const { t } = useI18n();
   const {
     value: loaded,
     setValue: setEvidence,
@@ -42,14 +44,18 @@ export function EvidenceListPage() {
       setEvidence((current) => [created, ...(current ?? [])]);
       setTitle("");
     } catch (cause) {
-      setError(messageOf(cause, "创建失败"));
+      setError(messageOf(cause, t("evidence.create_failed")));
     } finally {
       setCreating(false);
     }
   }
 
   async function remove(one: Evidence) {
-    if (!window.confirm(`确定删除「${one.title}」吗?截图也会一并删掉。`)) {
+    if (
+      !window.confirm(
+        t("evidence.delete_confirm", { title: one.title }),
+      )
+    ) {
       return;
     }
 
@@ -60,7 +66,7 @@ export function EvidenceListPage() {
         (current ?? []).filter((each) => each.id !== one.id),
       );
     } catch (cause) {
-      setError(messageOf(cause, "删除失败"));
+      setError(messageOf(cause, t("common.delete_failed")));
     }
   }
 
@@ -71,7 +77,7 @@ export function EvidenceListPage() {
           type="text"
           value={title}
           onChange={(event) => setTitle(event.target.value)}
-          placeholder="新建一份 Evidence… (给它起个名字,比如「受注一覧の絞り込み修正」)"
+          placeholder={t("evidence.create_placeholder")}
           className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
         />
         <button
@@ -79,7 +85,7 @@ export function EvidenceListPage() {
           disabled={creating || title.trim() === ""}
           className="cursor-pointer rounded-md bg-slate-800 px-4 py-2 text-xs text-white hover:bg-slate-700 disabled:opacity-50"
         >
-          {creating ? "创建中…" : "新建"}
+          {creating ? t("common.creating") : t("evidence.create_button")}
         </button>
       </form>
 
@@ -87,7 +93,7 @@ export function EvidenceListPage() {
 
       {evidence.length === 0 ? (
         <p className="py-8 text-center text-sm text-slate-400">
-          {loading ? "载入中…" : "还没有 Evidence。上面起个名字就能开始。"}
+          {loading ? t("common.loading") : t("evidence.empty_state")}
         </p>
       ) : (
         <ul className="divide-y divide-slate-200">
@@ -103,14 +109,17 @@ export function EvidenceListPage() {
                 {one.title}
               </Link>
               <span className="shrink-0 text-xs text-slate-400">
-                {one.case_count} 个用例 · {formatTime(one.created_at)}
+                {t("evidence.case_count_with_time", {
+                  count: one.case_count,
+                  time: formatTime(one.created_at),
+                })}
               </span>
               <button
                 type="button"
                 onClick={() => void remove(one)}
                 className="shrink-0 cursor-pointer text-xs text-slate-400 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 hover:text-red-600"
               >
-                删除
+                {t("common.delete")}
               </button>
             </li>
           ))}

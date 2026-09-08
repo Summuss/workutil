@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router";
 
 import { InlineEdit } from "../../shared/InlineEdit";
+import { useI18n } from "../../shared/i18n";
 import { useEditRunner } from "../../shared/useEditRunner";
 import { useLoad } from "../../shared/useLoad";
 import {
@@ -29,6 +30,7 @@ const TITLE_FIELD =
  * Back into "undo my last eight clicks" instead.
  */
 export function EvidenceDetailPage() {
+  const { t } = useI18n();
   const { evidenceId } = useParams();
   const id = Number(evidenceId);
 
@@ -41,8 +43,8 @@ export function EvidenceDetailPage() {
 
   // One runner per thing being edited, so renaming the evidence and editing a
   // case each report where they happened and neither greys the other out.
-  const titleEdit = useEditRunner("改名失败");
-  const caseEdit = useEditRunner("操作失败");
+  const titleEdit = useEditRunner(t("evidence.rename_failed"));
+  const caseEdit = useEditRunner(t("common.action_failed"));
 
   // Which case the author last picked. The case actually shown is worked out
   // below, so a case that has been deleted — or one picked in a different
@@ -124,11 +126,11 @@ export function EvidenceDetailPage() {
     return (
       <main className="mx-auto max-w-3xl px-6 py-8">
         <p className="text-center text-sm text-slate-400">
-          {loading ? "载入中…" : (error ?? "没有这份 Evidence。")}
+          {loading ? t("common.loading") : (error ?? t("evidence.not_found"))}
         </p>
         <p className="mt-3 text-center text-xs">
           <Link to="/evidence" className="text-slate-400 hover:text-slate-700">
-            ← 回到列表
+            {t("evidence.back_to_list_full")}
           </Link>
         </p>
       </main>
@@ -142,7 +144,7 @@ export function EvidenceDetailPage() {
           to="/evidence"
           className="shrink-0 text-xs text-slate-400 hover:text-slate-700"
         >
-          ← 列表
+          {t("evidence.back_to_list_short")}
         </Link>
         {editingTitle ? (
           <InlineEdit
@@ -155,7 +157,7 @@ export function EvidenceDetailPage() {
         ) : (
           <button
             type="button"
-            title="点击改名"
+            title={t("evidence.click_to_rename")}
             onClick={() => setEditingTitle(true)}
             className="min-w-0 flex-1 cursor-pointer truncate text-left text-base font-semibold text-slate-900 hover:text-slate-600"
           >
@@ -179,9 +181,9 @@ export function EvidenceDetailPage() {
           className={`shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 ${
             cases.length === 0 ? "pointer-events-none opacity-40" : ""
           }`}
-          title={cases.length === 0 ? "没有用例，无法导出" : "导出 Excel"}
+          title={cases.length === 0 ? t("evidence.export_no_cases") : t("evidence.export_excel")}
         >
-          导出 Excel
+          {t("evidence.export_excel")}
         </a>
       </div>
 
@@ -203,7 +205,7 @@ export function EvidenceDetailPage() {
 
       {selectedId === null ? (
         <div className="rounded-lg border border-dashed border-slate-200 px-4 py-10 text-center text-xs text-slate-400">
-          还没有用例。上面的「+ 用例」填个编号,比如 1 或 2~5。
+          {t("evidence.no_cases_hint")}
         </div>
       ) : (
         // Keyed by the case, so switching tabs starts the content area over

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { useI18n } from "../../shared/i18n";
 import type { Block } from "./types";
 
 interface TableBlockViewProps {
@@ -39,6 +40,7 @@ export function TableBlockView({
   onDeleteRow,
   onDeleteColumn,
 }: TableBlockViewProps) {
+  const { t } = useI18n();
   const columns = block.rows[0]?.length ?? 0;
 
   return (
@@ -54,7 +56,7 @@ export function TableBlockView({
                 <th key={column} className="px-1 pb-1 font-normal">
                   <button
                     type="button"
-                    title="删掉这一列"
+                    title={t("evidence.delete_column")}
                     disabled={busy}
                     onClick={() => void onDeleteColumn(column)}
                     className={CUT_BUTTON}
@@ -73,7 +75,7 @@ export function TableBlockView({
                 <td className="pr-1">
                   <button
                     type="button"
-                    title="删掉这一行"
+                    title={t("evidence.delete_row")}
                     disabled={busy}
                     onClick={() => void onDeleteRow(row)}
                     className={CUT_BUTTON}
