@@ -1,5 +1,7 @@
 import { NavLink } from "react-router";
 
+import { useI18n, type Language } from "./shared/i18n";
+
 const LINK_BASE =
   "rounded-md px-2.5 py-1 text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-slate-300";
 
@@ -16,6 +18,8 @@ function linkClass({ isActive }: { isActive: boolean }) {
  * down, and being able to just start typing is what F1 is for.
  */
 export function AppNav() {
+  const { language, setLanguage, t } = useI18n();
+
   return (
     <header className="border-b border-slate-200 bg-slate-100/80">
       <nav className="mx-auto flex max-w-3xl items-center gap-1 px-6 py-1.5">
@@ -23,18 +27,31 @@ export function AppNav() {
           workutil
         </span>
         <NavLink to="/" end className={linkClass}>
-          Memo
+          {t("nav.memo")}
         </NavLink>
         <NavLink to="/evidence" className={linkClass}>
-          Evidence
+          {t("nav.evidence")}
         </NavLink>
         <NavLink to="/bookmarks" className={linkClass}>
-          Bookmarks
+          {t("nav.bookmarks")}
         </NavLink>
         <NavLink to="/todos" className={linkClass}>
-          Todo
+          {t("nav.todo")}
         </NavLink>
+
+        <div className="ml-auto flex items-center">
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value as Language)}
+            className="cursor-pointer rounded border border-slate-200 bg-white px-2 py-0.5 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-slate-300"
+            aria-label="Language"
+          >
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
       </nav>
     </header>
   );
 }
+

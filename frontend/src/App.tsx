@@ -7,6 +7,7 @@ import { EvidenceListPage } from "./features/evidence/EvidenceListPage";
 import { MemoPage } from "./features/memo/MemoPage";
 import { SingleMemoPage } from "./features/memo/SingleMemoPage";
 import { TodoPage } from "./features/todo/TodoPage";
+import { I18nProvider } from "./shared/i18n";
 
 /**
  * The route table.
@@ -21,20 +22,23 @@ import { TodoPage } from "./features/todo/TodoPage";
  */
 export function App() {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-slate-50 text-slate-900">
-        <AppNav />
-        <Routes>
-          <Route path="/" element={<MemoPage />} />
-          <Route path="/memo/:id" element={<SingleMemoPage />} />
-          <Route path="/evidence" element={<EvidenceListPage />} />
-          <Route path="/evidence/:evidenceId" element={<EvidenceDetailPage />} />
-          <Route path="/bookmarks" element={<BookmarkPage />} />
-          <Route path="/todos" element={<TodoPage />} />
-          {/* A mistyped URL lands on the thing you open this tool for. */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-    </BrowserRouter>
+    <I18nProvider>
+      <BrowserRouter>
+        <div className="min-h-screen bg-slate-50 text-slate-900">
+          <AppNav />
+          <Routes>
+            <Route path="/" element={<MemoPage />} />
+            <Route path="/memo/:id" element={<SingleMemoPage />} />
+            <Route path="/evidence" element={<EvidenceListPage />} />
+            <Route path="/evidence/:evidenceId" element={<EvidenceDetailPage />} />
+            <Route path="/bookmarks" element={<BookmarkPage />} />
+            <Route path="/todos" element={<TodoPage />} />
+            {/* A mistyped URL lands on the thing you open this tool for. */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </div>
+      </BrowserRouter>
+    </I18nProvider>
   );
 }
+

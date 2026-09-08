@@ -12,14 +12,15 @@
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** closed
 
-- [ ] `frontend/src/shared/i18n/`:`t(key)`、语言 Context/Provider、`zh.json`、`ja.json`
-- [ ] 首次访问按 `navigator.language` 探测(`zh`/`ja` 前缀匹配,否则兜底 `zh`)
-- [ ] 手动切换后存 `localStorage`,刷新 / 重新打开后保持
-- [ ] `AppNav.tsx` 加语言下拉(中文 / 日本語),切换后界面已翻译的部分(此时只有导航栏)立即生效
-- [ ] `frontend/index.html` 的 `<html lang>` 跟随当前语言更新
-- [ ] 查不到的 key 直接渲染 key 本身,不 fallback 回中文
-- [ ] `shared/time.ts` 的 `toLocaleString` locale 参数跟随当前语言
-- [ ] key 对齐测试:断言 `zh.json` 与 `ja.json` 的 key 集合完全相同
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `frontend/src/shared/i18n/`:`t(key)`、语言 Context/Provider、`zh.json`、`ja.json`
+- [x] 首次访问按 `navigator.language` 探测(`zh`/`ja` 前缀匹配,否则兜底 `zh`)
+- [x] 手动切换后存 `localStorage`,刷新 / 重新打开后保持
+- [x] `AppNav.tsx` 加语言下拉(中文 / 日本語),切换后界面已翻译的部分(此时只有导航栏)立即生效
+- [x] `frontend/index.html` 的 `<html lang>` 跟随当前语言更新
+- [x] 查不到的 key 直接渲染 key 本身,不 fallback 回中文
+- [x] `shared/time.ts` 的 `toLocaleString` locale 参数跟随当前语言
+- [x] key 对齐测试:断言 `zh.json` 与 `ja.json` 的 key 集合完全相同
+- [x] `make check` 与 `pnpm build` 通过
+
