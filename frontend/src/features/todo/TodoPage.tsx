@@ -1,6 +1,7 @@
 import { useCallback, useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import { t } from "../../shared/i18n";
 import { useLoad } from "../../shared/useLoad";
 import {
   completeTodo,
@@ -42,7 +43,7 @@ export function TodoPage() {
       try {
         const created = await createTodo({
           title: clean,
-          due_date: newDueDate ? newDueDate : null,
+          due_date: newDueDate || null,
         });
         setNewTitle("");
         setNewDueDate("");
@@ -55,7 +56,7 @@ export function TodoPage() {
             : null,
         );
       } catch (cause) {
-        setActionError(messageOf(cause, "创建待办失败"));
+        setActionError(messageOf(cause, t("todo.create_failed")));
       } finally {
         setCreating(false);
       }
@@ -77,7 +78,7 @@ export function TodoPage() {
           };
         });
       } catch (cause) {
-        setActionError(messageOf(cause, "标记完成失败"));
+        setActionError(messageOf(cause, t("todo.complete_failed")));
       }
     },
     [setLoaded],
@@ -97,7 +98,7 @@ export function TodoPage() {
           };
         });
       } catch (cause) {
-        setActionError(messageOf(cause, "撤销完成失败"));
+        setActionError(messageOf(cause, t("todo.reopen_failed")));
       }
     },
     [setLoaded],
@@ -117,7 +118,7 @@ export function TodoPage() {
           };
         });
       } catch (cause) {
-        setActionError(messageOf(cause, "更新待办失败"));
+        setActionError(messageOf(cause, t("todo.update_failed")));
         throw cause;
       }
     },
@@ -138,7 +139,7 @@ export function TodoPage() {
           };
         });
       } catch (cause) {
-        setActionError(messageOf(cause, "删除待办失败"));
+        setActionError(messageOf(cause, t("todo.delete_failed")));
       }
     },
     [setLoaded],
@@ -158,7 +159,7 @@ export function TodoPage() {
             : null,
         );
       } catch (cause) {
-        setActionError(messageOf(cause, "移动待办失败"));
+        setActionError(messageOf(cause, t("todo.move_failed")));
       }
     },
     [setLoaded],
@@ -173,7 +174,7 @@ export function TodoPage() {
             type="text"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="记下一件待办… (按 Enter 保存)"
+            placeholder={t("todo.composer_placeholder")}
             autoFocus
             className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-3.5 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
           />
@@ -182,14 +183,14 @@ export function TodoPage() {
               type="date"
               value={newDueDate}
               onChange={(e) => setNewDueDate(e.target.value)}
-              title="可选截止日期"
+              title={t("todo.optional_due_date")}
               className="rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs text-slate-700 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
             />
             {newDueDate && (
               <button
                 type="button"
                 onClick={() => setNewDueDate("")}
-                title="清除日期"
+                title={t("todo.clear_date")}
                 className="cursor-pointer text-xs text-slate-400 hover:text-slate-600 px-1"
               >
                 ✕
@@ -201,7 +202,7 @@ export function TodoPage() {
             disabled={creating || newTitle.trim() === ""}
             className="cursor-pointer shrink-0 rounded-md bg-slate-800 px-4 py-2 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {creating ? "保存中…" : "添加"}
+            {creating ? t("common.saving") : t("common.add")}
           </button>
         </form>
         {actionError !== null && (
@@ -218,14 +219,14 @@ export function TodoPage() {
       {/* Active todos list */}
       <section className="flex flex-col gap-3">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-          待办 ({todos.length})
+          {t("todo.active_header", { count: todos.length })}
         </h2>
 
         {loading ? (
-          <p className="py-4 text-center text-xs text-slate-400">载入中…</p>
+          <p className="py-4 text-center text-xs text-slate-400">{t("common.loading")}</p>
         ) : todos.length === 0 ? (
           <div className="rounded-lg border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
-            暂无未完成待办，在上方输入并按 Enter 即可记下一条。
+            {t("todo.empty_state")}
           </div>
         ) : (
           <ul className="flex flex-col gap-2">
@@ -256,7 +257,7 @@ export function TodoPage() {
               className="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-200/50 hover:text-slate-800 transition-colors"
             >
               <span className="text-[10px]">{completedOpen ? "▼" : "▶"}</span>
-              <span>已完成 ({completed.length})</span>
+              <span>{t("todo.completed_header", { count: completed.length })}</span>
             </button>
           </div>
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 
 import { messageOf } from "../../shared/api";
+import { t } from "../../shared/i18n";
 import type { ImageUpload } from "../../shared/images";
 import { useImageAttachments } from "../../shared/useImageAttachments";
 
@@ -51,7 +52,7 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
       );
       forgetSavedImages(pending);
     } catch (cause) {
-      setError(messageOf(cause, "保存失败"));
+      setError(messageOf(cause, t("memo.save_failed")));
     } finally {
       setSaving(false);
       textarea.current?.focus();
@@ -78,16 +79,17 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
         onDragOver={handleDragOver}
         rows={5}
         spellCheck={false}
-        placeholder="随手记点什么… (可直接粘贴或拖拽截图)"
+        placeholder={t("memo.composer_placeholder")}
         className="w-full resize-y rounded-lg border border-slate-300 bg-white p-3 font-mono text-sm leading-relaxed text-slate-900 shadow-sm outline-none placeholder:text-slate-400 focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
       />
       <div className="flex min-h-5 items-center justify-between text-xs">
         <span className="text-red-600">{error}</span>
         <span className="text-slate-400">
-          {saving ? "保存中…" : "Ctrl+Enter 保存"}
+          {saving ? t("common.saving") : t("memo.ctrl_enter_save")}
         </span>
       </div>
     </div>
   );
 }
+
 

@@ -1,6 +1,12 @@
-import { useCallback, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from "react";
 
 import { messageOf } from "../../shared/api";
+import { t } from "../../shared/i18n";
 import { formatTime } from "../../shared/time";
 import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, updateMemo } from "./api";
@@ -45,6 +51,14 @@ export function MemoItem({
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // The draft survives server updates if the user is currently editing:
+  // background polling or another tab's update must not stomp on keystrokes.
+  useEffect(() => {
+    if (!editing) {
+      changeDraft(memo.body);
+    }
+  }, [memo.body, editing]);
+
   // What the textarea holds right now, readable from inside an await. State
   // alone would be the value captured when the request went out.
   const latestDraft = useRef(memo.body);
@@ -67,11 +81,13 @@ export function MemoItem({
   const isModified = memo.updated_at !== memo.created_at;
   const isUnsaved = draft !== memo.body;
 
-  const focusEnd = useCallback((element: HTMLTextAreaElement | null) => {
+  const focusEnd = (element: HTMLTextAreaElement | null) => {
     textareaRef.current = element;
-    element?.focus();
-    element?.setSelectionRange(element.value.length, element.value.length);
-  }, []);
+    if (element) {
+      element.focus();
+      element.setSelectionRange(element.value.length, element.value.length);
+    }
+  };
 
   async function save() {
     const pending = draft;
@@ -94,7 +110,7 @@ export function MemoItem({
         setEditing(false);
       }
     } catch (cause) {
-      setError(messageOf(cause, "保存失败"));
+      setError(messageOf(cause, t("memo.save_failed")));
     } finally {
       setSaving(false);
     }
@@ -105,7 +121,7 @@ export function MemoItem({
     if (deleting) {
       return;
     }
-    if (!window.confirm("确定删除这条 Memo 吗？")) {
+    if (!window.confirm(t("memo.delete_confirm"))) {
       return;
     }
 
@@ -115,7 +131,7 @@ export function MemoItem({
       await deleteMemo(memo.id);
       onDelete(memo.id);
     } catch (cause) {
-      setError(messageOf(cause, "删除失败"));
+      setError(messageOf(cause, t("memo.delete_failed")));
       setDeleting(false);
     }
   }
@@ -150,12 +166,12 @@ export function MemoItem({
             <span className="truncate">{firstLine(memo.body)}</span>
             {memo.image_count > 0 && (
               <span className="shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-sans text-xs text-slate-500">
-                含 {memo.image_count} 张图
+                {t("memo.image_count", { count: memo.image_count })}
               </span>
             )}
           </span>
           <span className="ml-2 shrink-0 text-xs text-slate-400 opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100">
-            {isUnsaved ? "未保存" : "展开"}
+            {isUnsaved ? t("memo.unsaved") : t("memo.expand")}
           </span>
         </button>
 
@@ -170,7 +186,7 @@ export function MemoItem({
             ))}
             {unshown > 0 && (
               <div className="text-xs text-slate-400">
-                还有 {unshown} 处命中未显示,展开可看全文
+                {t("memo.search_more_matches", { count: unshown })}
               </div>
             )}
           </div>
@@ -184,10 +200,10 @@ export function MemoItem({
       <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-xs">
         <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 text-xs text-slate-400">
           <div className="flex items-center gap-2">
-            <span>创建于 {formatTime(memo.created_at)}</span>
-            {isModified && <span>· 修改于 {formatTime(memo.updated_at)}</span>}
-            {memo.image_count > 0 && <span>· 含 {memo.image_count} 张图</span>}
-            {isUnsaved && <span className="text-amber-600">· 未保存</span>}
+            <span>{t("memo.created_at", { time: formatTime(memo.created_at) })}</span>
+            {isModified && <span>{t("memo.updated_at", { time: formatTime(memo.updated_at) })}</span>}
+            {memo.image_count > 0 && <span>{t("memo.image_count_with_dot", { count: memo.image_count })}</span>}
+            {isUnsaved && <span className="text-amber-600">{t("memo.unsaved_with_dot")}</span>}
           </div>
           <div className="flex items-center gap-3">
             {!editing && (
@@ -197,14 +213,14 @@ export function MemoItem({
                   onClick={() => setShowConvertToTodo(true)}
                   className="cursor-pointer text-slate-400 hover:text-slate-600"
                 >
-                  转 Todo
+                  {t("memo.to_todo")}
                 </button>
                 <button
                   type="button"
                   onClick={() => setEditing(true)}
                   className="cursor-pointer text-slate-400 hover:text-slate-600"
                 >
-                  编辑
+                  {t("common.edit")}
                 </button>
               </>
             )}
@@ -214,14 +230,14 @@ export function MemoItem({
               disabled={deleting}
               className="cursor-pointer text-slate-400 hover:text-red-600 disabled:opacity-50"
             >
-              {deleting ? "删除中…" : "删除"}
+              {deleting ? t("common.deleting") : t("common.delete")}
             </button>
             <button
               type="button"
               onClick={onToggleExpand}
               className="cursor-pointer text-slate-400 hover:text-slate-600"
             >
-              收起
+              {t("memo.collapse")}
             </button>
           </div>
         </div>
@@ -238,7 +254,7 @@ export function MemoItem({
               onDragOver={handleDragOver}
               rows={Math.min(20, Math.max(3, draft.split("\n").length))}
               spellCheck={false}
-              placeholder="修改内容… (可直接粘贴或拖拽截图)"
+              placeholder={t("memo.edit_placeholder")}
               className="w-full resize-y rounded-md border border-slate-200 bg-slate-50/50 p-2.5 font-mono text-xs leading-relaxed text-slate-900 outline-none focus:border-slate-400 focus:bg-white focus:ring-1 focus:ring-slate-300"
             />
 
@@ -246,7 +262,7 @@ export function MemoItem({
               <span className="text-red-600">{error}</span>
               <div className="flex items-center gap-3">
                 <span className="text-slate-400">
-                  {saving ? "保存中…" : "Ctrl+Enter 保存 · Esc 收起编辑"}
+                  {saving ? t("common.saving") : t("memo.ctrl_enter_save_esc_close")}
                 </span>
                 <button
                   type="button"
@@ -254,7 +270,7 @@ export function MemoItem({
                   disabled={saving || draft.trim() === ""}
                   className="cursor-pointer rounded-sm bg-slate-800 px-3 py-1 text-xs text-white hover:bg-slate-700 disabled:opacity-50"
                 >
-                  保存
+                  {t("common.save")}
                 </button>
               </div>
             </div>

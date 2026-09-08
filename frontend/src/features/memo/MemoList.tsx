@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { t } from "../../shared/i18n";
 import { MemoItem } from "./MemoItem";
 import type { Memo } from "./types";
 
@@ -44,17 +45,18 @@ export function MemoList({
       return <p className="py-8 text-center text-sm text-red-600">{error}</p>;
     }
     if (loading) {
-      return <Placeholder>载入中…</Placeholder>;
+      return <Placeholder>{t("common.loading")}</Placeholder>;
     }
     if (searchQuery && searchQuery.trim() !== "") {
       return (
         <Placeholder>
-          {`没有找到匹配「${searchQuery.trim()}」的 Memo。`}
+          {t("memo.search_empty", { query: searchQuery.trim() })}
         </Placeholder>
       );
     }
-    return <Placeholder>还没有记录。写点什么,按 Ctrl+Enter。</Placeholder>;
+    return <Placeholder>{t("memo.empty_state")}</Placeholder>;
   }
+
 
   // Anything already written shows, even if the rest is still loading or the
   // load failed — a memo just saved must never be hidden behind a spinner.

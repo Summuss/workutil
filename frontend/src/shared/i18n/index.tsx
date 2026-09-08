@@ -68,22 +68,31 @@ export function setLanguage(next: Language): void {
   }
 }
 
-export function t(key: string): string {
+export function t(
+  key: string,
+  params?: Record<string, string | number>,
+): string {
   const dict = translations[activeLanguage];
-  const value = dict?.[key];
-  if (value !== undefined) {
-    return value;
+  let value = dict?.[key];
+  if (value === undefined) {
+    return `[${key}]`;
   }
-  return `[${key}]`;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      value = value.replaceAll(`{${k}}`, String(v));
+    }
+  }
+  return value;
 }
 
 interface I18nContextValue {
   language: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 const I18nContext = createContext<I18nContextValue | null>(null);
+
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [language, setLangState] = useState<Language>(() => {

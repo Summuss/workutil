@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { messageOf } from "../../shared/api";
+import { t } from "../../shared/i18n";
 import type { ImageUpload } from "../../shared/images";
 import { createMemo, listMemos } from "./api";
 import { MemoComposer } from "./MemoComposer";
@@ -22,7 +23,7 @@ export function MemoPage() {
       setMemos(loaded);
       setError(null);
     } catch (cause: unknown) {
-      setError(messageOf(cause, "载入失败"));
+      setError(messageOf(cause, t("common.load_failed")));
     } finally {
       setLoading(false);
     }
@@ -49,7 +50,7 @@ export function MemoPage() {
       })
       .catch((cause: unknown) => {
         if (!abandoned) {
-          setError(messageOf(cause, "载入失败"));
+          setError(messageOf(cause, t("common.load_failed")));
         }
       })
       .finally(() => {
@@ -57,6 +58,7 @@ export function MemoPage() {
           setLoading(false);
         }
       });
+
 
     return () => {
       abandoned = true;

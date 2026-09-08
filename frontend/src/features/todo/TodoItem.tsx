@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router";
 
+import { t } from "../../shared/i18n";
 import { getDueDateStatus } from "./dueDateUtil";
 import type { MoveDirection, Todo, TodoUpdatePayload } from "./types";
 
@@ -18,13 +19,13 @@ interface TodoItemProps {
 const MOVES: {
   to: MoveDirection;
   glyph: string;
-  title: string;
+  titleKey: string;
   stuck: (at: number, count: number) => boolean;
 }[] = [
-  { to: "top", glyph: "⤒", title: "移到最前", stuck: (at) => at === 0 },
-  { to: "up", glyph: "↑", title: "上移一位", stuck: (at) => at === 0 },
-  { to: "down", glyph: "↓", title: "下移一位", stuck: (at, count) => at === count - 1 },
-  { to: "bottom", glyph: "⤓", title: "移到最后", stuck: (at, count) => at === count - 1 },
+  { to: "top", glyph: "⤒", titleKey: "todo.move_top", stuck: (at) => at === 0 },
+  { to: "up", glyph: "↑", titleKey: "todo.move_up", stuck: (at) => at === 0 },
+  { to: "down", glyph: "↓", titleKey: "todo.move_down", stuck: (at, count) => at === count - 1 },
+  { to: "bottom", glyph: "⤓", titleKey: "todo.move_bottom", stuck: (at, count) => at === count - 1 },
 ];
 
 const TOOL_BUTTON =
@@ -86,7 +87,7 @@ export function TodoItem({
     if (e) e.preventDefault();
     const clean = title.trim();
     if (!clean) {
-      setError("待办内容不能为空");
+      setError(t("todo.title_empty"));
       return;
     }
     const cleanDate = dueDate ? dueDate : null;
@@ -104,7 +105,7 @@ export function TodoItem({
       });
       setEditing(false);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "保存失败");
+      setError(cause instanceof Error ? cause.message : t("common.save_failed"));
     } finally {
       setSubmitting(false);
     }
@@ -143,12 +144,12 @@ export function TodoItem({
                 handleCancel();
               }
             }}
-            placeholder="待办内容"
+            placeholder={t("todo.title_placeholder")}
             className="w-full rounded border border-slate-200 px-2.5 py-1 text-sm text-slate-900 focus:border-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-300"
           />
 
           <div className="flex items-center gap-2 text-xs text-slate-600">
-            <span>截止日期:</span>
+            <span>{t("todo.due_date_label")}</span>
             <input
               type="date"
               value={dueDate}
@@ -161,7 +162,7 @@ export function TodoItem({
                 onClick={() => setDueDate("")}
                 className="cursor-pointer text-xs text-slate-400 hover:text-slate-700"
               >
-                清除日期
+                {t("todo.clear_date")}
               </button>
             )}
           </div>
@@ -174,14 +175,14 @@ export function TodoItem({
               onClick={handleCancel}
               className="cursor-pointer rounded px-2.5 py-1 text-xs text-slate-500 hover:bg-slate-100"
             >
-              取消
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               disabled={submitting || title.trim() === ""}
               className="cursor-pointer rounded bg-slate-800 px-3 py-1 text-xs font-medium text-white hover:bg-slate-700 disabled:opacity-50"
             >
-              {submitting ? "保存中…" : "保存"}
+              {submitting ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </form>
@@ -202,7 +203,7 @@ export function TodoItem({
           type="button"
           onClick={() => void handleToggle()}
           disabled={toggling}
-          title={isCompleted ? "标为未完成" : "标为已完成"}
+          title={isCompleted ? t("todo.mark_incomplete") : t("todo.mark_complete")}
           className={`flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full transition-colors disabled:opacity-50 ${
             isCompleted
               ? "bg-slate-400 text-white hover:bg-slate-500"
@@ -252,9 +253,9 @@ export function TodoItem({
             }`}
           >
             {dueStatus === "today"
-              ? "今天到期"
+              ? t("todo.due_today")
               : dueStatus === "overdue"
-                ? `${todo.due_date} 逾期`
+                ? t("todo.overdue", { date: todo.due_date ?? "" })
                 : todo.due_date}
           </span>
         )}
@@ -263,10 +264,10 @@ export function TodoItem({
         {todo.source_memo_id != null && (
           <Link
             to={`/memo/${todo.source_memo_id}`}
-            title="查看原 Memo"
+            title={t("todo.view_source_memo")}
             className="inline-flex shrink-0 items-center rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[11px] text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-100 hover:text-slate-800"
           >
-            源于 Memo
+            {t("todo.from_memo")}
           </Link>
         )}
       </div>
@@ -278,7 +279,7 @@ export function TodoItem({
               <button
                 key={move.to}
                 type="button"
-                title={move.title}
+                title={t(move.titleKey)}
                 disabled={moving || move.stuck(at, count)}
                 onClick={() => void handleMove(move.to)}
                 className={TOOL_BUTTON}
@@ -296,7 +297,7 @@ export function TodoItem({
               onClick={() => setEditing(true)}
               className="cursor-pointer text-xs text-slate-400 hover:text-slate-700"
             >
-              编辑
+              {t("common.edit")}
             </button>
           )}
           <button
@@ -305,10 +306,11 @@ export function TodoItem({
             disabled={deleting}
             className="cursor-pointer text-xs text-slate-400 hover:text-red-600 disabled:opacity-50"
           >
-            {deleting ? "删除中…" : "删除"}
+            {deleting ? t("common.deleting") : t("common.delete")}
           </button>
         </div>
       </div>
     </li>
   );
 }
+

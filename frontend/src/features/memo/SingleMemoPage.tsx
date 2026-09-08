@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 import { messageOf } from "../../shared/api";
+import { t } from "../../shared/i18n";
 import { getMemo } from "./api";
 import { MemoItem } from "./MemoItem";
 import type { Memo } from "./types";
@@ -16,7 +17,7 @@ export function SingleMemoPage() {
 
   useEffect(() => {
     if (!id || isNaN(Number(id))) {
-      setError("无效的 Memo ID");
+      setError(t("memo.invalid_id"));
       setLoading(false);
       return;
     }
@@ -33,7 +34,7 @@ export function SingleMemoPage() {
       })
       .catch((cause) => {
         if (active) {
-          setError(messageOf(cause, "该 Memo 不存在或已被删除"));
+          setError(messageOf(cause, t("memo.not_found")));
         }
       })
       .finally(() => {
@@ -55,13 +56,13 @@ export function SingleMemoPage() {
           className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-900 transition-colors"
         >
           <span>←</span>
-          <span>回到全部</span>
+          <span>{t("memo.back_to_all")}</span>
         </Link>
       </div>
 
       {loading && (
         <div className="py-12 text-center text-sm text-slate-400">
-          载入中…
+          {t("common.loading")}
         </div>
       )}
 
@@ -85,3 +86,4 @@ export function SingleMemoPage() {
     </main>
   );
 }
+

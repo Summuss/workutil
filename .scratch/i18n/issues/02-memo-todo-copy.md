@@ -8,10 +8,11 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** closed
 
-- [ ] `features/memo/**`、`features/todo/**` 里的硬编码中文全部替换为 `t(key)`
-- [ ] `zh.json`/`ja.json` 补全这些 key,两边都有对应翻译
-- [ ] 切到日语,过一遍 memo 与 todo 的每个页面(含空状态、确认弹窗、to-Todo 转换弹窗),没有遗留中文
-- [ ] key 对齐测试仍然通过
-- [ ] `make check` 与 `pnpm build` 通过
+- [x] `features/memo/**`、`features/todo/**` 里的硬编码中文全部替换为 `t(key)`
+- [x] `zh.json`/`ja.json` 补全这些 key,两边都有对应翻译
+- [x] 切到日语,过一遍 memo 与 todo 的每个页面(含空状态、确认弹窗、to-Todo 转换弹窗),没有遗留中文
+- [x] key 对齐测试仍然通过
+- [x] `make check` 与 `pnpm build` 通过
+
