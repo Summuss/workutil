@@ -165,6 +165,17 @@ export function EvidenceDetailPage() {
         <a
           href={exportEvidenceUrl(id)}
           download
+          aria-disabled={cases.length === 0}
+          tabIndex={cases.length === 0 ? -1 : undefined}
+          onClick={(event) => {
+            // pointer-events-none stops a click but not a keyboard Enter, and
+            // tabIndex=-1 alone leaves a keyboard-then-mouse activation path
+            // open — either would otherwise download the 422 refusal body as
+            // an .xlsx file.
+            if (cases.length === 0) {
+              event.preventDefault();
+            }
+          }}
           className={`shrink-0 rounded-md border border-slate-300 bg-white px-3 py-1 text-xs font-medium text-slate-700 shadow-sm hover:bg-slate-50 hover:text-slate-900 ${
             cases.length === 0 ? "pointer-events-none opacity-40" : ""
           }`}

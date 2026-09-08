@@ -6,6 +6,7 @@ to assert sheet names, cell values, formatting, image count and anchor rows
 """
 
 import io
+from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
 
@@ -343,3 +344,75 @@ def test_sheet_column_dimensions_are_set(client: TestClient) -> None:
     assert ws.column_dimensions["A"].width == settings.column_width
     assert ws.column_dimensions["B"].width == settings.column_width
     assert ws.column_dimensions["C"].width == settings.column_width
+
+
+def test_guardrail_text_starting_with_equals_is_not_read_as_a_formula(
+    client: TestClient,
+) -> None:
+    """Guardrail: '@' alone does not stop openpyxl reading a leading '=' as a
+    formula. A value like '=1+1' must round-trip as the literal string, not
+    silently evaluate to '2' — the same promise '@' makes for '007'."""
+    evidence_id = create_evidence(client, "数式化テスト")
+    case_id = add_case(client, evidence_id, "1")
+    add_text_block(client, evidence_id, case_id, "=1+1")
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    cell = wb["1"].cell(row=1, column=1)
+    assert cell.value == "=1+1"
+    assert cell.data_type == "s"
+
+
+def test_guardrail_table_cell_starting_with_equals_is_not_read_as_a_formula(
+    client: TestClient,
+) -> None:
+    evidence_id = create_evidence(client, "テーブル数式化テスト")
+    case_id = add_case(client, evidence_id, "1")
+    add_table_block(client, evidence_id, case_id, "expr\tnote\n=SUM(1,2)\tok")
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    cell = wb["1"].cell(row=2, column=1)
+    assert cell.value == "=SUM(1,2)"
+    assert cell.data_type == "s"
+
+
+def test_control_characters_in_a_paste_do_not_break_the_export(
+    client: TestClient,
+) -> None:
+    """Guardrail: OOXML forbids control characters other than tab/CR/LF, and
+    openpyxl raises on them. A pasted terminal log carrying an ANSI escape
+    must still export, with the illegal byte stripped rather than a 500."""
+    evidence_id = create_evidence(client, "制御文字テスト")
+    case_id = add_case(client, evidence_id, "1")
+    add_table_block(client, evidence_id, case_id, "col\tval\n\x1b[31mred\x1b[0m\tok")
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    cell = wb["1"].cell(row=2, column=1)
+    assert cell.value == "[31mred[0m"
+
+
+def test_export_refuses_when_an_image_file_is_missing_from_disk(
+    client: TestClient, data_dir: Path
+) -> None:
+    """Guardrail: a screenshot referenced by a block but absent on disk must
+    refuse the whole export (422), not silently swap in placeholder text —
+    a partial workbook is not a deliverable (design.md §6 F5)."""
+    evidence_id = create_evidence(client, "画像欠落テスト")
+    case_id = add_case(client, evidence_id, "1")
+    block_id = add_image_block(client, evidence_id, case_id, make_png(10, 10))
+
+    case = client.get(f"/api/evidence/{evidence_id}/cases/{case_id}").json()
+    image_url = next(b["image_url"] for b in case["blocks"] if b["id"] == block_id)
+    image_name = image_url.rsplit("/", 1)[-1]
+    (data_dir / "images" / "evidence" / str(evidence_id) / image_name).unlink()
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 422

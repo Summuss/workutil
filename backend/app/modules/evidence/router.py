@@ -9,7 +9,7 @@ from fastapi.responses import FileResponse, Response
 
 from app.core import images
 from app.core.deps import SessionDep, SettingsDep
-from app.modules.evidence import service
+from app.modules.evidence import layout, service
 from app.modules.evidence.schemas import (
     BlockCreate,
     BlockLabelEdit,
@@ -60,6 +60,7 @@ def _as_http_error() -> Iterator[None]:
         service.WrongBlockKind,
         service.EmptyEvidence,
         images.InvalidImage,
+        layout.MissingImageFile,
     ) as invalid:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(invalid)

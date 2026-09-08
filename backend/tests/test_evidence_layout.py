@@ -44,8 +44,12 @@ def test_scale_dimensions_handles_tiny_images() -> None:
 
 
 def test_calculate_reserved_rows_by_height() -> None:
-    # Empty / zero height
-    assert calculate_reserved_rows(0, row_height_px=20) == 0
+    # Zero (or negative) height is unreachable via the real pipeline — PIL
+    # never reports a non-positive size for a file that opened at all — but
+    # placing an image always claims at least one row, never zero, so a
+    # degenerate input can't produce an overlap either.
+    assert calculate_reserved_rows(0, row_height_px=20) == 1
+    assert calculate_reserved_rows(-5, row_height_px=20) == 1
     # Exactly one row
     assert calculate_reserved_rows(20, row_height_px=20) == 1
     # 1 px over one row requires 2 rows

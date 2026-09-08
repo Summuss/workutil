@@ -11,10 +11,14 @@ Hard format limits respected:
 - Image width is scaled proportionally to at most 900 px without touching the
   original on disk.
 - All cells use the '@' text number format so 007, dates, and long IDs stay as
-  typed without Excel reinterpreting them (ADR-0004).
+  typed without Excel reinterpreting them (ADR-0004). '@' alone does not stop
+  openpyxl from reading a leading '=' as a formula, so every cell also has its
+  `data_type` forced back to 's' after assignment (see `_text_cell`).
 - Plain cells are formatted directly: no ListObjects (Excel Tables) that force
   column names to be unique.
 - One sheet per case, named after the case.
+- A missing image file refuses the whole export rather than writing a
+  placeholder in its place — see `MissingImageFile`.
 """
 
 import io
@@ -25,9 +29,11 @@ from pathlib import Path
 from typing import Literal
 
 import openpyxl
+from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE, Cell
 from openpyxl.drawing.image import Image as OpenPyxlImage
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 from PIL import Image as PILImage
 
 from app.modules.evidence.models import (
@@ -38,6 +44,18 @@ from app.modules.evidence.models import (
 )
 
 ILLEGAL_FILENAME_CHARS = re.compile(r'[\\/:*?"<>|]')
+
+
+class MissingImageFile(ValueError):
+    """An image block points at a file that is not on disk.
+
+    Raised rather than papered over with placeholder text: the exported
+    workbook is the deliverable, and silently swapping a screenshot for a
+    sentence would hand someone a file they never got to check — the same
+    reasoning design.md gives for validating a sheet name on the way in
+    instead of cleaning it up on the way out.
+    """
+
 
 BorderStyle = Literal[
     "dashDot",
@@ -100,9 +118,16 @@ def calculate_reserved_rows(height_px: int, row_height_px: int = 20) -> int:
     Setting row height directly is a dead end. Instead, row height stays at the
     default 15 pt = 20 px, and we reserve ceil(height / 20) rows so the next
     block begins cleanly beneath the floating image.
+
+    A degenerate height (<= 0) still reserves one row rather than zero: an
+    image placed and then given no room at all is exactly the overlap this
+    function exists to prevent. Real images never hit this branch — PIL never
+    reports a non-positive size for a file that opened at all — but the
+    invariant ("placing an image always claims at least one row") should hold
+    regardless of what a caller hands in.
     """
     if height_px <= 0:
-        return 0
+        return 1
     return math.ceil(height_px / row_height_px)
 
 
@@ -114,6 +139,34 @@ def sanitize_filename(title: str) -> str:
     """
     clean_title = ILLEGAL_FILENAME_CHARS.sub("_", title)
     return f"エビデンス_{clean_title}.xlsx"
+
+
+def _text_cell(ws: Worksheet, row: int, column: int, value: str) -> Cell:
+    """Write `value` into a cell as genuine, verbatim text.
+
+    Two things openpyxl does regardless of `number_format`:
+
+    - A string starting with `=` is read as a formula at assignment time
+      (`data_type` becomes `'f'`), and `@` does nothing to stop it — `=1+1`
+      would show as `2`, and anything Excel cannot parse as a formula (a log
+      line starting `==>`, say) corrupts the file outright. `data_type` is
+      forced back to `'s'` after assignment so the cell holds the string, not
+      a formula.
+    - Control characters (`\\x00`-`\\x08`, `\\x0b`-`\\x0c`, `\\x0e`-`\\x1f` —
+      not `\\t \\n \\r`, which are legal) are illegal in OOXML and raise
+      `IllegalCharacterError`. The DB dumps and terminal logs a case pastes in
+      sometimes carry them (ANSI escapes, stray control bytes), so they are
+      stripped rather than left to blow up the export.
+
+    Every cell workutil writes goes through here for exactly this reason:
+    `007` must stay `"007"`, and so must everything else, whatever shape it
+    arrives in.
+    """
+    cleaned = ILLEGAL_CHARACTERS_RE.sub("", value)
+    cell = ws.cell(row=row, column=column, value=cleaned)
+    cell.data_type = "s"
+    cell.number_format = "@"
+    return cell
 
 
 def build_evidence_workbook(
@@ -133,8 +186,12 @@ def build_evidence_workbook(
     - Tables format their header in bold + header fill color with thin borders on
       every cell.
     - All cells are typed with '@' text number format.
+
+    Raises `MissingImageFile` if an image block's file is not under
+    `evidence_images_dir` — a partial workbook is not a deliverable.
     """
     wb = openpyxl.Workbook()
+    wb.properties.title = evidence.title
 
     thin_side = Side(style=settings.border_style)
     thin_border = Border(
@@ -181,43 +238,35 @@ def build_evidence_workbook(
 
             # Optional label occupies a single bold row
             if block.label and block.label.strip():
-                label_cell = ws.cell(
-                    row=current_row, column=1, value=block.label.strip()
-                )
+                label_cell = _text_cell(ws, current_row, 1, block.label.strip())
                 label_cell.font = Font(bold=True)
-                label_cell.number_format = "@"
                 current_row += 1
 
             if block.kind == BlockKind.TEXT:
-                text_cell = ws.cell(row=current_row, column=1, value=block.text)
-                text_cell.number_format = "@"
+                text_cell = _text_cell(ws, current_row, 1, block.text)
                 text_cell.alignment = Alignment(wrap_text=True, vertical="top")
                 current_row += 1
 
             elif block.kind == BlockKind.IMAGE:
                 img_path = evidence_images_dir / block.image_name
-                if img_path.is_file():
-                    with PILImage.open(img_path) as pil_img:
-                        orig_w, orig_h = pil_img.size
-
-                    scaled_w, scaled_h = scale_dimensions(
-                        orig_w, orig_h, settings.max_image_width
+                if not img_path.is_file():
+                    raise MissingImageFile(
+                        f"用例「{case.name}」缺少图片文件：{block.image_name}"
                     )
-                    reserved = calculate_reserved_rows(scaled_h, settings.row_height_px)
 
-                    xl_img = OpenPyxlImage(str(img_path))
-                    xl_img.width = scaled_w
-                    xl_img.height = scaled_h
-                    ws.add_image(xl_img, f"A{current_row}")
-                    current_row += reserved
-                else:
-                    placeholder = ws.cell(
-                        row=current_row,
-                        column=1,
-                        value=f"[图片缺失: {block.image_name}]",
-                    )
-                    placeholder.number_format = "@"
-                    current_row += 1
+                with PILImage.open(img_path) as pil_img:
+                    orig_w, orig_h = pil_img.size
+
+                scaled_w, scaled_h = scale_dimensions(
+                    orig_w, orig_h, settings.max_image_width
+                )
+                reserved = calculate_reserved_rows(scaled_h, settings.row_height_px)
+
+                xl_img = OpenPyxlImage(str(img_path))
+                xl_img.width = scaled_w
+                xl_img.height = scaled_h
+                ws.add_image(xl_img, f"A{current_row}")
+                current_row += reserved
 
             elif block.kind == BlockKind.TABLE:
                 for r_idx, row_cells in enumerate(block.rows):
@@ -226,10 +275,7 @@ def build_evidence_workbook(
 
                     for c_idx, cell_value in enumerate(row_cells):
                         col_num = c_idx + 1
-                        cell = ws.cell(
-                            row=row_num, column=col_num, value=str(cell_value)
-                        )
-                        cell.number_format = "@"
+                        cell = _text_cell(ws, row_num, col_num, str(cell_value))
                         cell.border = thin_border
                         if is_header:
                             cell.font = Font(bold=True)
