@@ -2,12 +2,16 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 
 import { messageOf } from "../../shared/api";
-import { t } from "../../shared/i18n";
+import { useI18n } from "../../shared/i18n";
 import { getMemo } from "./api";
 import { MemoItem } from "./MemoItem";
 import type { Memo } from "./types";
 
 export function SingleMemoPage() {
+  // Subscribing here re-renders this whole subtree (and its bare `t()` calls
+  // below) when the language switches, instead of leaving it stale until some
+  // unrelated state change happens to trigger a re-render.
+  const { t } = useI18n();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [memo, setMemo] = useState<Memo | null>(null);

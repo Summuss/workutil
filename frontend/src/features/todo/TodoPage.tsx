@@ -1,7 +1,7 @@
 import { useCallback, useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
-import { t } from "../../shared/i18n";
+import { useI18n } from "../../shared/i18n";
 import { useLoad } from "../../shared/useLoad";
 import {
   completeTodo,
@@ -16,6 +16,10 @@ import { TodoItem } from "./TodoItem";
 import type { MoveDirection, TodoListResponse, TodoUpdatePayload } from "./types";
 
 export function TodoPage() {
+  // Subscribing here re-renders this whole subtree (and its bare `t()` calls
+  // below) when the language switches, instead of leaving it stale until some
+  // unrelated state change happens to trigger a re-render.
+  const { t } = useI18n();
   const {
     value: loaded,
     setValue: setLoaded,

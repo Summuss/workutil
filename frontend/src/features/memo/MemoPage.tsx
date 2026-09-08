@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { messageOf } from "../../shared/api";
-import { t } from "../../shared/i18n";
+import { useI18n } from "../../shared/i18n";
 import type { ImageUpload } from "../../shared/images";
 import { createMemo, listMemos } from "./api";
 import { MemoComposer } from "./MemoComposer";
@@ -11,6 +11,10 @@ import type { Memo } from "./types";
 
 /** One page: the box on top, search bar in between, what you have written below it. */
 export function MemoPage() {
+  // Subscribing here re-renders this whole subtree (and its bare `t()` calls
+  // below) when the language switches, instead of leaving it stale until some
+  // unrelated state change happens to trigger a re-render.
+  const { t } = useI18n();
   const [memos, setMemos] = useState<Memo[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
