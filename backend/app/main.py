@@ -12,6 +12,7 @@ from starlette.types import Scope
 
 from app.core.config import HOST, PORT, Settings, load_settings
 from app.core.db import create_db_engine, create_session_factory, migrate_to_head
+from app.core.platform import Platform, get_default_platform
 from app.modules.registry import ROUTERS
 
 
@@ -61,7 +62,10 @@ def _is_a_frontend_route(path: str) -> bool:
     return first != "api" and "." not in PurePosixPath(path).name
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    platform: Platform | None = None,
+) -> FastAPI:
     settings = settings or load_settings()
     settings.create_directories()
 
@@ -72,6 +76,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = create_session_factory(engine)
+    app.state.platform = platform or get_default_platform()
 
     for router in ROUTERS:
         app.include_router(router, prefix="/api")

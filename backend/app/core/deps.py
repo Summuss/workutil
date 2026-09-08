@@ -7,6 +7,7 @@ from fastapi import Depends, Request
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import Settings
+from app.core.platform import Platform
 
 
 def get_session(request: Request) -> Iterator[Session]:
@@ -24,3 +25,11 @@ def get_settings(request: Request) -> Settings:
 
 
 SettingsDep = Annotated[Settings, Depends(get_settings)]
+
+
+def get_platform(request: Request) -> Platform:
+    platform: Platform = request.app.state.platform
+    return platform
+
+
+PlatformDep = Annotated[Platform, Depends(get_platform)]

@@ -20,12 +20,13 @@
 
 **Blocked by:** —
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `core/platform.py`:`open` / `reveal` 两个动词,按 `sys.platform` 选实现
-- [ ] Windows / macOS 各一个实现,按上表调用
-- [ ] Linux 实现抛一个**专有异常**(不是 `NotImplementedError` 泛用型),带一句能直接显示给人看的话
-- [ ] 平台层经 `deps.py` 注入,测试可替换
-- [ ] `tests/` 里有一个记录调用的 fake,供后续 ticket 使用
-- [ ] 有测试:在开发平台(Linux)上调 `open` 抛的是那个专有异常
-- [ ] `make check` 通过
+- [x] `core/platform.py`:`open` / `reveal` 两个动词,按 `sys.platform` 选实现
+- [x] Windows / macOS 各一个实现,按上表调用
+- [x] Linux 实现抛一个**专有异常**(不是 `NotImplementedError` 泛用型),带一句能直接显示给人看的话
+- [x] 平台层经 `deps.py` 注入,测试可替换
+- [x] `tests/` 里有一个记录调用的 fake,供后续 ticket 使用
+- [x] 有测试:在开发平台(Linux)上调 `open` 抛的是那个专有异常
+- [x] `make check` 通过
+

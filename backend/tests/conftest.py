@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings
 from app.core.db import create_db_engine
+from app.core.platform import Platform
 from app.main import create_app
+from tests.fake_platform import FakePlatform
 
 
 @pytest.fixture
@@ -19,9 +21,17 @@ def data_dir(tmp_path: Path) -> Path:
     return tmp_path / "workutil"
 
 
+@pytest.fixture
+def fake_platform() -> FakePlatform:
+    """A fake platform that records calls, substitutable into tests."""
+    return FakePlatform()
+
+
 @contextmanager
 def workutil_at(
-    data_dir: Path, frontend_dist: Path | None = None
+    data_dir: Path,
+    frontend_dist: Path | None = None,
+    platform: Platform | None = None,
 ) -> Iterator[TestClient]:
     """Start workutil against a data directory, the way launching it would.
 
@@ -31,7 +41,7 @@ def workutil_at(
     settings = Settings(data_dir=data_dir)
     if frontend_dist is not None:
         settings = replace(settings, frontend_dist=frontend_dist)
-    with TestClient(create_app(settings)) as client:
+    with TestClient(create_app(settings, platform=platform)) as client:
         yield client
 
 
