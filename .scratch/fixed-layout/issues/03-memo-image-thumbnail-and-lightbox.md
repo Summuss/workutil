@@ -12,16 +12,16 @@ Evidence 的图片 Block **不动** —— 那里是在核对要交付出去的�
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `.markdown-body img` 改为高度上限 200px、等比、不裁剪;矮图不放大
-- [ ] `shared/` 下新建灯箱组件,不引新依赖
-- [ ] 点缩略图打开灯箱,图片按窗口尺寸完整显示,**不放大超过原始尺寸**
-- [ ] 三种关闭方式都可用:`Esc`(document 级监听)、点遮罩背景、右上角关闭按钮
-- [ ] 关闭按钮的图标复用 `shared/icons.tsx` 已有的 `XIcon`
-- [ ] `MemoMarkdown` 一处改动同时覆盖 `MemoPage` 列表与 `SingleMemoPage`,不做例外
-- [ ] 不做多图左右切换、缩放、旋转
-- [ ] Evidence 的图片 Block 显示方式不变
-- [ ] 展开一条带 3 张截图的 memo,卡片高度与纯文字 memo 处于同一量级
-- [ ] 现有的 `MemoMarkdown.test.tsx`(raw HTML 安全边界)仍然通过
-- [ ] `make check` 通过
+- [x] `.markdown-body img` 改为高度上限 200px、等比、不裁剪;矮图不放大
+- [x] `shared/` 下新建灯箱组件,不引新依赖
+- [x] 点缩略图打开灯箱,图片按窗口尺寸完整显示,**不放大超过原始尺寸**
+- [x] 三种关闭方式都可用:`Esc`(document 级监听)、点遮罩背景、右上角关闭按钮
+- [x] 关闭按钮的图标复用 `shared/icons.tsx` 已有的 `XIcon`
+- [x] `MemoMarkdown` 一处改动同时覆盖 `MemoPage` 列表与 `SingleMemoPage`,不做例外
+- [x] 不做多图左右切换、缩放、旋转
+- [x] Evidence 的图片 Block 显示方式不变
+- [x] 展开一条带 3 张截图的 memo,卡片高度与纯文字 memo 处于同一量级
+- [x] 现有的 `MemoMarkdown.test.tsx`(raw HTML 安全边界)仍然通过
+- [x] `make check` 通过
