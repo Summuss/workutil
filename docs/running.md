@@ -32,7 +32,7 @@ make install          # backend: uv sync;frontend: pnpm install
 ### 1. 从 macOS 开隧道
 
 ```sh
-ssh -L 5173:127.0.0.1:5173 summus@192.168.3.3
+ssh -L 5173:127.0.0.1:5173 <你的服务器>
 ```
 
 **只用转发 5173。** `/api` 由 Vite 在服务器端反代到 8765,不需要第二条隧道。
@@ -75,7 +75,7 @@ curl -sS localhost:5173/api/memos  # 经 Vite 反代打到后端,通了就说明
 
 ```sh
 # macOS 上
-ssh -L 8765:127.0.0.1:8765 summus@192.168.3.3
+ssh -L 8765:127.0.0.1:8765 <你的服务器>
 
 # 服务器上
 cd ~/Code/summus-workutil && make build && make run
