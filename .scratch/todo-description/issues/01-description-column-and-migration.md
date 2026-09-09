@@ -39,3 +39,5 @@
 ### Code Review
 - **Standards**: 代码完全遵守项目的模块设计规范，`ruff check`、`ruff format`、`mypy` 静态类型检查全绿，行长控制在 88 字符以内。
 - **Spec**: 数据迁移 `d3e7b1a9c4f2` 严格按「加 description -> 回溯 live memo 写入链接 -> drop source_memo_id 与索引」执行；`TodoCreate`、`TodoUpdate`（`None` 不改，`""` 清空）、`TodoRead` 接口齐备；`service.get_existing_memo_ids` 与对 `memo` 的引用已彻底拆除；所有单测与迁移回滚测试全部通过。
+
+**Review 修复(commit `0ebf0f0`)**:迁移文件头部注释写着 `Revises: e6d3dfcc041d`,但实际 `down_revision` 是 `a1b2c3d4e5f6`(`add_memo_pinned_at`,按完整迁移链核对过,这才是真正的直接父版本)。Alembic 只认变量不认注释,运行时没问题,但会误导之后读这个文件的人。全仓库其余 13 个迁移文件的注释和变量都是一致的,只有这一处对不上,已改成 `a1b2c3d4e5f6`。

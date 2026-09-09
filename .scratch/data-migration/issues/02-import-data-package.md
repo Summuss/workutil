@@ -45,3 +45,11 @@
 - [x] 测试:导入成功后数据目录里存在 `workutil.db.bak-*`
 - [x] 测试:含 `../` 条目的 zip 被拒绝
 - [x] `make check` 与 `make test` 通过
+
+## Comments
+
+**Review 修复(commit `68d749a`)**:实现用了一个泛用的 `TransferError(code, message, status_code)`,`code` 是不带模块前缀的 `SCREAMING_SNAKE_CASE`(`INVALID_ZIP_ARCHIVE` 等),`router.py` 手工拼 `HTTPException` 而不是走既有的 `http_error()`。这和 todo / memo / bookmark / evidence 四个模块统一用的「每种错误一个异常子类,`code = "module.reason"` 类属性,由路由层过 `http_error()` 翻译」的写法不一致 —— 功能上没问题(前端只是 `t(`error.${code}`)` 查表,大小写和有没有模块前缀都能查到),但下一个抄这个模块当模板的人会把这套写法也抄走。
+
+改成 7 个具体异常类(`InvalidZipArchive` / `ZipSlipDetected` / `InvalidZipStructure` / `InvalidManifest` / `AlembicRevisionMismatch` / `DatabaseNotEmpty` / `ImagesNotEmpty`),`code` 统一成 `transfer.snake_case`,消息文案也换成中文(和其余模块的异常消息一致);`router.py` 用一个 `except (...)` 收口后调 `http_error(400, err)`。`error.INVALID_ZIP_ARCHIVE` 等 7 个 i18n key 改名为 `error.transfer.invalid_zip_archive` 等,`zh.json` / `ja.json` 与相关测试断言同步改。
+
+顺带处理了两处:①两个读 `alembic_version` 表的 `except Exception: pass` 收窄成 `except sqlite3.OperationalError`(表不存在时的具体异常),和 8f7f872 那次「收窄 silent except」的清理保持一致;②`manifest.json` 解析成功但不是一个对象(比如 `null`、`[]`)时补一道 `isinstance(manifest_data, dict)` 检查,原来会在后面调 `.get()` 时抛 500 而不是走这道门应有的 400 拒绝。

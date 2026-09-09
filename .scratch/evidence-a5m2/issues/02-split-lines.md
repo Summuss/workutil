@@ -37,3 +37,7 @@
 - [x] 测试:迁移后既有文字 Block 的 `split_lines` 是 `True`
 - [x] `make check` 与 `make test` 通过
 
+## Comments
+
+**Review 修复(commit `0ebf0f0`)**:`BlockCard.tsx` 顶部那句文档注释「A block changes kind exactly once and in one direction」的 `exactly` 被改成了不成词的 `practical`,像是一次误操作的查找替换,不是有意的改动。改回 `exactly`。
+
