@@ -1,8 +1,11 @@
 import { useCallback, useState, type FormEvent } from "react";
 
+import { arrayMove } from "@dnd-kit/sortable";
+
 import { messageOf } from "../../shared/api";
 import { useI18n } from "../../shared/i18n";
 import { ChevronDownIcon, ChevronRightIcon, XIcon } from "../../shared/icons";
+import { SortableList } from "../../shared/sortable";
 import { useLoad } from "../../shared/useLoad";
 import {
   completeTodo,
@@ -150,24 +153,68 @@ export function TodoPage() {
     [setLoaded],
   );
 
-  const handleMove = useCallback(
-    async (id: number, to: MoveDirection) => {
+  const handleReorder = useCallback(
+    async (id: number | string, targetIndex: number) => {
+      const todoId = Number(id);
       setActionError(null);
+      const prev = loaded;
+      if (!prev) return;
+
+      const oldIndex = prev.todos.findIndex((t) => t.id === todoId);
+      if (oldIndex === -1 || oldIndex === targetIndex) return;
+
+      const reorderedOptimistic = arrayMove(prev.todos, oldIndex, targetIndex).map(
+        (item, idx) => ({ ...item, order: idx }),
+      );
+
+      setLoaded({
+        ...prev,
+        todos: reorderedOptimistic,
+      });
+
       try {
-        const reordered = await moveTodo(id, to);
-        setLoaded((curr) =>
-          curr
-            ? {
-                ...curr,
-                todos: reordered,
-              }
-            : null,
-        );
+        const reordered = await moveTodo(todoId, targetIndex);
+        setLoaded((curr) => (curr ? { ...curr, todos: reordered } : null));
       } catch (cause) {
+        setLoaded(prev);
         setActionError(messageOf(cause, t("todo.move_failed")));
       }
     },
-    [setLoaded],
+    [loaded, setLoaded, t],
+  );
+
+  const handleMove = useCallback(
+    async (id: number, to: MoveDirection) => {
+      if (typeof to === "number") {
+        return handleReorder(id, to);
+      }
+      setActionError(null);
+      const prev = loaded;
+      if (!prev) return;
+
+      const oldIndex = prev.todos.findIndex((t) => t.id === id);
+      if (oldIndex === -1) return;
+      const targetIndex = to === "top" ? 0 : prev.todos.length - 1;
+
+      if (oldIndex !== targetIndex) {
+        const reorderedOptimistic = arrayMove(prev.todos, oldIndex, targetIndex).map(
+          (item, idx) => ({ ...item, order: idx }),
+        );
+        setLoaded({
+          ...prev,
+          todos: reorderedOptimistic,
+        });
+      }
+
+      try {
+        const reordered = await moveTodo(id, to);
+        setLoaded((curr) => (curr ? { ...curr, todos: reordered } : null));
+      } catch (cause) {
+        setLoaded(prev);
+        setActionError(messageOf(cause, t("todo.move_failed")));
+      }
+    },
+    [loaded, setLoaded, handleReorder, t],
   );
 
   return (
@@ -243,7 +290,12 @@ export function TodoPage() {
           {t("todo.empty_state")}
         </div>
       ) : (
-        <ul className="flex flex-col gap-1.5">
+        <SortableList
+          as="ul"
+          className="flex flex-col gap-1.5"
+          items={todos}
+          onReorder={handleReorder}
+        >
           {todos.map((todo, index) => (
             <TodoItem
               key={todo.id}
@@ -257,7 +309,7 @@ export function TodoPage() {
               onMove={handleMove}
             />
           ))}
-        </ul>
+        </SortableList>
       )}
 
       {/* Completed section: default collapsed */}

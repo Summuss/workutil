@@ -9,7 +9,7 @@ export interface Todo {
   updated_at: string;
 }
 
-export type MoveDirection = "up" | "down" | "top" | "bottom";
+export type MoveDirection = "top" | "bottom" | number;
 
 export interface TodoListResponse {
   todos: Todo[];

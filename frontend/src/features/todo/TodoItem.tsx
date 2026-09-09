@@ -3,14 +3,13 @@ import { Link } from "react-router";
 
 import { t } from "../../shared/i18n";
 import {
+  CheckIcon,
   ChevronsDownIcon,
   ChevronsUpIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CheckIcon,
   EditIcon,
   TrashIcon,
 } from "../../shared/icons";
+import { DragHandle, useSortableItem } from "../../shared/sortable";
 import { getDueDateStatus } from "./dueDateUtil";
 import type { MoveDirection, Todo, TodoUpdatePayload } from "./types";
 
@@ -26,14 +25,12 @@ interface TodoItemProps {
 }
 
 const MOVES: {
-  to: MoveDirection;
-  Icon: typeof ChevronUpIcon;
+  to: "top" | "bottom";
+  Icon: typeof ChevronsUpIcon;
   titleKey: string;
   stuck: (at: number, count: number) => boolean;
 }[] = [
   { to: "top", Icon: ChevronsUpIcon, titleKey: "todo.move_top", stuck: (at) => at === 0 },
-  { to: "up", Icon: ChevronUpIcon, titleKey: "todo.move_up", stuck: (at) => at === 0 },
-  { to: "down", Icon: ChevronDownIcon, titleKey: "todo.move_down", stuck: (at, count) => at === count - 1 },
   { to: "bottom", Icon: ChevronsDownIcon, titleKey: "todo.move_bottom", stuck: (at, count) => at === count - 1 },
 ];
 
@@ -48,6 +45,8 @@ export function TodoItem({
   onMove,
 }: TodoItemProps) {
   const [editing, setEditing] = useState(false);
+  const canReorder = !isCompleted && !editing && onMove !== undefined && count !== undefined && count > 1;
+  const { ref, style, handleProps } = useSortableItem(todo.id, !canReorder);
   const [title, setTitle] = useState(todo.title);
   const [dueDate, setDueDate] = useState(todo.due_date ?? "");
   const [submitting, setSubmitting] = useState(false);
@@ -210,11 +209,13 @@ export function TodoItem({
 
   return (
     <li
-      className="group flex items-center gap-3 rounded-lg px-3.5 py-2.5 transition-colors"
+      ref={ref}
       style={{
+        ...style,
         border: `1px solid ${isCompleted ? "var(--border)" : "var(--border)"}`,
         background: isCompleted ? "var(--stripe)" : "var(--surface)",
       }}
+      className="group flex items-center gap-3 rounded-lg px-3.5 py-2.5 transition-colors"
     >
       <button
         type="button"
@@ -269,8 +270,13 @@ export function TodoItem({
         </Link>
       )}
 
-      {!isCompleted && onMove && at !== undefined && count !== undefined && count > 1 && (
-        <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-hover:opacity-100">
+      {canReorder && at !== undefined && count !== undefined && (
+        <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <DragHandle
+            title={t("common.drag_reorder")}
+            disabled={moving}
+            {...handleProps}
+          />
           {MOVES.map(({ to, Icon, titleKey, stuck }) => (
             <button
               key={to}

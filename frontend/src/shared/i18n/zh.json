@@ -17,6 +17,7 @@
   "common.delete_failed": "删除失败",
   "common.action_failed": "操作失败",
   "common.done": "完成",
+  "common.drag_reorder": "拖拽排序",
   "memo.composer_placeholder": "随手记点什么… (可直接粘贴或拖拽截图)",
   "memo.ctrl_enter_save": "Ctrl+Enter 保存",
   "memo.save_failed": "保存失败",

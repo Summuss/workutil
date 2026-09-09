@@ -17,6 +17,7 @@
   "common.delete_failed": "削除に失敗しました",
   "common.action_failed": "操作に失敗しました",
   "common.done": "完了",
+  "common.drag_reorder": "ドラッグして並べ替え",
   "memo.composer_placeholder": "メモを入力… (スクリーンショットの貼り付け・ドラッグ＆ドロップ対応)",
   "memo.ctrl_enter_save": "Ctrl+Enter で保存",
   "memo.save_failed": "保存に失敗しました",

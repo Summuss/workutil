@@ -202,3 +202,17 @@ export function ExternalLinkIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function DragHandleIcon(props: IconProps) {
+  return (
+    <svg {...base(props.size ?? 13, props)}>
+      <circle cx="9" cy="6" r="1" fill="currentColor" stroke="currentColor" />
+      <circle cx="9" cy="12" r="1" fill="currentColor" stroke="currentColor" />
+      <circle cx="9" cy="18" r="1" fill="currentColor" stroke="currentColor" />
+      <circle cx="15" cy="6" r="1" fill="currentColor" stroke="currentColor" />
+      <circle cx="15" cy="12" r="1" fill="currentColor" stroke="currentColor" />
+      <circle cx="15" cy="18" r="1" fill="currentColor" stroke="currentColor" />
+    </svg>
+  );
+}
+
