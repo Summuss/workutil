@@ -30,7 +30,6 @@ UI_DIR_ENV_VAR = "WORKUTIL_UI_DIR"
 OPEN_WINDOW_ENV_VAR = "WORKUTIL_OPEN_WINDOW"
 
 _APP_DIR = Path(__file__).resolve().parents[1]
-_REPO_ROOT = _APP_DIR.parent.parent
 
 
 def resolve_frontend_dist(
