@@ -18,12 +18,13 @@
 
 **Blocked by:** 无
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] 加文字 Block 后滚到它
-- [ ] 加图片 Block 后滚到**最后一张**;一次粘 3 张只滚一次
-- [ ] 粘表格后滚到它,且「识别为表格」提示照常出现、行为不变
-- [ ] 新 Block 已经在视野里时**画面不动**(`block: "nearest"` 的自然结果,不要额外写判断)
-- [ ] 不使用 `smooth`
-- [ ] 切换 Case 时滚回顶部的既有行为不受影响(`useEffect` 里那个 `scrollTo({ top: 0 })`)
-- [ ] `pnpm build` / `tsc` 通过;手动验证「停在列表中间粘一张图」
+- [x] 加文字 Block 后滚到它
+- [x] 加图片 Block 后滚到**最后一张**;一次粘 3 张只滚一次
+- [x] 粘表格后滚到它,且「识别为表格」提示照常出现、行为不变
+- [x] 新 Block 已经在视野里时**画面不动**(`block: "nearest"` 的自然结果,不要额外写判断)
+- [x] 不使用 `smooth`
+- [x] 切换 Case 时滚回顶部的既有行为不受影响(`useEffect` 里那个 `scrollTo({ top: 0 })`)
+- [x] `pnpm build` / `tsc` 通过;手动验证「停在列表中间粘一张图」
+

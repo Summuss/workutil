@@ -112,6 +112,7 @@ export function BlockCard({
 
   return (
     <article
+      id={`evidence-block-${block.id}`}
       ref={ref}
       style={style}
       className="card flex flex-col gap-2 px-4 py-3"

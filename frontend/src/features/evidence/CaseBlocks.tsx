@@ -74,15 +74,27 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     [evidenceId, caseId],
   );
 
-  useEffect(() => {
-    scrollContainerRef.current?.scrollTo({ top: 0 });
-  }, [caseId]);
-
   const { busy, error: blockError, run } = useEditRunner(t("common.action_failed"));
 
   const [guessed, setGuessed] = useState<ReadonlySet<number>>(new Set());
 
   const blocks = content?.blocks ?? [];
+
+  const [scrollToBlockId, setScrollToBlockId] = useState<number | null>(null);
+
+  useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0 });
+    setScrollToBlockId(null);
+  }, [caseId]);
+
+  useEffect(() => {
+    if (scrollToBlockId === null) return;
+    const el = document.getElementById(`evidence-block-${scrollToBlockId}`);
+    if (el) {
+      el.scrollIntoView({ block: "nearest" });
+      setScrollToBlockId(null);
+    }
+  }, [scrollToBlockId, blocks]);
 
   function setBlocks(next: Block[]) {
     setContent((current) =>
@@ -92,7 +104,9 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
 
   function handleAdd(text: string): Promise<boolean> {
     return run(async () => {
-      setBlocks([...blocks, await addTextBlock(evidenceId, caseId, text)]);
+      const added = await addTextBlock(evidenceId, caseId, text);
+      setBlocks([...blocks, added]);
+      setScrollToBlockId(added.id);
     });
   }
 
@@ -106,6 +120,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
       );
       setGuessed((current) => new Set(current).add(added.id));
       setBlocks([...blocks, added]);
+      setScrollToBlockId(added.id);
     });
   }
 
@@ -121,6 +136,10 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
       } finally {
         if (added.length > 0) {
           setBlocks([...blocks, ...added]);
+          const last = added[added.length - 1];
+          if (last) {
+            setScrollToBlockId(last.id);
+          }
         }
       }
     });
