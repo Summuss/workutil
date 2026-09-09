@@ -79,7 +79,7 @@ Evidence { id, title, created_at, updated_at }            一个 xlsx 文件
 - 三层 Evidence → Case → Block。**不是两层** —— 一个 evidence 文件对应一批用例,少掉中间层就变成一个用例一个文件(ADR-0003)。
 - Block 有 `kind`(`text` / `image` / `table`)与可选 `label`。**Log 归进 `text`,不单列一类。没有步骤编号。**
 - 一个 image Block 装一张图;一次粘 3 张 = 3 个 Block。
-- 排序用 `order` 字段,交互是**上下移动 + 置顶 / 置底,不做拖拽**。
+- 排序用 `order` 字段,交互是**拖拽把手排序 + 保留置顶 / 置底按钮**(详见 `.scratch/drag-reorder/`)。此前决定「不做拖拽」,后引入 dnd-kit 解决了键盘可访问性顾虑而反转。
 
 ### 图片
 
@@ -143,7 +143,7 @@ Evidence { id, title, created_at, updated_at }            一个 xlsx 文件
 | --- | --- |
 | Evidence 搜索 | ADR-0001 把「靠搜索捞回」划给 Memo。真攒多了该加归档,不是搜索 |
 | 表格加行 / 加列 | 数据来自 DB,手工加行意味着可以编数据 |
-| 拖拽排序 | 上下移动 + 置顶置底够用,不值一个依赖 |
+| 跨 Case 拖拽 | 排序仅限同 Case / 同 Evidence 内拖拽(详见 `.scratch/drag-reorder/`),跨 Case 拖拽超出范围 |
 | 排版参数的配置文件 / 设置页 | 第一版集中在 dataclass 里 |
 | 公司 Excel 模板 | 目前没有指定模板(requirements.md §3) |
 | 压掉「以文本形式存储的数字」绿三角 | openpyxl 的 `IgnoredErrors` 没接到 worksheet 上,要拆 zip 改 XML |

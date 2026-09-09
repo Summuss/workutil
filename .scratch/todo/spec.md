@@ -45,7 +45,7 @@ Todo { id, title, order, due_date?, completed_at?, source_memo_id?, created_at }
 
 ### 列表与状态
 
-- 排序**手工**(`order`),复用 evidence 的 `_reordered` / `Move`。
+- 排序**手工**(`order`),复用 core 的 `_reordered` / `Move`(拖拽把手排序 + 保留置顶置底,详见 `.scratch/drag-reorder/`)。
 - **完成 / 撤销是两个独立动词**(`POST {id}/complete`、`POST {id}/reopen`),不是 `PATCH {done: true}` —— 状态转移是动词、字段编辑才是 PATCH,而且 `complete` 要顺带写 `completed_at`,藏进通用 PATCH 里迟早有人改了状态忘了时间戳。
 - **完成时 `order` 不动**,撤销回原位。置底会让一次误点永久打乱手工排的优先级。
 - **未完成全量返回、不设上限**;已完成区按 `completed_at` 倒序 + 上限(沿用 `RECENT_*_LIMIT` 的做法)。已完成区是唯一会无限增长、也是唯一不需要看全的地方。
@@ -72,7 +72,7 @@ Todo { id, title, order, due_date?, completed_at?, source_memo_id?, created_at }
 | 新增(可带 `source_memo_id`)/ 改(title·due_date)/ 删 | `POST /api/todos` · `PATCH {id}` · `DELETE {id}` |
 | 列表(未完成全量 + 已完成上限) | `GET /api/todos` |
 | 完成 / 撤销 | `POST /api/todos/{id}/complete` · `POST /api/todos/{id}/reopen` |
-| 排序 | `POST /api/todos/{id}/move` `{to: up\|down\|top\|bottom}` |
+| 排序 | `POST /api/todos/{id}/move` `{to: top\|bottom\|<int>}` |
 
 ## Testing Decisions
 

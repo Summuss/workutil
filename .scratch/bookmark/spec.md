@@ -75,7 +75,7 @@ Group    { id, name, order }                        一批要一起打开的书�
 
 ### 组
 
-- 单亲:`bookmark.group_id` 可空。组内排序落在 `bookmark.order`,组自身有 `group.order`,两者都复用 evidence 的 `_reordered` / `Move`(上下移动 + 置顶置底,不做拖拽)。
+- 单亲:`bookmark.group_id` 可空。组内排序落在 `bookmark.order`,组自身有 `group.order`,两者都复用 shared/core 的 `_reordered` / `Move`(拖拽把手排序 + 保留置顶置底,详见 `.scratch/drag-reorder/`)。
 - **删组 = 成员的 `group_id` 置空**,书签不删。
 
 ### 打开
@@ -94,7 +94,7 @@ Group    { id, name, order }                        一批要一起打开的书�
 | 动作 | 端点 |
 | --- | --- |
 | 登记 / 改(name·path·group_id)/ 删 | `POST /api/bookmarks` · `PATCH {id}` · `DELETE {id}` |
-| 组内排序 | `POST /api/bookmarks/{id}/move` `{to: up\|down\|top\|bottom}` |
+| 组内排序 | `POST /api/bookmarks/{id}/move` `{to: top\|bottom\|<int>}` |
 | 打开 / 打开所在文件夹 | `POST /api/bookmarks/{id}/open` · `POST /api/bookmarks/{id}/reveal` |
 | 列表(按组 + 散装) | `GET /api/bookmarks` |
 | 失效检查 | `POST /api/bookmarks/check` |
@@ -128,7 +128,7 @@ Group    { id, name, order }                        一批要一起打开的书�
 | 文件选择器 / 目录浏览器 | 浏览器不给绝对路径,唯一实现是后端列目录 —— 等于加一个「列出本机任意目录」的能力。登记是低频动作 |
 | URL / 应用程序书签 | 浏览器自己的书签栏把这件事解决得更好 |
 | 多对多分组(标签式) | ADR-0006 |
-| 拖拽排序 | 同 evidence:上下移动 + 置顶置底够用 |
+| 跨组拖拽 | 拖拽排序仅限同组内及分组间独立排序(详见 `.scratch/drag-reorder/`),跨组拖动书签超出范围 |
 | 扩展名黑名单 | ADR-0005 |
 | 打开后的结果确认 | `os.startfile` 是「交出去就不管」,系统有没有真的开出窗口,后端无从知道 |
 | 图标 / 缩略图 | |
