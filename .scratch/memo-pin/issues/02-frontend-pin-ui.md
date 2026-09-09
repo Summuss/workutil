@@ -10,16 +10,16 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `shared/icons.tsx` 加图钉图标,feather 描边风格
-- [ ] `MemoItem` 折叠态:图钉按钮在展开箭头左边
-- [ ] `MemoItem` 展开态:图钉按钮进头部工具栏
-- [ ] 已置顶时图钉高亮,再点取消
-- [ ] 置顶区与普通列表之间有细线 + 小标题;置顶区为空时两者都不渲染
-- [ ] 搜索状态下不分段显示,图钉按钮仍在
-- [ ] `SingleMemoPage` 有同一个图钉按钮
-- [ ] 钉 / 取消钉之后列表就地重排,不整页刷新
-- [ ] 已展开状态(`localStorage` 里按 id 记的那套)不受影响
-- [ ] 中日两种语言的文案都加:`memo.pin` / `memo.unpin` / `memo.pinned_section`,key 对齐测试通过
-- [ ] `make check` 通过
+- [x] `shared/icons.tsx` 加图钉图标,feather 描边风格
+- [x] `MemoItem` 折叠态:图钉按钮在展开箭头左边
+- [x] `MemoItem` 展开态:图钉按钮进头部工具栏
+- [x] 已置顶时图钉高亮,再点取消
+- [x] 置顶区与普通列表之间有细线 + 小标题;置顶区为空时两者都不渲染
+- [x] 搜索状态下不分段显示,图钉按钮仍在
+- [x] `SingleMemoPage` 有同一个图钉按钮
+- [x] 钉 / 取消钉之后列表就地重排,不整页刷新
+- [x] 已展开状态(`localStorage` 里按 id 记的那套)不受影响
+- [x] 中日两种语言的文案都加:`memo.pin` / `memo.unpin` / `memo.pinned_section`,key 对齐测试通过
+- [x] `make check` 通过

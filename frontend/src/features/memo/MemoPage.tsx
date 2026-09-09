@@ -83,9 +83,12 @@ export function MemoPage() {
       setError(null);
 
       if (searchQuery.trim() === "") {
-        // Straight to the top — no refetch, so it lands the instant the
-        // request returns.
-        setMemos((current) => [saved, ...current]);
+        // Place at the top of unpinned memos, below any pinned memos
+        setMemos((current) => {
+          const pinned = current.filter((m) => m.pinned_at !== null);
+          const unpinned = current.filter((m) => m.pinned_at === null);
+          return [...pinned, saved, ...unpinned];
+        });
         return;
       }
       // A search is on, so this list is a result set, not the whole list. Let
@@ -96,11 +99,27 @@ export function MemoPage() {
     [searchQuery, fetchMemos],
   );
 
-  const update = useCallback((updated: Memo) => {
-    setMemos((current) =>
-      current.map((memo) => (memo.id === updated.id ? updated : memo)),
-    );
-  }, []);
+  const update = useCallback(
+    (updated: Memo) => {
+      setMemos((current) => {
+        const next = current.map((memo) => (memo.id === updated.id ? updated : memo));
+        if (searchQuery.trim() === "") {
+          const pinned = next
+            .filter((m) => m.pinned_at !== null)
+            .sort(
+              (a, b) =>
+                (b.pinned_at ?? "").localeCompare(a.pinned_at ?? "") || b.id - a.id,
+            );
+          const unpinned = next
+            .filter((m) => m.pinned_at === null)
+            .sort((a, b) => b.created_at.localeCompare(a.created_at) || b.id - a.id);
+          return [...pinned, ...unpinned];
+        }
+        return next;
+      });
+    },
+    [searchQuery],
+  );
 
   const remove = useCallback((id: number) => {
     setMemos((current) => current.filter((memo) => memo.id !== id));

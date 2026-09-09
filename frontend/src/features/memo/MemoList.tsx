@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { t } from "../../shared/i18n";
+import { PinIcon } from "../../shared/icons";
 import { MemoItem } from "./MemoItem";
 import type { Memo } from "./types";
 
@@ -95,6 +96,10 @@ export function MemoList({
     return <Placeholder>{t("memo.empty_state")}</Placeholder>;
   }
 
+  const isSearching = Boolean(searchQuery && searchQuery.trim() !== "");
+  const pinnedMemos = isSearching ? [] : memos.filter((m) => m.pinned_at !== null);
+  const regularMemos = isSearching ? memos : memos.filter((m) => m.pinned_at === null);
+
   // Anything already written shows, even if the rest is still loading or the
   // load failed — a memo just saved must never be hidden behind a spinner.
   return (
@@ -104,8 +109,33 @@ export function MemoList({
           {error}
         </p>
       )}
+      {pinnedMemos.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {pinnedMemos.map((memo) => (
+            <MemoItem
+              key={memo.id}
+              memo={memo}
+              isExpanded={expandedIds.has(memo.id)}
+              searchQuery={searchQuery}
+              onToggleExpand={() => toggleExpand(memo.id)}
+              onUpdate={onUpdate}
+              onDelete={onDelete}
+            />
+          ))}
+        </ul>
+      )}
+      {pinnedMemos.length > 0 && (
+        <div
+          className="flex items-center gap-2.5 py-1 text-[11px]"
+          style={{ color: "var(--text-faint)", fontFamily: "var(--mono)" }}
+        >
+          <PinIcon size={12} filled />
+          <span>{t("memo.pinned_section")}</span>
+          <div className="flex-1" style={{ borderTop: "1px solid var(--border)" }} />
+        </div>
+      )}
       <ul className="flex flex-col gap-2">
-        {memos.map((memo) => (
+        {regularMemos.map((memo) => (
           <MemoItem
             key={memo.id}
             memo={memo}

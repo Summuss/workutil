@@ -13,11 +13,12 @@ import {
   ChevronDownIcon,
   ChevronUpIcon,
   EditIcon,
+  PinIcon,
   TrashIcon,
 } from "../../shared/icons";
 import { formatTime } from "../../shared/time";
 import { useImageAttachments } from "../../shared/useImageAttachments";
-import { deleteMemo, updateMemo } from "./api";
+import { deleteMemo, pinMemo, unpinMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
 import { HighlightText } from "./HighlightText";
 import { MemoMarkdown } from "./MemoMarkdown";
@@ -56,6 +57,7 @@ export function MemoItem({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pinning, setPinning] = useState(false);
   const [showConvertToTodo, setShowConvertToTodo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,6 +104,22 @@ export function MemoItem({
       element.setSelectionRange(element.value.length, element.value.length);
     }
   }, []);
+
+  async function handleTogglePin() {
+    if (pinning) {
+      return;
+    }
+    setPinning(true);
+    setError(null);
+    try {
+      const updated = memo.pinned_at ? await unpinMemo(memo.id) : await pinMemo(memo.id);
+      onUpdate(updated);
+    } catch (cause) {
+      setError(messageOf(cause, t("common.action_failed")));
+    } finally {
+      setPinning(false);
+    }
+  }
 
   async function save() {
     const pending = draft;
@@ -192,14 +210,26 @@ export function MemoItem({
               </span>
             )}
           </span>
-          <button
-            type="button"
-            onClick={onToggleExpand}
-            className="icon-btn shrink-0"
-            title={t("memo.expand")}
-          >
-            <ChevronDownIcon />
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => void handleTogglePin()}
+              disabled={pinning}
+              className="icon-btn"
+              style={memo.pinned_at ? { color: "var(--accent)" } : undefined}
+              title={memo.pinned_at ? t("memo.unpin") : t("memo.pin")}
+            >
+              <PinIcon filled={Boolean(memo.pinned_at)} />
+            </button>
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              className="icon-btn"
+              title={t("memo.expand")}
+            >
+              <ChevronDownIcon />
+            </button>
+          </div>
         </div>
 
         {/* Outside the button on purpose: a snippet is the line you came to
@@ -235,6 +265,16 @@ export function MemoItem({
           {isUnsaved && <span style={{ color: "var(--warn)" }}>{t("memo.unsaved_with_dot")}</span>}
         </div>
         <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => void handleTogglePin()}
+            disabled={pinning}
+            className="icon-btn"
+            style={memo.pinned_at ? { color: "var(--accent)" } : undefined}
+            title={memo.pinned_at ? t("memo.unpin") : t("memo.pin")}
+          >
+            <PinIcon filled={Boolean(memo.pinned_at)} />
+          </button>
           {!editing && (
             <>
               <button

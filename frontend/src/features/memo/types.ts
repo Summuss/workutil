@@ -9,6 +9,7 @@ export interface Memo {
   body: string;
   created_at: string;
   updated_at: string;
+  pinned_at: string | null;
   image_count: number;
   snippets?: string[];
   /** How many places matched — can exceed what `snippets` shows. */

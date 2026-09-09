@@ -32,3 +32,11 @@ export function deleteMemo(id: number): Promise<void> {
   return del(`/memos/${id}`);
 }
 
+export function pinMemo(id: number): Promise<Memo> {
+  return post<Memo>(`/memos/${id}/pin`);
+}
+
+export function unpinMemo(id: number): Promise<Memo> {
+  return del<Memo>(`/memos/${id}/pin`);
+}
+
