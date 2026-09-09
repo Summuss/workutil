@@ -246,6 +246,17 @@ export function MemoItem({
             </button>
             <button
               type="button"
+              onClick={() => {
+                onToggleExpand();
+                setEditing(true);
+              }}
+              className="icon-btn"
+              title={t("common.edit")}
+            >
+              <EditIcon />
+            </button>
+            <button
+              type="button"
               onClick={onToggleExpand}
               className="icon-btn"
               title={t("memo.expand")}
