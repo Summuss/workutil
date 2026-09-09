@@ -28,6 +28,7 @@ interface MemoItemProps {
   memo: Memo;
   isExpanded: boolean;
   searchQuery?: string;
+  collapsible?: boolean;
   onToggleExpand: () => void;
   onUpdate: (updated: Memo) => void;
   onDelete: (id: number) => void;
@@ -48,6 +49,7 @@ export function MemoItem({
   memo,
   isExpanded,
   searchQuery,
+  collapsible = true,
   onToggleExpand,
   onUpdate,
   onDelete,
@@ -185,13 +187,31 @@ export function MemoItem({
     }
   }
 
+  function handleCardClick(event: React.MouseEvent) {
+    if (!collapsible || editing) {
+      return;
+    }
+    const target = event.target;
+    if (!(target instanceof HTMLElement)) {
+      return;
+    }
+    if (target.dataset.memoBlank !== "true") {
+      return;
+    }
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      return;
+    }
+    onToggleExpand();
+  }
+
   if (!isExpanded) {
     const snippets = memo.snippets ?? [];
     const unshown = (memo.snippet_total ?? snippets.length) - snippets.length;
 
     return (
-      <li className="card px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
+      <li data-memo-blank="true" onClick={handleCardClick} className="card px-4 py-3">
+        <div data-memo-blank="true" className="flex items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-2">
             <span
               className="truncate"
@@ -259,8 +279,12 @@ export function MemoItem({
   }
 
   return (
-    <li className="card px-4 py-3.5">
-      <div className="flex items-center justify-between pb-2.5" style={{ borderBottom: "1px solid var(--border)" }}>
+    <li data-memo-blank="true" onClick={handleCardClick} className="card px-4 py-3.5">
+      <div
+        data-memo-blank="true"
+        className="flex items-center justify-between pb-2.5"
+        style={{ borderBottom: "1px solid var(--border)" }}
+      >
         <div className="flex items-center gap-2 text-[11px]" style={META_TEXT}>
           <span>{t("memo.created_at", { time: formatTime(memo.created_at) })}</span>
           {isModified && <span>{t("memo.updated_at", { time: formatTime(memo.updated_at) })}</span>}
@@ -346,7 +370,7 @@ export function MemoItem({
       ) : (
         // Nothing here reacts to a click: dragging across a stack trace to
         // copy it must stay a selection.
-        <div className="mt-3">
+        <div data-memo-blank="true" className="mt-3">
           {error && (
             <p className="mb-2 text-xs" style={{ color: "var(--danger)" }}>
               {error}

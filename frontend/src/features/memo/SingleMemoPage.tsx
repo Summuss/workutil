@@ -95,6 +95,7 @@ export function SingleMemoPage() {
           <MemoItem
             memo={memo}
             isExpanded={isExpanded}
+            collapsible={false}
             onToggleExpand={() => setIsExpanded((prev) => !prev)}
             onUpdate={(updated) => setMemo(updated)}
             onDelete={() => navigate("/")}
