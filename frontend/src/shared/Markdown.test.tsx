@@ -1,20 +1,20 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, test } from "vitest";
 
-import { MemoMarkdown } from "./MemoMarkdown";
+import { Markdown } from "./Markdown";
 
 /**
  * The one automated test on the frontend, and a deliberate exception to
  * "前端 UI 不写自动化测试" (spec Testing Decisions).
  *
- * Memo bodies are mostly pasted from web pages, Slack and error screens, and
+ * Markdown bodies are mostly pasted from web pages, Slack and error screens, and
  * this page can call a `127.0.0.1` backend that later gains arbitrary Python
  * execution (F4). Rendering raw HTML would join those two ends. Nothing else
  * enforces that — react-markdown escapes HTML only while no one adds
  * `rehype-raw`, and that is a one-line change away.
  */
 function render(markdown: string): string {
-  return renderToStaticMarkup(<MemoMarkdown content={markdown} />);
+  return renderToStaticMarkup(<Markdown content={markdown} />);
 }
 
 describe("a memo body pasted in from outside", () => {

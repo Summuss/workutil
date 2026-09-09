@@ -2,19 +2,19 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeHighlight from "rehype-highlight";
 
-import { Lightbox } from "../../shared/Lightbox";
+import { Lightbox } from "./Lightbox";
 
-interface MemoMarkdownProps {
+interface MarkdownProps {
   content: string;
 }
 
 /**
- * Renders memo markdown safely:
+ * Renders markdown safely:
  * - Code blocks display in monospace font with syntax highlighting.
  * - Raw HTML tags and scripts are escaped to plain text, never executed by the browser.
  * - Clicking thumbnail images opens the Lightbox.
  */
-export function MemoMarkdown({ content }: MemoMarkdownProps) {
+export function Markdown({ content }: MarkdownProps) {
   const [activeImage, setActiveImage] = useState<string | null>(null);
 
   return (

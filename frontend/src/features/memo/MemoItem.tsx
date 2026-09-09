@@ -21,7 +21,7 @@ import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, pinMemo, unpinMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
 import { HighlightText } from "./HighlightText";
-import { MemoMarkdown } from "./MemoMarkdown";
+import { Markdown } from "../../shared/Markdown";
 import { ConvertToTodoModal } from "./ConvertToTodoModal";
 import type { Memo } from "./types";
 
@@ -360,7 +360,7 @@ export function MemoItem({
               {error}
             </p>
           )}
-          <MemoMarkdown content={memo.body} />
+          <Markdown content={memo.body} />
         </div>
       )}
 

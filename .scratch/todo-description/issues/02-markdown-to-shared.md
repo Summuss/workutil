@@ -12,10 +12,16 @@
 
 **Blocked by:** 无
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `shared/Markdown.tsx`(组件名一并改成 `Markdown`),`features/memo/MemoMarkdown.tsx` 删除
-- [ ] `shared/Markdown.test.tsx` 搬过去并保持全绿
-- [ ] `MemoItem.tsx` / `SingleMemoPage.tsx` 改 import,渲染结果无变化
-- [ ] **变异验证**:给渲染器加上 `rehype-raw`,搬家后的测试**立刻变红**(和当初一样)
-- [ ] `pnpm build` / `tsc` 通过
+- [x] `shared/Markdown.tsx`(组件名一并改成 `Markdown`),`features/memo/MemoMarkdown.tsx` 删除
+- [x] `shared/Markdown.test.tsx` 搬过去并保持全绿
+- [x] `MemoItem.tsx` / `SingleMemoPage.tsx` 改 import,渲染结果无变化
+- [x] **变异验证**:给渲染器加上 `rehype-raw`,搬家后的测试**立刻变红**(和当初一样)
+- [x] `pnpm build` / `tsc` 通过
+
+## Comments
+
+### Code Review
+- **Standards**: 前端通用机制下沉至 `src/shared/`，解耦模块依赖，遵循项目既定架构规范。
+- **Spec**: `MemoMarkdown.tsx` 与其安全测试成功迁入 `src/shared/Markdown.tsx` / `Markdown.test.tsx`，保持「禁用 raw HTML」安全防线，测试全部通过，`pnpm build` 成功。
