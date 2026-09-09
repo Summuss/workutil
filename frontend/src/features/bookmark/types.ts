@@ -23,7 +23,7 @@ export interface BookmarkListResponse {
   loose: Bookmark[];
 }
 
-export type MoveDirection = "up" | "down" | "top" | "bottom";
+export type MoveDirection = "top" | "bottom" | number;
 
 export interface BookmarkCreatePayload {
   name: string;

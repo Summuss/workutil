@@ -5,11 +5,10 @@ import { t } from "../../shared/i18n";
 import {
   ChevronsDownIcon,
   ChevronsUpIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   EditIcon,
   TrashIcon,
 } from "../../shared/icons";
+import { DragHandle, useSortableItem } from "../../shared/sortable";
 import type {
   Bookmark,
   BookmarkGroup,
@@ -32,14 +31,12 @@ interface BookmarkItemProps {
 }
 
 const MOVES: {
-  to: MoveDirection;
-  Icon: typeof ChevronUpIcon;
+  to: "top" | "bottom";
+  Icon: typeof ChevronsUpIcon;
   titleKey: string;
   stuck: (at: number, count: number) => boolean;
 }[] = [
   { to: "top", Icon: ChevronsUpIcon, titleKey: "bookmark.move_item_top", stuck: (at) => at === 0 },
-  { to: "up", Icon: ChevronUpIcon, titleKey: "bookmark.move_item_up", stuck: (at) => at === 0 },
-  { to: "down", Icon: ChevronDownIcon, titleKey: "bookmark.move_item_down", stuck: (at, count) => at === count - 1 },
   { to: "bottom", Icon: ChevronsDownIcon, titleKey: "bookmark.move_item_bottom", stuck: (at, count) => at === count - 1 },
 ];
 
@@ -62,6 +59,8 @@ export function BookmarkItem({
   onReveal,
 }: BookmarkItemProps) {
   const [editing, setEditing] = useState(false);
+  const canReorder = !editing && count > 1;
+  const { ref, style, handleProps } = useSortableItem(bookmark.id, !canReorder);
   const [name, setName] = useState(bookmark.name);
   const [path, setPath] = useState(bookmark.path);
   const [groupId, setGroupId] = useState<number | null>(bookmark.group_id);
@@ -247,8 +246,10 @@ export function BookmarkItem({
 
   return (
     <li
+      ref={ref}
       className="group flex items-center justify-between gap-3 rounded-lg px-3.5 py-2.5 transition-colors"
       style={{
+        ...style,
         border: isStale ? "1px dashed var(--border-strong)" : "1px solid var(--border)",
         background: isStale ? "var(--stripe)" : "var(--surface)",
       }}
@@ -337,20 +338,27 @@ export function BookmarkItem({
           )}
         </div>
 
-        <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-hover:opacity-100">
-          {MOVES.map(({ to, Icon, titleKey, stuck }) => (
-            <button
-              key={to}
-              type="button"
-              title={t(titleKey)}
-              disabled={moving || stuck(at, count)}
-              onClick={() => void handleMove(to)}
-              className="tool-btn"
-            >
-              <Icon size={12} />
-            </button>
-          ))}
-        </div>
+        {count > 1 && (
+          <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+            <DragHandle
+              title={t("common.drag_reorder")}
+              disabled={moving}
+              {...handleProps}
+            />
+            {MOVES.map(({ to, Icon, titleKey, stuck }) => (
+              <button
+                key={to}
+                type="button"
+                title={t(titleKey)}
+                disabled={moving || stuck(at, count)}
+                onClick={() => void handleMove(to)}
+                className="tool-btn"
+              >
+                <Icon size={12} />
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
           <button type="button" onClick={startEditing} className="icon-btn" title={t("common.edit")}>

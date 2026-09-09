@@ -5,10 +5,9 @@ import { t } from "../../shared/i18n";
 import {
   ChevronsDownIcon,
   ChevronsUpIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
   FolderIcon,
 } from "../../shared/icons";
+import { DragHandle, SortableList, useSortableItem } from "../../shared/sortable";
 import { BookmarkItem } from "./BookmarkItem";
 import type {
   BookmarkGroup,
@@ -30,19 +29,18 @@ interface BookmarkGroupSectionProps {
   onUpdateBookmark: (id: number, payload: BookmarkUpdatePayload) => Promise<void>;
   onDeleteBookmark: (id: number) => Promise<void>;
   onMoveBookmark: (id: number, to: MoveDirection) => Promise<void>;
+  onReorderBookmark: (groupId: number, id: number | string, newIndex: number) => void | Promise<void>;
   onOpenBookmark: (id: number) => Promise<void>;
   onRevealBookmark: (id: number) => Promise<void>;
 }
 
 const MOVES: {
-  to: MoveDirection;
-  Icon: typeof ChevronUpIcon;
+  to: "top" | "bottom";
+  Icon: typeof ChevronsUpIcon;
   titleKey: string;
   stuck: (at: number, count: number) => boolean;
 }[] = [
   { to: "top", Icon: ChevronsUpIcon, titleKey: "bookmark.move_group_top", stuck: (at) => at === 0 },
-  { to: "up", Icon: ChevronUpIcon, titleKey: "bookmark.move_group_up", stuck: (at) => at === 0 },
-  { to: "down", Icon: ChevronDownIcon, titleKey: "bookmark.move_group_down", stuck: (at, count) => at === count - 1 },
   { to: "bottom", Icon: ChevronsDownIcon, titleKey: "bookmark.move_group_bottom", stuck: (at, count) => at === count - 1 },
 ];
 
@@ -61,7 +59,10 @@ export function BookmarkGroupSection({
   onMoveBookmark,
   onOpenBookmark,
   onRevealBookmark,
+  onReorderBookmark,
 }: BookmarkGroupSectionProps) {
+  const canReorder = count > 1;
+  const { ref, style, handleProps } = useSortableItem(group.id, !canReorder);
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(group.name);
   const [saving, setSaving] = useState(false);
@@ -139,7 +140,11 @@ export function BookmarkGroupSection({
   }
 
   return (
-    <section className="card group/header flex flex-col gap-2.5 p-4">
+    <section
+      ref={ref}
+      style={style}
+      className="card group/header flex flex-col gap-2.5 p-4"
+    >
       <div className="flex items-center justify-between gap-2 pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <FolderIcon style={{ color: "var(--text-faint)" }} />
@@ -191,21 +196,28 @@ export function BookmarkGroupSection({
             {openingGroup ? t("bookmark.opening_group") : t("bookmark.open_all")}
           </button>
 
-          {/* Group 4-way reorder buttons */}
-          <div className="flex items-center gap-0.5">
-            {MOVES.map(({ to, Icon, titleKey, stuck }) => (
-              <button
-                key={to}
-                type="button"
-                title={t(titleKey)}
-                disabled={moving || stuck(at, count)}
-                onClick={() => void handleMove(to)}
-                className="tool-btn"
-              >
-                <Icon size={12} />
-              </button>
-            ))}
-          </div>
+          {/* Group reorder buttons */}
+          {count > 1 && (
+            <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-focus-within/header:opacity-100 group-hover/header:opacity-100">
+              <DragHandle
+                title={t("common.drag_reorder")}
+                disabled={moving}
+                {...handleProps}
+              />
+              {MOVES.map(({ to, Icon, titleKey, stuck }) => (
+                <button
+                  key={to}
+                  type="button"
+                  title={t(titleKey)}
+                  disabled={moving || stuck(at, count)}
+                  onClick={() => void handleMove(to)}
+                  className="tool-btn"
+                >
+                  <Icon size={12} />
+                </button>
+              ))}
+            </div>
+          )}
 
           {!renaming && (
             <div className="flex items-center gap-2.5 opacity-40 transition-opacity group-hover/header:opacity-100">
@@ -230,7 +242,12 @@ export function BookmarkGroupSection({
           {t("bookmark.group_empty")}
         </p>
       ) : (
-        <ul className="flex flex-col gap-1.5">
+        <SortableList
+          as="ul"
+          className="flex flex-col gap-1.5"
+          items={group.bookmarks}
+          onReorder={(id, newIndex) => onReorderBookmark(group.id, id, newIndex)}
+        >
           {group.bookmarks.map((bookmark, idx) => (
             <BookmarkItem
               key={bookmark.id}
@@ -246,7 +263,7 @@ export function BookmarkGroupSection({
               onReveal={onRevealBookmark}
             />
           ))}
-        </ul>
+        </SortableList>
       )}
     </section>
   );
