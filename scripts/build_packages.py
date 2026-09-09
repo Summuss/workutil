@@ -264,11 +264,16 @@ def assemble_bundle(target: PackageTarget, version: str, python_tarball: Path) -
                     file_path = Path(root) / f
                     arcname = str(rel_root / f)
                     info = zipfile.ZipInfo(arcname)
+                    # `ZipFile.writestr` only picks up the ZipFile's own
+                    # `compression=` default when given a plain arcname
+                    # string; handing it a ZipInfo we built ourselves (as we
+                    # must, to carry the executable bit below) means we own
+                    # setting this too, or every entry is written ZIP_STORED
+                    # and the "37MB" size in spec.md silently doubles.
+                    info.compress_type = zipfile.ZIP_DEFLATED
                     st = file_path.stat()
                     if target.launcher_executable and f == target.launcher_filename:
                         info.external_attr = 0o100755 << 16
-                    elif st.st_mode & 0o111:
-                        info.external_attr = (st.st_mode & 0xFFFF) << 16
                     else:
                         info.external_attr = (st.st_mode & 0xFFFF) << 16
                     with open(file_path, "rb") as src:
