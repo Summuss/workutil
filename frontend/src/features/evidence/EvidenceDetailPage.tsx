@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router";
 
 import { arrayMove } from "@dnd-kit/sortable";
 
+import { messageOf } from "../../shared/api";
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
 import { ArrowLeftIcon } from "../../shared/icons";
@@ -11,6 +12,7 @@ import { useLoad } from "../../shared/useLoad";
 import {
   addCase,
   deleteCase,
+  duplicateCase,
   exportEvidenceUrl,
   getEvidence,
   moveCase,
@@ -92,6 +94,21 @@ export function EvidenceDetailPage() {
       // just because the case you were in is gone.
       setPickedId(left[Math.min(wasAt, left.length - 1)]?.id ?? null);
     });
+  }
+
+  async function handleDuplicate(caseId: number): Promise<number | null> {
+    let newCaseId: number | null = null;
+    await caseEdit.run(async () => {
+      try {
+        const res = await duplicateCase(id, caseId);
+        setCases(res.cases);
+        setPickedId(res.new_case_id);
+        newCaseId = res.new_case_id;
+      } catch (cause) {
+        throw new Error(messageOf(cause, t("evidence.duplicate_case_failed")));
+      }
+    });
+    return newCaseId;
   }
 
   async function handleReorderCase(caseId: number, targetIndex: number): Promise<void> {
@@ -233,6 +250,7 @@ export function EvidenceDetailPage() {
         onAdd={handleAdd}
         onRename={handleRename}
         onDelete={handleDelete}
+        onDuplicate={handleDuplicate}
         onMove={handleMove}
         onReorder={handleReorderCase}
       />

@@ -57,3 +57,8 @@ export interface Block {
 export interface CaseDetail extends Case {
   blocks: Block[];
 }
+
+export interface DuplicateCaseResponse {
+  cases: Case[];
+  new_case_id: number;
+}

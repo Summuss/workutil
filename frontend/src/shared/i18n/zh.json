@@ -155,6 +155,8 @@
   "evidence.add_case_button": "+ 用例",
   "evidence.case_position": "第 {current} / {total} 个用例",
   "evidence.rename_case": "重命名",
+  "evidence.duplicate_case": "复制用例",
+  "evidence.duplicate_case_failed": "复制用例失败",
   "evidence.move_block_top": "移到最前",
   "evidence.move_block_bottom": "移到最后",
   "evidence.delete_block_confirm": "确定删除这一段吗?",

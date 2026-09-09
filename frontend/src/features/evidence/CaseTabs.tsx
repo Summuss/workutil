@@ -7,6 +7,7 @@ import { useI18n } from "../../shared/i18n";
 import {
   ChevronsLeftIcon,
   ChevronsRightIcon,
+  CopyIcon,
   EditIcon,
   PlusIcon,
   TrashIcon,
@@ -24,6 +25,7 @@ interface CaseTabsProps {
   onAdd: (name: string) => Promise<boolean>;
   onRename: (caseId: number, name: string) => Promise<boolean>;
   onDelete: (caseId: number) => Promise<void>;
+  onDuplicate: (caseId: number) => Promise<number | null>;
   onMove: (caseId: number, to: Move) => Promise<void>;
   onReorder?: (caseId: number, newIndex: number) => void | Promise<void>;
 }
@@ -107,6 +109,7 @@ export function CaseTabs({
   onAdd,
   onRename,
   onDelete,
+  onDuplicate,
   onMove,
   onReorder,
 }: CaseTabsProps) {
@@ -121,6 +124,16 @@ export function CaseTabs({
   const selected = cases.find((one) => one.id === selectedId) ?? null;
   const at = selected ? cases.indexOf(selected) : -1;
   const canReorder = cases.length > 1;
+
+  async function duplicate() {
+    if (selected === null) {
+      return;
+    }
+    const newCaseId = await onDuplicate(selected.id);
+    if (newCaseId !== null) {
+      setEditing({ kind: "rename", caseId: newCaseId });
+    }
+  }
 
   async function commit(name: string) {
     if (editing === null) {
@@ -235,7 +248,17 @@ export function CaseTabs({
           ))}
           <button
             type="button"
+            onClick={() => void duplicate()}
+            disabled={busy}
+            className={TOOL_BUTTON}
+            title={t("evidence.duplicate_case")}
+          >
+            <CopyIcon size={12} />
+          </button>
+          <button
+            type="button"
             onClick={() => setEditing({ kind: "rename", caseId: selected.id })}
+            disabled={busy}
             className={TOOL_BUTTON}
             title={t("evidence.rename_case")}
           >

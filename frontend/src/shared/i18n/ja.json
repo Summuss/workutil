@@ -155,6 +155,8 @@
   "evidence.add_case_button": "+ ケース",
   "evidence.case_position": "ケース {current} / {total}",
   "evidence.rename_case": "名前変更",
+  "evidence.duplicate_case": "ケースを複製",
+  "evidence.duplicate_case_failed": "ケースの複製に失敗しました",
   "evidence.move_block_top": "先頭へ移動",
   "evidence.move_block_bottom": "末尾へ移動",
   "evidence.delete_block_confirm": "このセクションを削除してもよろしいですか？",

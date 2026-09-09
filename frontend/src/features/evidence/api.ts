@@ -4,6 +4,7 @@ import type {
   Block,
   Case,
   CaseDetail,
+  DuplicateCaseResponse,
   Evidence,
   EvidenceDetail,
   Move,
@@ -47,6 +48,15 @@ export function renameCase(
 
 export function deleteCase(evidenceId: number, caseId: number): Promise<void> {
   return del(`/evidence/${evidenceId}/cases/${caseId}`);
+}
+
+export function duplicateCase(
+  evidenceId: number,
+  caseId: number,
+): Promise<DuplicateCaseResponse> {
+  return post<DuplicateCaseResponse>(
+    `/evidence/${evidenceId}/cases/${caseId}/duplicate`,
+  );
 }
 
 /** Moves answer with the whole new order — a move that hit an end changed nothing. */

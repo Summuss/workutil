@@ -10,15 +10,15 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `shared/icons.tsx` 加复制图标,feather 描边风格
-- [ ] `CaseTabs` 工具栏加复制按钮,在「重命名」旁边
-- [ ] 复制后自动切到新用例
-- [ ] 新用例标签立刻进入 `InlineEdit`,建议名预填并全选
-- [ ] 回车接受;`Esc` 也接受(不撤销复制)
-- [ ] 改成一个已存在的编号时被拒,提示与现有重命名一致,输入框留在原地
-- [ ] 复制进行中按钮置灰(复用 `caseEdit` 的 busy)
-- [ ] 复制失败时报错,不留下半个用例
-- [ ] 中日两种语言的文案:`evidence.duplicate_case` 及失败提示,key 对齐测试通过
-- [ ] `make check` 通过
+- [x] `shared/icons.tsx` 加复制图标,feather 描边风格
+- [x] `CaseTabs` 工具栏加复制按钮,在「重命名」旁边
+- [x] 复制后自动切到新用例
+- [x] 新用例标签立刻进入 `InlineEdit`,建议名预填并全选
+- [x] 回车接受;`Esc` 也接受(不撤销复制)
+- [x] 改成一个已存在的编号时被拒,提示与现有重命名一致,输入框留在原地
+- [x] 复制进行中按钮置灰(复用 `caseEdit` 的 busy)
+- [x] 复制失败时报错,不留下半个用例
+- [x] 中日两种语言的文案:`evidence.duplicate_case` 及失败提示,key 对齐测试通过
+- [x] `make check` 通过
