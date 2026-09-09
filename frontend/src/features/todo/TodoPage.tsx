@@ -20,6 +20,35 @@ import {
 import { TodoItem } from "./TodoItem";
 import type { MoveDirection, TodoListResponse, TodoUpdatePayload } from "./types";
 
+export const EXPANDED_STORAGE_KEY = "workutil_todo_expanded_ids";
+
+export function loadExpandedIds(): Set<number> {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const raw = localStorage.getItem(EXPANDED_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return new Set(parsed.filter((id): id is number => typeof id === "number"));
+        }
+      }
+    } catch {
+      // localStorage may be unavailable or blocked
+    }
+  }
+  return new Set();
+}
+
+export function saveExpandedIds(ids: Set<number>): void {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+    } catch {
+      // ignore storage failures
+    }
+  }
+}
+
 export function TodoPage() {
   // Subscribing here re-renders this whole subtree (and its bare `t()` calls
   // below) when the language switches, instead of leaving it stale until some
@@ -36,10 +65,24 @@ export function TodoPage() {
   const [newDueDate, setNewDueDate] = useState("");
   const [creating, setCreating] = useState(false);
   const [completedOpen, setCompletedOpen] = useState(false);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(() => loadExpandedIds());
   const [actionError, setActionError] = useState<string | null>(null);
 
   const todos = loaded?.todos ?? [];
   const completed = loaded?.completed ?? [];
+
+  const handleToggleExpand = useCallback((id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      saveExpandedIds(next);
+      return next;
+    });
+  }, []);
 
   const handleCreate = useCallback(
     async (e: FormEvent) => {
@@ -281,6 +324,8 @@ export function TodoPage() {
               key={todo.id}
               todo={todo}
               isCompleted={false}
+              isExpanded={expandedIds.has(todo.id)}
+              onToggleExpand={() => handleToggleExpand(todo.id)}
               at={index}
               count={todos.length}
               onToggle={handleComplete}
@@ -312,6 +357,8 @@ export function TodoPage() {
                   key={todo.id}
                   todo={todo}
                   isCompleted={true}
+                  isExpanded={expandedIds.has(todo.id)}
+                  onToggleExpand={() => handleToggleExpand(todo.id)}
                   onToggle={handleReopen}
                   onUpdate={handleUpdate}
                   onDelete={handleDelete}

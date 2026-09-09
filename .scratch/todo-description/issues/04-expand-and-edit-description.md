@@ -20,15 +20,21 @@
 
 **Blocked by:** 01, 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] 有说明的待办显示展开箭头 + 一个小标记;**没说明的不显示**,行高不变
-- [ ] 展开后用 `shared/Markdown` 渲染说明,代码块带高亮
-- [ ] 说明里的 `<script>` 原样显示为文字,不执行
-- [ ] 展开状态写入 / 读回 `localStorage`,按 id 记忆;`localStorage` 不可用时静默降级
-- [ ] 已完成的待办可展开、**只读**(无编辑入口)
-- [ ] 编辑表单里加说明 `textarea`,与标题、截止日期一次保存
-- [ ] 清空说明后保存,展开箭头随之消失
-- [ ] 展开一条待办后仍能拖拽排序,把手位置正常
-- [ ] `todo.description_label` / `todo.description_placeholder` / `todo.expand` / `todo.collapse` 等文案中日双份,key 对齐测试通过
-- [ ] `pnpm build` / `tsc` 通过;手动验证展开、刷新保持、已完成只读三条
+- [x] 有说明的待办显示展开箭头 + 一个小标记;**没说明的不显示**,行高不变
+- [x] 展开后用 `shared/Markdown` 渲染说明,代码块带高亮
+- [x] 说明里的 `<script>` 原样显示为文字,不执行
+- [x] 展开状态写入 / 读回 `localStorage`,按 id 记忆;`localStorage` 不可用时静默降级
+- [x] 已完成的待办可展开、**只读**(无编辑入口)
+- [x] 编辑表单里加说明 `textarea`,与标题、截止日期一次保存
+- [x] 清空说明后保存,展开箭头随之消失
+- [x] 展开一条待办后仍能拖拽排序,把手位置正常
+- [x] `todo.description_label` / `todo.description_placeholder` / `todo.expand` / `todo.collapse` 等文案中日双份,key 对齐测试通过
+- [x] `pnpm build` / `tsc` 通过;手动验证展开、刷新保持、已完成只读三条
+
+## Comments
+
+### Code Review
+- **Standards**: 前端使用 `shared/Markdown` 组件，严格遵循「禁用 raw HTML」安全防线；展开状态与 `MemoList` 一致使用 localStorage 并静默降级。
+- **Spec**: 有说明的 Todo 显示小标记及展开折叠箭头；展开后渲染 Markdown 且不影响拖拽排序；编辑表单一次性保存标题、说明与截止日期；已完成 Todo 支持只读展开；文案中日双语对齐，构建和单测全部通过。

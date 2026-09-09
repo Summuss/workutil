@@ -1,6 +1,7 @@
 export interface Todo {
   id: number;
   title: string;
+  description: string;
   order: number;
   due_date: string | null;
   completed_at: string | null;
@@ -17,10 +18,12 @@ export interface TodoListResponse {
 
 export interface TodoCreatePayload {
   title: string;
+  description?: string;
   due_date?: string | null;
 }
 
 export interface TodoUpdatePayload {
   title?: string;
+  description?: string;
   due_date?: string | null;
 }

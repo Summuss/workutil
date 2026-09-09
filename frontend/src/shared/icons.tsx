@@ -238,3 +238,14 @@ export function DragHandleIcon(props: IconProps) {
   );
 }
 
+export function AlignLeftIcon(props: IconProps) {
+  return (
+    <svg {...base(props.size ?? 12, props)}>
+      <line x1="21" y1="6" x2="3" y2="6" />
+      <line x1="15" y1="12" x2="3" y2="12" />
+      <line x1="17" y1="18" x2="3" y2="18" />
+    </svg>
+  );
+}
+
+

@@ -2,12 +2,16 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { t } from "../../shared/i18n";
 import {
+  AlignLeftIcon,
   CheckIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   ChevronsDownIcon,
   ChevronsUpIcon,
   EditIcon,
   TrashIcon,
 } from "../../shared/icons";
+import { Markdown } from "../../shared/Markdown";
 import { DragHandle, useSortableItem } from "../../shared/sortable";
 import { getDueDateStatus } from "./dueDateUtil";
 import type { MoveDirection, Todo, TodoUpdatePayload } from "./types";
@@ -15,6 +19,8 @@ import type { MoveDirection, Todo, TodoUpdatePayload } from "./types";
 interface TodoItemProps {
   todo: Todo;
   isCompleted: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
   at?: number;
   count?: number;
   onToggle: (id: number) => Promise<void>;
@@ -36,6 +42,8 @@ const MOVES: {
 export function TodoItem({
   todo,
   isCompleted,
+  isExpanded = false,
+  onToggleExpand,
   at,
   count,
   onToggle,
@@ -47,6 +55,7 @@ export function TodoItem({
   const canReorder = !isCompleted && !editing && onMove !== undefined && count !== undefined && count > 1;
   const { ref, style, handleProps } = useSortableItem(todo.id, !canReorder);
   const [title, setTitle] = useState(todo.title);
+  const [description, setDescription] = useState(todo.description ?? "");
   const [dueDate, setDueDate] = useState(todo.due_date ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -57,8 +66,9 @@ export function TodoItem({
 
   useEffect(() => {
     setTitle(todo.title);
+    setDescription(todo.description ?? "");
     setDueDate(todo.due_date ?? "");
-  }, [todo.title, todo.due_date]);
+  }, [todo.title, todo.description, todo.due_date]);
 
   useEffect(() => {
     if (editing) {
@@ -95,7 +105,11 @@ export function TodoItem({
       return;
     }
     const cleanDate = dueDate ? dueDate : null;
-    if (clean === todo.title && cleanDate === todo.due_date) {
+    if (
+      clean === todo.title &&
+      cleanDate === todo.due_date &&
+      description === (todo.description ?? "")
+    ) {
       setEditing(false);
       setError(null);
       return;
@@ -105,6 +119,7 @@ export function TodoItem({
     try {
       await onUpdate(todo.id, {
         title: clean,
+        description: description,
         due_date: cleanDate,
       });
       setEditing(false);
@@ -117,6 +132,7 @@ export function TodoItem({
 
   function handleCancel() {
     setTitle(todo.title);
+    setDescription(todo.description ?? "");
     setDueDate(todo.due_date ?? "");
     setEditing(false);
     setError(null);
@@ -160,6 +176,26 @@ export function TodoItem({
             className="field-input"
             style={{ fontSize: "13px" }}
           />
+
+          <div className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
+            <span>{t("todo.description_label")}</span>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onKeyDown={(e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                  void handleSave(e);
+                } else if (e.key === "Escape") {
+                  handleCancel();
+                }
+              }}
+              placeholder={t("todo.description_placeholder")}
+              rows={Math.min(10, Math.max(3, description.split("\n").length))}
+              className="field-input resize-y leading-relaxed"
+              style={{ fontFamily: "var(--mono)", fontSize: "13px" }}
+              spellCheck={false}
+            />
+          </div>
 
           <div className="flex items-center gap-2.5 text-xs" style={{ color: "var(--text-muted)" }}>
             <span>{t("todo.due_date_label")}</span>
@@ -206,6 +242,8 @@ export function TodoItem({
     );
   }
 
+  const hasDescription = Boolean(todo.description && todo.description.trim());
+
   return (
     <li
       ref={ref}
@@ -214,89 +252,112 @@ export function TodoItem({
         border: `1px solid ${isCompleted ? "var(--border)" : "var(--border)"}`,
         background: isCompleted ? "var(--stripe)" : "var(--surface)",
       }}
-      className="group flex items-center gap-3 rounded-lg px-3.5 py-2.5 transition-colors"
+      className="group flex flex-col rounded-lg px-3.5 py-2.5 transition-colors"
     >
-      <button
-        type="button"
-        onClick={() => void handleToggle()}
-        disabled={toggling}
-        title={isCompleted ? t("todo.mark_incomplete") : t("todo.mark_complete")}
-        className="flex h-[17px] w-[17px] shrink-0 cursor-pointer items-center justify-center rounded-[5px] transition-colors disabled:opacity-50"
-        style={
-          isCompleted
-            ? { background: "var(--accent)" }
-            : { border: "1.5px solid var(--border-strong)" }
-        }
-      >
-        {isCompleted && <CheckIcon size={11} style={{ color: "white" }} strokeWidth={3} />}
-      </button>
-
-      <span
-        onDoubleClick={() => setEditing(true)}
-        className="min-w-0 flex-1 truncate text-[13.5px] select-none"
-        style={
-          isCompleted
-            ? { color: "var(--text-faint)", textDecoration: "line-through" }
-            : { color: "var(--text)" }
-        }
-        title={todo.title}
-      >
-        {todo.title}
-      </span>
-
-      {dueBadge && (
-        <span
-          className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[10.5px]"
-          style={{
-            fontFamily: "var(--mono)",
-            background: isCompleted ? "transparent" : dueBadge.bg,
-            color: isCompleted ? "var(--text-faint)" : dueBadge.color,
-            textDecoration: isCompleted ? "line-through" : "none",
-          }}
-        >
-          {dueBadge.label}
-        </span>
-      )}
-
-
-      {canReorder && at !== undefined && count !== undefined && (
-        <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-          <DragHandle
-            title={t("common.drag_reorder")}
-            disabled={moving}
-            {...handleProps}
-          />
-          {MOVES.map(({ to, Icon, titleKey, stuck }) => (
-            <button
-              key={to}
-              type="button"
-              title={t(titleKey)}
-              disabled={moving || stuck(at, count)}
-              onClick={() => void handleMove(to)}
-              className="tool-btn"
-            >
-              <Icon size={12} />
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-        {!isCompleted && (
-          <button type="button" onClick={() => setEditing(true)} className="icon-btn" title={t("common.edit")}>
-            <EditIcon />
-          </button>
-        )}
+      <div className="flex items-center gap-3 w-full">
         <button
           type="button"
-          onClick={() => void handleDelete()}
-          disabled={deleting}
-          className="icon-btn icon-btn-danger"
-          title={t("common.delete")}
+          onClick={() => void handleToggle()}
+          disabled={toggling}
+          title={isCompleted ? t("todo.mark_incomplete") : t("todo.mark_complete")}
+          className="flex h-[17px] w-[17px] shrink-0 cursor-pointer items-center justify-center rounded-[5px] transition-colors disabled:opacity-50"
+          style={
+            isCompleted
+              ? { background: "var(--accent)" }
+              : { border: "1.5px solid var(--border-strong)" }
+          }
         >
-          <TrashIcon />
+          {isCompleted && <CheckIcon size={11} style={{ color: "white" }} strokeWidth={3} />}
         </button>
+
+        <span
+          onDoubleClick={() => !isCompleted && setEditing(true)}
+          className="min-w-0 flex-1 truncate text-[13.5px] select-none"
+          style={
+            isCompleted
+              ? { color: "var(--text-faint)", textDecoration: "line-through" }
+              : { color: "var(--text)" }
+          }
+          title={todo.title}
+        >
+          {todo.title}
+        </span>
+
+        {hasDescription && (
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            className="inline-flex shrink-0 items-center gap-1 cursor-pointer transition-opacity hover:opacity-80"
+            style={{ color: "var(--text-muted)" }}
+            title={isExpanded ? t("todo.collapse") : t("todo.expand")}
+          >
+            <AlignLeftIcon size={12} />
+            {isExpanded ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
+          </button>
+        )}
+
+        {dueBadge && (
+          <span
+            className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[10.5px]"
+            style={{
+              fontFamily: "var(--mono)",
+              background: isCompleted ? "transparent" : dueBadge.bg,
+              color: isCompleted ? "var(--text-faint)" : dueBadge.color,
+              textDecoration: isCompleted ? "line-through" : "none",
+            }}
+          >
+            {dueBadge.label}
+          </span>
+        )}
+
+        {canReorder && at !== undefined && count !== undefined && (
+          <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+            <DragHandle
+              title={t("common.drag_reorder")}
+              disabled={moving}
+              {...handleProps}
+            />
+            {MOVES.map(({ to, Icon, titleKey, stuck }) => (
+              <button
+                key={to}
+                type="button"
+                title={t(titleKey)}
+                disabled={moving || stuck(at, count)}
+                onClick={() => void handleMove(to)}
+                className="tool-btn"
+              >
+                <Icon size={12} />
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="flex items-center gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          {!isCompleted && (
+            <button type="button" onClick={() => setEditing(true)} className="icon-btn" title={t("common.edit")}>
+              <EditIcon />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => void handleDelete()}
+            disabled={deleting}
+            className="icon-btn icon-btn-danger"
+            title={t("common.delete")}
+          >
+            <TrashIcon />
+          </button>
+        </div>
       </div>
+
+      {hasDescription && isExpanded && (
+        <div
+          className="mt-2.5 pt-2 pl-7 text-[13px] border-t border-dashed"
+          style={{ borderColor: "var(--border)" }}
+        >
+          <Markdown content={todo.description} />
+        </div>
+      )}
     </li>
   );
 }
