@@ -54,7 +54,6 @@
   "todo.description_placeholder": "添加详细说明… (支持 Markdown，代码块带高亮)",
   "todo.expand": "展开说明",
   "todo.collapse": "收起说明",
-  "todo.has_description": "含说明",
   "todo.clear_date": "清除日期",
   "todo.create_failed": "创建待办失败",
   "todo.update_failed": "更新待办失败",
@@ -225,11 +224,11 @@
   "settings.import_confirm_cancel": "取消",
   "settings.import_success_title": "导入成功！请手动重启 workutil",
   "settings.import_success_desc": "数据已成功导入。旧数据库已备份为 {backup}。请关掉当前 workutil 服务/窗口并重新打开，以加载新数据。",
-  "error.INVALID_ZIP_ARCHIVE": "上传的文件不是合法的 zip 压缩包",
-  "error.INVALID_ZIP_STRUCTURE": "zip 压缩包结构不正确，必须包含 workutil.db 和 manifest.json",
-  "error.ZIP_SLIP_DETECTED": "zip 压缩包包含非法路径或目录穿越条目，已拒绝导入",
-  "error.INVALID_MANIFEST": "压缩包中的 manifest.json 无效或已损坏",
-  "error.ALEMBIC_REVISION_MISMATCH": "数据包的数据库版本与当前应用不匹配，无法导入",
-  "error.DATABASE_NOT_EMPTY": "当前数据库已存在数据，导入只能覆盖空数据库。请在空环境中导入",
-  "error.IMAGES_NOT_EMPTY": "图片目录中存在残留文件，导入前请先清空图片目录"
+  "error.transfer.invalid_zip_archive": "上传的文件不是合法的 zip 压缩包",
+  "error.transfer.invalid_zip_structure": "zip 压缩包结构不正确，必须包含 workutil.db 和 manifest.json",
+  "error.transfer.zip_slip_detected": "zip 压缩包包含非法路径或目录穿越条目，已拒绝导入",
+  "error.transfer.invalid_manifest": "压缩包中的 manifest.json 无效或已损坏",
+  "error.transfer.alembic_revision_mismatch": "数据包的数据库版本与当前应用不匹配，无法导入",
+  "error.transfer.database_not_empty": "当前数据库已存在数据，导入只能覆盖空数据库。请在空环境中导入",
+  "error.transfer.images_not_empty": "图片目录中存在残留文件，导入前请先清空图片目录"
 }

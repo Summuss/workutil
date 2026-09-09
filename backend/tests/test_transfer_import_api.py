@@ -149,7 +149,7 @@ def test_reject_when_database_not_empty(data_dir: Path, tmp_path: Path) -> None:
         )
         assert res.status_code == 400
         err = res.json()
-        assert err["code"] == "DATABASE_NOT_EMPTY"
+        assert err["code"] == "transfer.database_not_empty"
 
         # Ensure data directory was not modified (no backup created, no overwrite)
         files_after = {p.name: p.stat().st_mtime_ns for p in data_dir.rglob("*")}
@@ -183,7 +183,7 @@ def test_reject_when_images_not_empty(data_dir: Path) -> None:
         )
         assert res.status_code == 400
         err = res.json()
-        assert err["code"] == "IMAGES_NOT_EMPTY"
+        assert err["code"] == "transfer.images_not_empty"
 
         # Assert data dir untouched
         files_after = {p.name: p.stat().st_mtime_ns for p in data_dir.rglob("*")}
@@ -207,7 +207,7 @@ def test_reject_when_alembic_revision_mismatch(data_dir: Path) -> None:
         )
         assert res.status_code == 400
         err = res.json()
-        assert err["code"] == "ALEMBIC_REVISION_MISMATCH"
+        assert err["code"] == "transfer.alembic_revision_mismatch"
 
         files_after = {p.name: p.stat().st_mtime_ns for p in data_dir.rglob("*")}
         assert files_before == files_after
@@ -223,7 +223,7 @@ def test_reject_when_zip_structure_invalid(data_dir: Path) -> None:
             files={"file": ("test.zip", b"plain string not a zip", "application/zip")},
         )
         assert res.status_code == 400
-        assert res.json()["code"] == "INVALID_ZIP_ARCHIVE"
+        assert res.json()["code"] == "transfer.invalid_zip_archive"
 
         # 2. Missing workutil.db
         zip_buf = io.BytesIO()
@@ -234,7 +234,7 @@ def test_reject_when_zip_structure_invalid(data_dir: Path) -> None:
             files={"file": ("test.zip", zip_buf.getvalue(), "application/zip")},
         )
         assert res.status_code == 400
-        assert res.json()["code"] == "INVALID_ZIP_STRUCTURE"
+        assert res.json()["code"] == "transfer.invalid_zip_structure"
 
         files_after = {p.name: p.stat().st_mtime_ns for p in data_dir.rglob("*")}
         assert files_before == files_after
@@ -255,7 +255,7 @@ def test_reject_when_zip_contains_path_traversal(data_dir: Path) -> None:
             files={"file": ("test.zip", zip_buf.getvalue(), "application/zip")},
         )
         assert res.status_code == 400
-        assert res.json()["code"] == "ZIP_SLIP_DETECTED"
+        assert res.json()["code"] == "transfer.zip_slip_detected"
 
         files_after = {p.name: p.stat().st_mtime_ns for p in data_dir.rglob("*")}
         assert files_before == files_after

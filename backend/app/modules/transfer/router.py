@@ -2,10 +2,11 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, UploadFile, status
 from fastapi.responses import FileResponse
 
 from app.core.deps import SettingsDep
+from app.core.errors import http_error
 from app.modules.transfer import service
 from app.modules.transfer.schemas import ImportResponse
 
@@ -47,11 +48,16 @@ def import_data_package(
                 "Please restart workutil to apply changes."
             ),
         )
-    except service.TransferError as e:
-        raise HTTPException(
-            status_code=e.status_code,
-            detail={"code": e.code, "message": e.message},
-        ) from e
+    except (
+        service.InvalidZipArchive,
+        service.ZipSlipDetected,
+        service.InvalidZipStructure,
+        service.InvalidManifest,
+        service.AlembicRevisionMismatch,
+        service.DatabaseNotEmpty,
+        service.ImagesNotEmpty,
+    ) as err:
+        raise http_error(status.HTTP_400_BAD_REQUEST, err) from err
     finally:
         if temp_path.exists():
             temp_path.unlink()

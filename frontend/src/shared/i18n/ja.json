@@ -54,7 +54,6 @@
   "todo.description_placeholder": "詳細な説明を追加… (Markdown 対応、コードブロックのシンタックスハイライトあり)",
   "todo.expand": "説明を展開",
   "todo.collapse": "説明を折りたたむ",
-  "todo.has_description": "説明あり",
   "todo.clear_date": "期日をクリア",
   "todo.create_failed": "ToDo の作成に失敗しました",
   "todo.update_failed": "ToDo の更新に失敗しました",
@@ -225,11 +224,11 @@
   "settings.import_confirm_cancel": "キャンセル",
   "settings.import_success_title": "インポート完了！workutil を再起動してください",
   "settings.import_success_desc": "データが正常に展開されました。以前のデータベースは {backup} としてバックアップされました。新しいデータを読み込むため、workutil を一度終了して再度開いてください。",
-  "error.INVALID_ZIP_ARCHIVE": "アップロードされたファイルは有効な zip アーカイブではありません",
-  "error.INVALID_ZIP_STRUCTURE": "zip アーカイブの構成が不正です。workutil.db と manifest.json が必要です",
-  "error.ZIP_SLIP_DETECTED": "zip アーカイブに不正なパストラバーサルエントリが含まれているため拒否されました",
-  "error.INVALID_MANIFEST": "アーカイブ内の manifest.json が無効または破損しています",
-  "error.ALEMBIC_REVISION_MISMATCH": "データパッケージのデータベースバージョンが現在のアプリと一致しないためインポートできません",
-  "error.DATABASE_NOT_EMPTY": "データベースに既存のデータが存在します。インポートは空の環境にのみ許可されています",
-  "error.IMAGES_NOT_EMPTY": "画像ディレクトリに既存ファイルが存在します。インポート前に画像をクリアしてください"
+  "error.transfer.invalid_zip_archive": "アップロードされたファイルは有効な zip アーカイブではありません",
+  "error.transfer.invalid_zip_structure": "zip アーカイブの構成が不正です。workutil.db と manifest.json が必要です",
+  "error.transfer.zip_slip_detected": "zip アーカイブに不正なパストラバーサルエントリが含まれているため拒否されました",
+  "error.transfer.invalid_manifest": "アーカイブ内の manifest.json が無効または破損しています",
+  "error.transfer.alembic_revision_mismatch": "データパッケージのデータベースバージョンが現在のアプリと一致しないためインポートできません",
+  "error.transfer.database_not_empty": "データベースに既存のデータが存在します。インポートは空の環境にのみ許可されています",
+  "error.transfer.images_not_empty": "画像ディレクトリに既存ファイルが存在します。インポート前に画像をクリアしてください"
 }

@@ -15,12 +15,46 @@ from app.core.db import MIGRATIONS_DIR
 from app.core.version import get_version
 
 
-class TransferError(Exception):
-    def __init__(self, code: str, message: str, status_code: int = 400):
-        super().__init__(message)
-        self.code = code
-        self.message = message
-        self.status_code = status_code
+class InvalidZipArchive(ValueError):
+    """The uploaded file cannot be read as a zip archive."""
+
+    code = "transfer.invalid_zip_archive"
+
+
+class ZipSlipDetected(ValueError):
+    """A zip entry names a path that would write outside the data directory."""
+
+    code = "transfer.zip_slip_detected"
+
+
+class InvalidZipStructure(ValueError):
+    """The zip is missing `workutil.db` or `manifest.json`."""
+
+    code = "transfer.invalid_zip_structure"
+
+
+class InvalidManifest(ValueError):
+    """`manifest.json` is missing, unreadable, or not valid JSON."""
+
+    code = "transfer.invalid_manifest"
+
+
+class AlembicRevisionMismatch(ValueError):
+    """The package's schema version doesn't match this install's."""
+
+    code = "transfer.alembic_revision_mismatch"
+
+
+class DatabaseNotEmpty(ValueError):
+    """Import is refused because the current database already holds data."""
+
+    code = "transfer.database_not_empty"
+
+
+class ImagesNotEmpty(ValueError):
+    """Import is refused because the images directory still has files."""
+
+    code = "transfer.images_not_empty"
 
 
 def export_data_package(settings: Settings) -> tuple[Path, Path, str]:
@@ -60,7 +94,8 @@ def export_data_package(settings: Settings) -> tuple[Path, Path, str]:
         row = cursor.fetchone()
         if row:
             revision = str(row[0])
-    except Exception:
+    except sqlite3.OperationalError:
+        # No alembic_version table yet — an empty, unmigrated db.
         pass
 
     cursor.execute(
@@ -117,7 +152,8 @@ def get_current_alembic_revision(settings: Settings) -> str:
             row = cursor.fetchone()
             if row and row[0]:
                 return str(row[0])
-        except Exception:
+        except sqlite3.OperationalError:
+            # No alembic_version table yet — an empty, unmigrated db.
             pass
         finally:
             conn.close()
@@ -142,18 +178,12 @@ def import_data_package(settings: Settings, upload_path: Path) -> tuple[str, boo
     """
     # Gate 1: Check zip structure & zip slip
     if not zipfile.is_zipfile(upload_path):
-        raise TransferError(
-            code="INVALID_ZIP_ARCHIVE",
-            message="Uploaded file is not a valid zip archive.",
-        )
+        raise InvalidZipArchive("上传的文件不是合法的 zip 压缩包")
 
     try:
         zf = zipfile.ZipFile(upload_path, "r")
-    except Exception as e:
-        raise TransferError(
-            code="INVALID_ZIP_ARCHIVE",
-            message=f"Failed to read zip archive: {e}",
-        ) from e
+    except zipfile.BadZipFile as e:
+        raise InvalidZipArchive(f"无法读取 zip 压缩包：{e}") from e
 
     with zf:
         namelist = zf.namelist()
@@ -161,42 +191,29 @@ def import_data_package(settings: Settings, upload_path: Path) -> tuple[str, boo
         # Check Zip Slip on all entries
         for name in namelist:
             if name.startswith("/") or name.startswith("\\"):
-                raise TransferError(
-                    code="ZIP_SLIP_DETECTED",
-                    message=f"Zip entry '{name}' contains illegal absolute path.",
-                )
+                raise ZipSlipDetected(f"压缩包条目「{name}」包含非法的绝对路径")
             parts = Path(name).parts
             if ".." in parts:
-                raise TransferError(
-                    code="ZIP_SLIP_DETECTED",
-                    message=f"Zip entry '{name}' contains illegal '..' path traversal.",
-                )
+                raise ZipSlipDetected(f"压缩包条目「{name}」包含非法的目录穿越路径")
 
         if "manifest.json" not in namelist or "workutil.db" not in namelist:
-            raise TransferError(
-                code="INVALID_ZIP_STRUCTURE",
-                message="Zip archive must contain both manifest.json and workutil.db.",
-            )
+            raise InvalidZipStructure("压缩包必须同时包含 manifest.json 与 workutil.db")
 
         # Gate 2: Verify alembic revision against current application
         try:
             manifest_raw = zf.read("manifest.json").decode("utf-8")
             manifest_data = json.loads(manifest_raw)
-        except Exception as e:
-            raise TransferError(
-                code="INVALID_MANIFEST",
-                message=f"manifest.json is invalid: {e}",
-            ) from e
+        except (UnicodeDecodeError, json.JSONDecodeError) as e:
+            raise InvalidManifest(f"manifest.json 无效：{e}") from e
+        if not isinstance(manifest_data, dict):
+            raise InvalidManifest("manifest.json 内容不是一个合法的对象")
 
         manifest_rev = str(manifest_data.get("alembic_revision", ""))
         current_rev = get_current_alembic_revision(settings)
         if not manifest_rev or manifest_rev != current_rev:
-            raise TransferError(
-                code="ALEMBIC_REVISION_MISMATCH",
-                message=(
-                    f"Alembic revision in manifest ('{manifest_rev}') does not match "
-                    f"current system revision ('{current_rev}')."
-                ),
+            raise AlembicRevisionMismatch(
+                f"数据包的数据库版本（{manifest_rev}）与当前应用版本"
+                f"（{current_rev}）不一致"
             )
 
         # Gate 3: All business tables have 0 rows
@@ -214,12 +231,8 @@ def import_data_package(settings: Settings, upload_path: Path) -> tuple[str, boo
                     cursor.execute(f'SELECT COUNT(*) FROM "{table}"')
                     count = cursor.fetchone()[0]
                     if count > 0:
-                        raise TransferError(
-                            code="DATABASE_NOT_EMPTY",
-                            message=(
-                                f"Table '{table}' contains {count} rows. "
-                                "Import can only proceed when all tables are empty."
-                            ),
+                        raise DatabaseNotEmpty(
+                            f"表「{table}」还有 {count} 条数据，只能导入到空数据库"
                         )
             finally:
                 conn.close()
@@ -228,12 +241,8 @@ def import_data_package(settings: Settings, upload_path: Path) -> tuple[str, boo
         if settings.images_dir.exists():
             image_files = [p for p in settings.images_dir.rglob("*") if p.is_file()]
             if image_files:
-                raise TransferError(
-                    code="IMAGES_NOT_EMPTY",
-                    message=(
-                        f"Images directory contains {len(image_files)} file(s). "
-                        "Import can only proceed when images directory has no files."
-                    ),
+                raise ImagesNotEmpty(
+                    f"图片目录还有 {len(image_files)} 个文件，只能导入到空的图片目录"
                 )
 
         # All four gates passed. Execute the backup and extraction.
