@@ -36,9 +36,16 @@ _Avoid_: Shortcut, 快捷方式(Windows 上 `.lnk` 是另一个真实存在的�
 _Avoid_: Folder, 文件夹(会和 Bookmark 指向的东西撞), Category, 分类, 标签, Collection
 
 **Todo**:
-一件待办。可以由一条 Memo 转出并保留回溯链接,但转出后两者各自独立 —— Memo 不知道自己被转过。
+一件待办。有一个可选的**说明**记下这件事到底是什么。
 _Avoid_: Task(F4 的脚本执行会带来「任务」这个词), Item, TODO(全大写是代码注释里的那个)
 
+**说明(Description)**:
+Todo 上的一段文字,写清楚那件事是什么。形态和 Memo 的正文一样(纯文本 + Markdown),
+但它**不是一条 Memo** —— 它没有自己的创建时间,不参与搜索,不能置顶,Todo 一删它就没了。
+_Avoid_: 正文(那是 Memo 的), 备注, Note, 详细描述(「说明」已经够)
+
 > Memo 与 Evidence 是**两个独立的概念**,不是同一个东西的两种视图。它们表面都是「文字 + 图片的序列」,但 Memo **除置顶外无序**、长期沉淀、靠搜索捞回;Evidence 分用例、每个用例内有序、导出后使命即完成。两者只共享图片的存储机制,不共享领域模型。详见 [ADR-0001](./docs/adr/0001-memo-and-evidence-are-separate-concepts.md)。
+
+> Todo 的说明与 Memo 的正文**形态相同,概念不同**。相同的是「人写的一段字」这个机制;不同的是生命周期 —— Memo 是一条**记录**,独立存在、能被搜索捞回、能置顶;说明是**一件事的附注**,离开那件待办就不存在。这和 ADR-0001 给 Memo / Evidence 划的是同一条线:共享机制,不共享概念。详见 [ADR-0012](./docs/adr/0012-a-todo-description-is-not-a-memo.md)。
 
 > Bookmark 与它指向的文件也是**两个东西**。Bookmark 是一个入口:它有自己的名字、自己在组里的位置,而同一个文件可以有两个入口。所以「同一路径已存在」不是一个需要去重的错误。详见 [ADR-0006](./docs/adr/0006-a-bookmark-is-an-entry-not-a-file.md)。
