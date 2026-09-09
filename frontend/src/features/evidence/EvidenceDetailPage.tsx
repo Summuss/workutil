@@ -151,7 +151,15 @@ export function EvidenceDetailPage() {
           {loading ? t("common.loading") : (error ?? t("evidence.not_found"))}
         </p>
         <p className="mt-3 text-center text-xs">
-          <Link to="/evidence" style={{ color: "var(--text-faint)" }}>
+          {/* The arrow is drawn here, never carried inside the copy: a language
+              pack that ships its own "←" gives you two of them the day the
+              button grows an icon. */}
+          <Link
+            to="/evidence"
+            className="inline-flex items-center gap-1"
+            style={{ color: "var(--text-faint)" }}
+          >
+            <ArrowLeftIcon size={12} />
             {t("evidence.back_to_list_full")}
           </Link>
         </p>
