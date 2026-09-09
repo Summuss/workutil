@@ -46,7 +46,7 @@ Status: ready-for-agent
 
 ### 后端:一次原子请求
 
-- 扩展书签的 move 端点,请求体带上目标组:`{to: 索引, group_id: 目标组 id 或 null}`。服务端在一个事务里改 `group_id`、给目标组的兄弟重排、也给**原来那组**的兄弟重排(它少了一条,序号要收拢),返回受影响的两个列表。
+- 扩展书签的 move 端点,请求体带上目标组:`{new_order: 目标序号, group_id: 目标组 id 或 null}`(字段名沿用既有 `new_order` 规范)。服务端在一个事务里改 `group_id`、给目标组的兄弟重排、也给**原来那组**的兄弟重排(它少了一条,序号要收拢),返回受影响的两个列表(`BookmarkMoveResponse`)。
 - **不要改 `core/ordering.py` 的 `MoveRequest`。** 那个类型被 todo、evidence、bookmark 三个模块共用(`app/modules/*/schemas.py` 各自 re-export),给它加 `group_id` 等于让 todo 和 evidence 也长出一个它们没有的概念。在 bookmark 模块里定义自己的请求 schema。
 - **不走「两步」(先 PATCH `group_id` 再 move)。** 中间态是真实的:改完归属、排序请求失败,书签就落在新组的末尾而不是松手的位置;而且前端的乐观回滚要处理两个列表两次失败,比原子接口复杂得多。
 - 目标组不存在 → 404;`group_id: null` 表示散装区,是合法目标。

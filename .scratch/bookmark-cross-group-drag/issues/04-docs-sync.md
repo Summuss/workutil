@@ -6,15 +6,15 @@
 
 **Blocked by:** 03
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] 核对 `design.md` F3 里跨组拖拽那条与实际接口形状一致
-- [ ] `running.md` 现有的五处拖拽复核条目改口径为 `DragOverlay` 的表现
-- [ ] `running.md` 补:把散装书签拖进一个组,落在松手的位置
-- [ ] `running.md` 补:把书签从组里拖回散装区
-- [ ] `running.md` 补:在两个组之间拖书签,两边顺序都正确
-- [ ] `running.md` 补:新建一个空组,直接拖一条书签进去
-- [ ] `running.md` 补:跨组拖完 `F5`,结果不变
-- [ ] `running.md` 补:拖动时元素在滚动区边缘不被裁剪
-- [ ] `.scratch/drag-reorder/issues/03-bookmark-drag-reorder.md` 里「跨组拖拽确实不可行」那条已被本轮反转,补一行指向本目录的说明(不重写历史)
-- [ ] 若实现中对 spec 做了偏离,在 `spec.md` 里改掉
+- [x] 核对 `design.md` F3 里跨组拖拽那条与实际接口形状一致
+- [x] `running.md` 现有的五处拖拽复核条目改口径为 `DragOverlay` 的表现
+- [x] `running.md` 补:把散装书签拖进一个组,落在松手的位置
+- [x] `running.md` 补:把书签从组里拖回散装区
+- [x] `running.md` 补:在两个组之间拖书签,两边顺序都正确
+- [x] `running.md` 补:新建一个空组,直接拖一条书签进去
+- [x] `running.md` 补:跨组拖完 `F5`,结果不变
+- [x] `running.md` 补:拖动时元素在滚动区边缘不被裁剪
+- [x] `.scratch/drag-reorder/issues/03-bookmark-drag-reorder.md` 里「跨组拖拽确实不可行」那条已被本轮反转,补一行指向本目录的说明(不重写历史)
+- [x] 若实现中对 spec 做了偏离,在 `spec.md` 里改掉

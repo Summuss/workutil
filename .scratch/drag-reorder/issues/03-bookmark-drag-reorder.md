@@ -13,3 +13,5 @@
 - [x] 键盘拖拽可用(复用 02 的 sensor 配置)
 - [x] 松手时调用 ticket 01 的绝对位置接口;本地乐观更新,失败时回滚
 - [x] `pnpm build`/`tsc` 通过;手动验证组间拖拽、组内拖拽、跨组拖拽确实不可行
+
+> 附注:第 15 行「跨组拖拽确实不可行」仅针对当时的范围限定。跨组拖拽已在后续的 [.scratch/bookmark-cross-group-drag/](../../bookmark-cross-group-drag/) 中反转并正式实现。
