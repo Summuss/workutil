@@ -114,30 +114,10 @@ export function EvidenceDetailPage() {
     });
   }
 
-  async function handleMove(caseId: number, to: Move): Promise<void> {
-    if (typeof to === "number") {
-      return handleReorderCase(caseId, to);
-    }
-    const oldIndex = cases.findIndex((c) => c.id === caseId);
-    if (oldIndex === -1) return;
-    const targetIndex = to === "top" ? 0 : cases.length - 1;
-    const prev = cases;
-
-    if (oldIndex !== targetIndex) {
-      const reorderedOptimistic = arrayMove(cases, oldIndex, targetIndex).map(
-        (c, idx) => ({ ...c, order: idx }),
-      );
-      setCases(reorderedOptimistic);
-    }
-
-    await caseEdit.run(async () => {
-      try {
-        setCases(await moveCase(id, caseId, to));
-      } catch (cause) {
-        setCases(prev);
-        throw cause;
-      }
-    });
+  function handleMove(caseId: number, to: Move): Promise<void> {
+    const targetIndex =
+      typeof to === "number" ? to : to === "top" ? 0 : cases.length - 1;
+    return handleReorderCase(caseId, targetIndex);
   }
 
   async function commitTitle(title: string): Promise<void> {

@@ -2,11 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.core.ordering import Move
-
-
-class MoveRequest(BaseModel):
-    to: Move | int
+from app.core.ordering import MoveRequest as MoveRequest
 
 
 class BookmarkGroupCreate(BaseModel):

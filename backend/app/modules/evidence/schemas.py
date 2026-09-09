@@ -4,13 +4,14 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.images import IncomingImage
+from app.core.ordering import MoveRequest as MoveRequest
 from app.modules.evidence.models import (
     BlockKind,
     Evidence,
     EvidenceBlock,
     EvidenceCase,
 )
-from app.modules.evidence.service import Move, evidence_images_url
+from app.modules.evidence.service import evidence_images_url
 
 
 class EvidenceCreate(BaseModel):
@@ -27,12 +28,6 @@ class CaseCreate(BaseModel):
 
 class CaseRename(BaseModel):
     name: str
-
-
-class MoveRequest(BaseModel):
-    """Where to send a case, or a block: boundary jump or target index."""
-
-    to: Move | int
 
 
 class TextBlockCreate(BaseModel):

@@ -252,37 +252,12 @@ export function BookmarkPage() {
   );
 
   const handleMoveGroup = useCallback(
-    async (id: number, to: MoveDirection) => {
-      if (typeof to === "number") {
-        return handleReorderGroup(id, to);
-      }
-      setError(null);
-      const prev = loaded;
-      if (!prev) return;
-
-      const oldIndex = prev.groups.findIndex((g) => g.id === id);
-      if (oldIndex === -1) return;
-      const targetIndex = to === "top" ? 0 : prev.groups.length - 1;
-
-      if (oldIndex !== targetIndex) {
-        const reorderedOptimistic = arrayMove(prev.groups, oldIndex, targetIndex).map(
-          (group, idx) => ({ ...group, order: idx }),
-        );
-        setLoaded({
-          ...prev,
-          groups: reorderedOptimistic,
-        });
-      }
-
-      try {
-        const reordered = await moveBookmarkGroup(id, to);
-        setLoaded((curr) => (curr ? { ...curr, groups: reordered } : null));
-      } catch (cause) {
-        setLoaded(prev);
-        setError(messageOf(cause, t("bookmark.move_group_failed")));
-      }
+    (id: number, to: MoveDirection) => {
+      if (typeof to === "number") return handleReorderGroup(id, to);
+      const targetIndex = to === "top" ? 0 : (loaded?.groups.length ?? 1) - 1;
+      return handleReorderGroup(id, targetIndex);
     },
-    [loaded, setLoaded, handleReorderGroup, t],
+    [loaded, handleReorderGroup],
   );
 
   const handleUpdateBookmark = useCallback(
@@ -375,77 +350,25 @@ export function BookmarkPage() {
 
   const handleMoveBookmark = useCallback(
     async (id: number, to: MoveDirection) => {
-      if (typeof to === "number") {
-        const prev = loaded;
-        if (!prev) return;
-        const inLoose = prev.loose.some((b) => b.id === id);
-        if (inLoose) {
-          return handleReorderBookmark(null, id, to);
-        }
-        const group = prev.groups.find((g) => g.bookmarks.some((b) => b.id === id));
-        if (group) {
-          return handleReorderBookmark(group.id, id, to);
-        }
-        return;
-      }
-
-      setError(null);
       const prev = loaded;
       if (!prev) return;
 
       const inLoose = prev.loose.some((b) => b.id === id);
-      if (inLoose) {
-        const oldIndex = prev.loose.findIndex((b) => b.id === id);
-        const targetIndex = to === "top" ? 0 : prev.loose.length - 1;
-        if (oldIndex !== -1 && oldIndex !== targetIndex) {
-          const reorderedOptimistic = arrayMove(prev.loose, oldIndex, targetIndex).map(
-            (item, idx) => ({ ...item, order: idx }),
-          );
-          setLoaded({ ...prev, loose: reorderedOptimistic });
-        }
-        try {
-          const reordered = await moveBookmark(id, to);
-          setLoaded((curr) => (curr ? { ...curr, loose: reordered } : null));
-        } catch (cause) {
-          setLoaded(prev);
-          setError(messageOf(cause, t("bookmark.move_failed")));
-        }
-      } else {
-        const group = prev.groups.find((g) => g.bookmarks.some((b) => b.id === id));
-        if (group) {
-          const oldIndex = group.bookmarks.findIndex((b) => b.id === id);
-          const targetIndex = to === "top" ? 0 : group.bookmarks.length - 1;
-          if (oldIndex !== -1 && oldIndex !== targetIndex) {
-            const reorderedOptimistic = arrayMove(group.bookmarks, oldIndex, targetIndex).map(
-              (item, idx) => ({ ...item, order: idx }),
-            );
-            setLoaded({
-              ...prev,
-              groups: prev.groups.map((g) =>
-                g.id === group.id ? { ...g, bookmarks: reorderedOptimistic } : g,
-              ),
-            });
-          }
-          try {
-            const reordered = await moveBookmark(id, to);
-            setLoaded((curr) =>
-              curr
-                ? {
-                    ...curr,
-                    groups: curr.groups.map((g) =>
-                      g.id === group.id ? { ...g, bookmarks: reordered } : g,
-                    ),
-                  }
-                : null,
-            );
-          } catch (cause) {
-            setLoaded(prev);
-            setError(messageOf(cause, t("bookmark.move_failed")));
-          }
-        }
+      const group = inLoose
+        ? null
+        : prev.groups.find((g) => g.bookmarks.some((b) => b.id === id));
+      if (!inLoose && !group) return;
+
+      const groupId = group?.id ?? null;
+      if (typeof to === "number") {
+        return handleReorderBookmark(groupId, id, to);
       }
+
+      const siblings = inLoose ? prev.loose : (group?.bookmarks ?? []);
+      const targetIndex = to === "top" ? 0 : siblings.length - 1;
+      return handleReorderBookmark(groupId, id, targetIndex);
     },
-    [loaded, setLoaded, handleReorderBookmark, t],
+    [loaded, handleReorderBookmark],
   );
 
   const handleOpenBookmark = useCallback(async (id: number) => {

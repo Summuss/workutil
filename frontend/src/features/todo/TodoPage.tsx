@@ -184,37 +184,12 @@ export function TodoPage() {
   );
 
   const handleMove = useCallback(
-    async (id: number, to: MoveDirection) => {
-      if (typeof to === "number") {
-        return handleReorder(id, to);
-      }
-      setActionError(null);
-      const prev = loaded;
-      if (!prev) return;
-
-      const oldIndex = prev.todos.findIndex((t) => t.id === id);
-      if (oldIndex === -1) return;
-      const targetIndex = to === "top" ? 0 : prev.todos.length - 1;
-
-      if (oldIndex !== targetIndex) {
-        const reorderedOptimistic = arrayMove(prev.todos, oldIndex, targetIndex).map(
-          (item, idx) => ({ ...item, order: idx }),
-        );
-        setLoaded({
-          ...prev,
-          todos: reorderedOptimistic,
-        });
-      }
-
-      try {
-        const reordered = await moveTodo(id, to);
-        setLoaded((curr) => (curr ? { ...curr, todos: reordered } : null));
-      } catch (cause) {
-        setLoaded(prev);
-        setActionError(messageOf(cause, t("todo.move_failed")));
-      }
+    (id: number, to: MoveDirection) => {
+      if (typeof to === "number") return handleReorder(id, to);
+      const targetIndex = to === "top" ? 0 : (loaded?.todos.length ?? 1) - 1;
+      return handleReorder(id, targetIndex);
     },
-    [loaded, setLoaded, handleReorder, t],
+    [loaded, handleReorder],
   );
 
   return (

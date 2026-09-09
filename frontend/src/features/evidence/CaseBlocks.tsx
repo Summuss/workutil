@@ -164,30 +164,10 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     });
   }
 
-  async function handleMove(blockId: number, to: Move): Promise<void> {
-    if (typeof to === "number") {
-      return handleReorderBlock(blockId, to);
-    }
-    const oldIndex = blocks.findIndex((b) => b.id === blockId);
-    if (oldIndex === -1) return;
-    const targetIndex = to === "top" ? 0 : blocks.length - 1;
-    const prev = blocks;
-
-    if (oldIndex !== targetIndex) {
-      const reorderedOptimistic = arrayMove(blocks, oldIndex, targetIndex).map(
-        (b, idx) => ({ ...b, order: idx }),
-      );
-      setBlocks(reorderedOptimistic);
-    }
-
-    await run(async () => {
-      try {
-        setBlocks(await moveBlock(evidenceId, caseId, blockId, to));
-      } catch (cause) {
-        setBlocks(prev);
-        throw cause;
-      }
-    });
+  function handleMove(blockId: number, to: Move): Promise<void> {
+    const targetIndex =
+      typeof to === "number" ? to : to === "top" ? 0 : blocks.length - 1;
+    return handleReorderBlock(blockId, targetIndex);
   }
 
   async function handleDelete(blockId: number): Promise<void> {
