@@ -8,12 +8,12 @@
 
 **Blocked by:** 无
 
-**Status:** todo
+**Status:** resolved
 
-- [ ] `MemoList` 的 `expandedIds` 展开/折叠时写入 localStorage(按 memo id)
-- [ ] `MemoList` 挂载时从 localStorage 读回展开状态,而不是每次都从空集合开始
-- [ ] localStorage 读写按既有惯例做防御性处理(window 存在性判断 + try/catch),不可用时静默降级为「不记忆」,不报错、不崩溃
-- [ ] 展开某条 memo 后刷新整个页面,它保持展开
-- [ ] `SingleMemoPage` 的展开状态不受影响,仍然默认恒为展开
-- [ ] `.scratch/memo/spec.md` 的 Implementation Decisions §前端 补一条,说明展开状态持久化到 localStorage(项目里第二个用到 localStorage 的地方,跟随 i18n 的既有写法)
-- [ ] `pnpm build`/`tsc` 通过;手动验证刷新后展开状态保持
+- [x] `MemoList` 的 `expandedIds` 展开/折叠时写入 localStorage(按 memo id)
+- [x] `MemoList` 挂载时从 localStorage 读回展开状态,而不是每次都从空集合开始
+- [x] localStorage 读写按既有惯例做防御性处理(window 存在性判断 + try/catch),不可用时静默降级为「不记忆」,不报错、不崩溃
+- [x] 展开某条 memo 后刷新整个页面,它保持展开
+- [x] `SingleMemoPage` 的展开状态不受影响,仍然默认恒为展开
+- [x] `.scratch/memo/spec.md` 的 Implementation Decisions §前端 补一条,说明展开状态持久化到 localStorage(项目里第二个用到 localStorage 的地方,跟随 i18n 的既有写法)
+- [x] `pnpm build`/`tsc` 通过;手动验证刷新后展开状态保持

@@ -4,6 +4,35 @@ import { t } from "../../shared/i18n";
 import { MemoItem } from "./MemoItem";
 import type { Memo } from "./types";
 
+export const EXPANDED_STORAGE_KEY = "workutil_memo_expanded_ids";
+
+export function loadExpandedIds(): Set<number> {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const raw = localStorage.getItem(EXPANDED_STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return new Set(parsed.filter((id): id is number => typeof id === "number"));
+        }
+      }
+    } catch {
+      // localStorage may be unavailable or blocked
+    }
+  }
+  return new Set();
+}
+
+export function saveExpandedIds(ids: Set<number>): void {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      localStorage.setItem(EXPANDED_STORAGE_KEY, JSON.stringify(Array.from(ids)));
+    } catch {
+      // ignore storage failures
+    }
+  }
+}
+
 interface MemoListProps {
   memos: Memo[];
   loading: boolean;
@@ -30,7 +59,7 @@ export function MemoList({
   onUpdate,
   onDelete,
 }: MemoListProps) {
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(loadExpandedIds);
 
   function toggleExpand(id: number) {
     setExpandedIds((prev) => {
@@ -40,6 +69,7 @@ export function MemoList({
       } else {
         next.add(id);
       }
+      saveExpandedIds(next);
       return next;
     });
   }
