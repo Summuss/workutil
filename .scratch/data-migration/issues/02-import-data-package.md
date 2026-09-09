@@ -27,21 +27,21 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `POST /api/transfer/import`,接收 multipart 上传
-- [ ] 四道门按顺序校验,各自有独立的错误 code
-- [ ] **「空」的判据是「所有业务表无行」+「images 无文件」,不是「db 文件不存在」**
-- [ ] 任何一道不过时,数据目录**一个字节都没被动过**
-- [ ] 通过后先改名 `workutil.db.bak-<时间戳>`,再解压
-- [ ] 解压时校验条目名,拒绝任何会写到数据目录之外的路径
-- [ ] 响应里带「需要重启」的标志
-- [ ] 测试:**往返** —— 造含 memo / todo / 书签 / evidence + 图片的数据,导出,换空数据目录,导入,逐项断言回来了(evidence 的图片文件也在)
-- [ ] 测试:库非空时拒绝
-- [ ] 测试:库空但 images 有文件时拒绝
-- [ ] 测试:manifest revision 不匹配时拒绝
-- [ ] 测试:zip 结构非法时拒绝
-- [ ] 测试:每一种拒绝之后,数据目录内容不变
-- [ ] 测试:导入成功后数据目录里存在 `workutil.db.bak-*`
-- [ ] 测试:含 `../` 条目的 zip 被拒绝
-- [ ] `make check` 与 `make test` 通过
+- [x] `POST /api/transfer/import`,接收 multipart 上传
+- [x] 四道门按顺序校验,各自有独立的错误 code
+- [x] **「空」的判据是「所有业务表无行」+「images 无文件」,不是「db 文件不存在」**
+- [x] 任何一道不过时,数据目录**一个字节都没被动过**
+- [x] 通过后先改名 `workutil.db.bak-<时间戳>`,再解压
+- [x] 解压时校验条目名,拒绝任何会写到数据目录之外的路径
+- [x] 响应里带「需要重启」的标志
+- [x] 测试:**往返** —— 造含 memo / todo / 书签 / evidence + 图片的数据,导出,换空数据目录,导入,逐项断言回来了(evidence 的图片文件也在)
+- [x] 测试:库非空时拒绝
+- [x] 测试:库空但 images 有文件时拒绝
+- [x] 测试:manifest revision 不匹配时拒绝
+- [x] 测试:zip 结构非法时拒绝
+- [x] 测试:每一种拒绝之后,数据目录内容不变
+- [x] 测试:导入成功后数据目录里存在 `workutil.db.bak-*`
+- [x] 测试:含 `../` 条目的 zip 被拒绝
+- [x] `make check` 与 `make test` 通过
