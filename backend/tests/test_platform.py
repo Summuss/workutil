@@ -37,6 +37,12 @@ def test_linux_platform_raises_unsupported_platform_error() -> None:
     assert not isinstance(exc_info_reveal.value, NotImplementedError)
     assert "不支持" in str(exc_info_reveal.value)
 
+    with pytest.raises(UnsupportedPlatformError) as exc_info_window:
+        platform.open_app_window("http://127.0.0.1:8765")
+
+    assert not isinstance(exc_info_window.value, NotImplementedError)
+    assert "不支持" in str(exc_info_window.value)
+
 
 @pytest.mark.skipif(
     sys.platform in ("win32", "darwin"),
@@ -85,6 +91,43 @@ def test_macos_platform_calls() -> None:
         mock_popen.assert_called_once_with(["open", "-R", "/Users/test/file.txt"])
 
 
+def test_windows_platform_open_app_window(tmp_path: Path) -> None:
+    win = WindowsPlatform()
+    data_dir = tmp_path / "workutil"
+    url = "http://127.0.0.1:8765"
+    expected_profile = str(data_dir / "browser-profile")
+
+    with patch("subprocess.Popen") as mock_popen:
+        win.open_app_window(url, data_dir=data_dir)
+        mock_popen.assert_called_once_with(
+            ["msedge", f"--app={url}", f"--user-data-dir={expected_profile}"],
+            shell=True,
+        )
+
+
+def test_macos_platform_open_app_window(tmp_path: Path) -> None:
+    mac = MacOSPlatform()
+    data_dir = tmp_path / "workutil"
+    url = "http://127.0.0.1:8765"
+    expected_profile = str(data_dir / "browser-profile")
+
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value.returncode = 0
+        mac.open_app_window(url, data_dir=data_dir)
+        mock_run.assert_called_once_with(
+            [
+                "open",
+                "-na",
+                "Google Chrome",
+                "--args",
+                f"--app={url}",
+                f"--user-data-dir={expected_profile}",
+            ],
+            check=False,
+            capture_output=True,
+        )
+
+
 def test_fake_platform_records_calls_and_order() -> None:
     fake = FakePlatform()
     assert isinstance(fake, Platform)
@@ -92,19 +135,23 @@ def test_fake_platform_records_calls_and_order() -> None:
     fake.open("/path/to/first.txt")
     fake.reveal("/path/to/folder")
     fake.open(Path("/path/to/second.txt"))
+    fake.open_app_window("http://127.0.0.1:8765")
 
     assert fake.calls == [
         PlatformCall(verb="open", path="/path/to/first.txt"),
         PlatformCall(verb="reveal", path="/path/to/folder"),
         PlatformCall(verb="open", path="/path/to/second.txt"),
+        PlatformCall(verb="open_app_window", path="http://127.0.0.1:8765"),
     ]
     assert fake.opened == ["/path/to/first.txt", "/path/to/second.txt"]
     assert fake.revealed == ["/path/to/folder"]
+    assert fake.app_windows == ["http://127.0.0.1:8765"]
 
     fake.clear()
     assert fake.calls == []
     assert fake.opened == []
     assert fake.revealed == []
+    assert fake.app_windows == []
 
 
 def test_platform_injected_via_deps_and_substitutable(data_dir: Path) -> None:

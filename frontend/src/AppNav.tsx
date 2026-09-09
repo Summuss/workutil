@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { NavLink } from "react-router";
 
+import { get } from "./shared/api";
 import { useI18n, type Language } from "./shared/i18n";
 
 const LINK_CLASS = "rounded-md px-3 py-1.5 text-[13.5px] transition-colors";
@@ -17,6 +19,17 @@ const LANGUAGES: { id: Language; label: string }[] = [
  */
 export function AppNav() {
   const { language, setLanguage, t } = useI18n();
+  const [version, setVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    get<{ version: string }>("/version")
+      .then((data) => {
+        if (data?.version) {
+          setVersion(data.version);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <header
@@ -24,12 +37,22 @@ export function AppNav() {
       style={{ borderBottom: "1px solid var(--border)", background: "var(--surface)" }}
     >
       <nav className="flex items-center gap-9">
-        <span
-          className="text-sm font-semibold tracking-wide"
-          style={{ fontFamily: "var(--mono)", color: "oklch(0.35 0.01 260)" }}
-        >
-          workutil
-        </span>
+        <div className="flex items-baseline gap-1.5">
+          <span
+            className="text-sm font-semibold tracking-wide"
+            style={{ fontFamily: "var(--mono)", color: "oklch(0.35 0.01 260)" }}
+          >
+            workutil
+          </span>
+          {version && (
+            <span
+              className="text-[11px]"
+              style={{ fontFamily: "var(--mono)", color: "var(--text-faint)" }}
+            >
+              v{version}
+            </span>
+          )}
+        </div>
         <div className="flex gap-1">
           <NavLink
             to="/"

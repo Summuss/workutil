@@ -18,19 +18,19 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `core/platform.py` 新增 `open_app_window(url)`,三个平台实现按上表
-- [ ] `tests/fake_platform.py` 跟着记录这个调用
-- [ ] Linux 实现抛 `UnsupportedPlatformError`,与 `open`/`reveal` 一致
-- [ ] 用独立 `--user-data-dir`,路径在数据目录下
-- [ ] 启动时端口被占用 → 打印「已经在运行」、开窗、退出码 **0**
-- [ ] 开窗只在 `WORKUTIL_OPEN_WINDOW=1` 时发生,默认不开
-- [ ] 开窗挂在 lifespan 启动钩子上,不用 `sleep` 等服务起来
-- [ ] `GET /api/version` 返回 `pyproject.toml` 的版本
-- [ ] 导航栏 workutil 字样旁边小字显示版本(手动更新分发,必须看得出装的是哪个版本)
-- [ ] 测试:打包模式启动 → fake platform 收到了 `http://127.0.0.1:8765`
-- [ ] 测试:非打包模式启动 → 平台层**没有**收到开窗调用
-- [ ] 测试:端口占用时退出码为 0 且仍然开窗
-- [ ] 测试:`GET /api/version`
-- [ ] `make check` 与 `make test` 通过
+- [x] `core/platform.py` 新增 `open_app_window(url)`,三个平台实现按上表
+- [x] `tests/fake_platform.py` 跟着记录这个调用
+- [x] Linux 实现抛 `UnsupportedPlatformError`,与 `open`/`reveal` 一致
+- [x] 用独立 `--user-data-dir`,路径在数据目录下
+- [x] 启动时端口被占用 → 打印「已经在运行」、开窗、退出码 **0**
+- [x] 开窗只在 `WORKUTIL_OPEN_WINDOW=1` 时发生,默认不开
+- [x] 开窗挂在 lifespan 启动钩子上,不用 `sleep` 等服务起来
+- [x] `GET /api/version` 返回 `pyproject.toml` 的版本
+- [x] 导航栏 workutil 字样旁边小字显示版本(手动更新分发,必须看得出装的是哪个版本)
+- [x] 测试:打包模式启动 → fake platform 收到了 `http://127.0.0.1:8765`
+- [x] 测试:非打包模式启动 → 平台层**没有**收到开窗调用
+- [x] 测试:端口占用时退出码为 0 且仍然开窗
+- [x] 测试:`GET /api/version`
+- [x] `make check` 与 `make test` 通过

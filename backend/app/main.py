@@ -1,8 +1,11 @@
 """The workutil application: one FastAPI app serving the API and the UI."""
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+import os
+import socket
+from collections.abc import AsyncIterator, Callable
+from contextlib import asynccontextmanager, suppress
 from pathlib import PurePosixPath
+from typing import Any
 
 from fastapi import FastAPI, Request, status
 from fastapi.staticfiles import StaticFiles
@@ -10,7 +13,7 @@ from starlette.exceptions import HTTPException
 from starlette.responses import JSONResponse, Response
 from starlette.types import Scope
 
-from app.core.config import HOST, PORT, Settings, load_settings
+from app.core.config import HOST, OPEN_WINDOW_ENV_VAR, PORT, Settings, load_settings
 from app.core.db import create_db_engine, create_session_factory, migrate_to_head
 from app.core.platform import Platform, UnsupportedPlatformError, get_default_platform
 from app.modules.registry import ROUTERS
@@ -18,6 +21,12 @@ from app.modules.registry import ROUTERS
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI) -> AsyncIterator[None]:
+    if os.environ.get(OPEN_WINDOW_ENV_VAR) == "1":
+        url = f"http://{HOST}:{PORT}"
+        with suppress(UnsupportedPlatformError):
+            app.state.platform.open_app_window(
+                url, data_dir=app.state.settings.data_dir
+            )
     yield
     app.state.engine.dispose()
 
@@ -119,7 +128,50 @@ def create_app(
     return app
 
 
-def main() -> None:
+def is_port_in_use(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind((host, port))
+            return False
+        except OSError:
+            return True
+
+
+def run_app(
+    settings: Settings | None = None,
+    platform: Platform | None = None,
+    host: str = HOST,
+    port: int = PORT,
+    server_runner: Callable[..., Any] | None = None,
+) -> int:
+    settings = settings or load_settings()
+    plat = platform or get_default_platform()
+
+    if is_port_in_use(host, port):
+        print("workutil 已经在运行")
+        if os.environ.get(OPEN_WINDOW_ENV_VAR) == "1":
+            with suppress(UnsupportedPlatformError):
+                plat.open_app_window(
+                    f"http://{host}:{port}", data_dir=settings.data_dir
+                )
+        return 0
+
+    app = create_app(settings=settings, platform=plat)
+    runner = server_runner or _default_server_runner
+    runner(app, host=host, port=port)
+    return 0
+
+
+def _default_server_runner(app: FastAPI, host: str, port: int) -> None:
     import uvicorn
 
-    uvicorn.run(create_app(), host=HOST, port=PORT)
+    uvicorn.run(app, host=host, port=port)
+
+
+def main(
+    settings: Settings | None = None,
+    platform: Platform | None = None,
+    host: str = HOST,
+    port: int = PORT,
+) -> int:
+    return run_app(settings=settings, platform=platform, host=host, port=port)

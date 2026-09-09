@@ -33,7 +33,7 @@ class UnsupportedPlatformError(RuntimeError):
 
 @runtime_checkable
 class Platform(Protocol):
-    """System-level operations to open and reveal files or directories."""
+    """System-level operations to open and reveal files, and open app windows."""
 
     def open(self, path: str | Path) -> None:
         """Hand the path to the system to open, and do not wait or track it."""
@@ -43,9 +43,23 @@ class Platform(Protocol):
         """Reveal the path in the system's file manager."""
         ...
 
+    def open_app_window(self, url: str, data_dir: Path | None = None) -> None:
+        """Open the URL in a standalone app window using the browser's app mode."""
+        ...
+
+
+def _resolve_profile_dir(data_dir: Path | None) -> Path:
+    if data_dir is None:
+        from app.core.config import load_settings
+
+        data_dir = load_settings().data_dir
+    profile_dir = data_dir / "browser-profile"
+    profile_dir.mkdir(parents=True, exist_ok=True)
+    return profile_dir
+
 
 class WindowsPlatform:
-    """Windows implementation using os.startfile and explorer /select."""
+    """Windows implementation using os.startfile, explorer, and browser app mode."""
 
     def open(self, path: str | Path) -> None:
         startfile: Callable[[str], Any] | None = getattr(os, "startfile", None)
@@ -57,6 +71,28 @@ class WindowsPlatform:
     def reveal(self, path: str | Path) -> None:
         subprocess.Popen(["explorer", f"/select,{path}"])
 
+    def open_app_window(self, url: str, data_dir: Path | None = None) -> None:
+        profile_path = _resolve_profile_dir(data_dir)
+        candidates = [
+            ["msedge", f"--app={url}", f"--user-data-dir={profile_path}"],
+            ["chrome", f"--app={url}", f"--user-data-dir={profile_path}"],
+        ]
+        for cmd in candidates:
+            try:
+                subprocess.Popen(cmd, shell=True)
+                return
+            except (FileNotFoundError, OSError):
+                continue
+
+        startfile: Callable[[str], Any] | None = getattr(os, "startfile", None)
+        if startfile is not None:
+            try:
+                startfile(url)
+                return
+            except OSError:
+                pass
+        subprocess.Popen(f'start "" "{url}"', shell=True)
+
 
 class MacOSPlatform:
     """macOS implementation using the `open` command-line utility."""
@@ -67,15 +103,39 @@ class MacOSPlatform:
     def reveal(self, path: str | Path) -> None:
         subprocess.Popen(["open", "-R", str(path)])
 
+    def open_app_window(self, url: str, data_dir: Path | None = None) -> None:
+        profile_path = _resolve_profile_dir(data_dir)
+        for app in ("Google Chrome", "Microsoft Edge"):
+            res = subprocess.run(
+                [
+                    "open",
+                    "-na",
+                    app,
+                    "--args",
+                    f"--app={url}",
+                    f"--user-data-dir={profile_path}",
+                ],
+                check=False,
+                capture_output=True,
+            )
+            if res.returncode == 0:
+                return
+
+        subprocess.Popen(["open", url])
+
 
 class LinuxPlatform:
-    """Linux implementation explicitly rejecting open/reveal on headless dev servers."""
+    """Linux implementation explicitly rejecting open/reveal/app_window."""
 
     def open(self, path: str | Path) -> None:
         raise UnsupportedPlatformError()
 
     def reveal(self, path: str | Path) -> None:
         raise UnsupportedPlatformError()
+
+    def open_app_window(self, url: str, data_dir: Path | None = None) -> None:
+        msg = "Linux 环境不支持打开独立应用窗口（开发服务器无桌面）"
+        raise UnsupportedPlatformError(msg)
 
 
 def get_platform_for(name: str) -> Platform:

@@ -26,6 +26,9 @@ DATA_DIR_ENV_VAR = "WORKUTIL_DATA_DIR"
 #: Set to point workutil at a custom frontend build directory.
 UI_DIR_ENV_VAR = "WORKUTIL_UI_DIR"
 
+#: Set to 1 to open the browser app window upon startup.
+OPEN_WINDOW_ENV_VAR = "WORKUTIL_OPEN_WINDOW"
+
 _APP_DIR = Path(__file__).resolve().parents[1]
 _REPO_ROOT = _APP_DIR.parent.parent
 
