@@ -58,7 +58,7 @@ const LABEL_FIELD = "field-input min-w-0 flex-1";
  * a stack trace out of what you just pasted is an everyday move here too, and
  * drag-selecting text ends in a click that would throw the selection away.
  *
- * A block changes kind practical once and in one direction: a table the server
+ * A block changes kind exactly once and in one direction: a table the server
  * read out of a paste can be told it was a log all along. Nothing else does —
  * an image is retaken and re-pasted, not edited.
  */
