@@ -79,7 +79,13 @@ class WindowsPlatform:
         ]
         for cmd in candidates:
             try:
-                subprocess.Popen(cmd, shell=True)
+                # No shell=True here: on Windows that runs the command via
+                # `cmd /c`, which prints "not recognized" and exits — it does
+                # NOT make Popen() raise. A missing msedge would then look
+                # like success, this loop would return on the first
+                # candidate, and chrome (and the real browser-tab fallback
+                # below) would never be tried.
+                subprocess.Popen(cmd)
                 return
             except (FileNotFoundError, OSError):
                 continue

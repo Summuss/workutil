@@ -99,9 +99,34 @@ def test_windows_platform_open_app_window(tmp_path: Path) -> None:
 
     with patch("subprocess.Popen") as mock_popen:
         win.open_app_window(url, data_dir=data_dir)
+        # No shell=True: on Windows that routes the call through `cmd /c`,
+        # which prints "not recognized" and exits rather than making Popen()
+        # raise — a missing msedge would then look like success and chrome
+        # would never be tried. See the comment in platform.py.
         mock_popen.assert_called_once_with(
             ["msedge", f"--app={url}", f"--user-data-dir={expected_profile}"],
-            shell=True,
+        )
+
+
+def test_windows_platform_open_app_window_falls_back_past_missing_candidates(
+    tmp_path: Path,
+) -> None:
+    """A candidate genuinely not found must be skipped, not mistaken for
+    success — the bug shell=True introduced (it swallowed "not found" as a
+    printed cmd.exe error instead of a raised exception, so this fallback
+    chain never actually ran)."""
+    win = WindowsPlatform()
+    data_dir = tmp_path / "workutil"
+    url = "http://127.0.0.1:8765"
+    expected_profile = str(data_dir / "browser-profile")
+
+    with patch("subprocess.Popen") as mock_popen:
+        mock_popen.side_effect = [FileNotFoundError(), None]
+        win.open_app_window(url, data_dir=data_dir)
+
+        assert mock_popen.call_count == 2
+        mock_popen.assert_called_with(
+            ["chrome", f"--app={url}", f"--user-data-dir={expected_profile}"],
         )
 
 
