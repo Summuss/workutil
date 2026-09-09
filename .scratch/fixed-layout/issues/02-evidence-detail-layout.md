@@ -8,15 +8,15 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `EvidenceDetailPage`:头部(返回/标题/导出 + `CaseTabs`)固定,不参与滚动
-- [ ] `CaseBlocks` 的 block 列表是唯一的滚动区
-- [ ] `BlockTextArea`(新增 Block)固定在底部,始终可见
-- [ ] 粘贴一张截图后,新 block 出现在列表末尾,输入框仍在原地、仍可继续粘
-- [ ] `CaseBlocks` 的 loading 分支换成等高骨架占位,切换用例时内容区**高度不变**
-- [ ] 切换用例后滚动位置回到顶部
-- [ ] 不缓存用例内容(切走再切回仍然重新拉取)
-- [ ] 用例为空、加载失败两种状态也不改变内容区高度
-- [ ] 导出按钮在无用例时仍然是禁用的(现有行为不能被布局改动带坏)
-- [ ] `make check` 通过
+- [x] `EvidenceDetailPage`:头部(返回/标题/导出 + `CaseTabs`)固定,不参与滚动
+- [x] `CaseBlocks` 的 block 列表是唯一的滚动区
+- [x] `BlockTextArea`(新增 Block)固定在底部,始终可见
+- [x] 粘贴一张截图后,新 block 出现在列表末尾,输入框仍在原地、仍可继续粘
+- [x] `CaseBlocks` 的 loading 分支换成等高骨架占位,切换用例时内容区**高度不变**
+- [x] 切换用例后滚动位置回到顶部
+- [x] 不缓存用例内容(切走再切回仍然重新拉取)
+- [x] 用例为空、加载失败两种状态也不改变内容区高度
+- [x] 导出按钮在无用例时仍然是禁用的(现有行为不能被布局改动带坏)
+- [x] `make check` 通过

@@ -187,6 +187,7 @@ export function EvidenceDetailPage() {
 
   return (
     <PageLayout
+      scrollable={selectedId === null}
       fixedHeader={
         <>
           <div className="flex items-center gap-2.5">
