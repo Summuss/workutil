@@ -22,17 +22,17 @@ manifest 是票 02 那道版本校验的载体;条数是白捡的,导入完能�
 
 **Blocked by:** 无
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `modules/transfer/` 四件套(无 `models.py`),`registry.py` 加一行
-- [ ] `GET /api/transfer/export` 返回 zip
-- [ ] 数据库用 `sqlite3.Connection.backup` 取快照,**不是文件拷贝**
-- [ ] zip 里含 `workutil.db`、完整的 `images/`、`manifest.json`
-- [ ] manifest 含 workutil 版本、alembic revision、导出时间、各表条数
-- [ ] 走临时文件,响应结束后删除,不残留
-- [ ] 文件名形如 `workutil-data-20260910-1530.zip`
-- [ ] 测试:导出的 zip 能解开,db 能被 sqlite 正常打开,行数与源库一致
-- [ ] 测试:evidence 的图片文件在 zip 里,路径结构与数据目录一致
-- [ ] 测试:manifest 的 revision 与当前 alembic head 一致
-- [ ] 测试:导出后临时文件不残留
-- [ ] `make check` 与 `make test` 通过
+- [x] `modules/transfer/` 四件套(无 `models.py`),`registry.py` 加一行
+- [x] `GET /api/transfer/export` 返回 zip
+- [x] 数据库用 `sqlite3.Connection.backup` 取快照,**不是文件拷贝**
+- [x] zip 里含 `workutil.db`、完整的 `images/`、`manifest.json`
+- [x] manifest 含 workutil 版本、alembic revision、导出时间、各表条数
+- [x] 走临时文件,响应结束后删除,不残留
+- [x] 文件名形如 `workutil-data-20260910-1530.zip`
+- [x] 测试:导出的 zip 能解开,db 能被 sqlite 正常打开,行数与源库一致
+- [x] 测试:evidence 的图片文件在 zip 里,路径结构与数据目录一致
+- [x] 测试:manifest 的 revision 与当前 alembic head 一致
+- [x] 测试:导出后临时文件不残留
+- [x] `make check` 与 `make test` 通过
