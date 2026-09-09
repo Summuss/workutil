@@ -110,29 +110,32 @@ export function MemoList({
         </p>
       )}
       {pinnedMemos.length > 0 && (
-        <ul className="flex flex-col gap-2">
-          {pinnedMemos.map((memo) => (
-            <MemoItem
-              key={memo.id}
-              memo={memo}
-              isExpanded={expandedIds.has(memo.id)}
-              searchQuery={searchQuery}
-              onToggleExpand={() => toggleExpand(memo.id)}
-              onUpdate={onUpdate}
-              onDelete={onDelete}
-            />
-          ))}
-        </ul>
-      )}
-      {pinnedMemos.length > 0 && (
-        <div
-          className="flex items-center gap-2.5 py-1 text-[11px]"
-          style={{ color: "var(--text-faint)", fontFamily: "var(--mono)" }}
-        >
-          <PinIcon size={12} filled />
-          <span>{t("memo.pinned_section")}</span>
-          <div className="flex-1" style={{ borderTop: "1px solid var(--border)" }} />
-        </div>
+        <>
+          {/* The label sits above the pinned items it names, not between
+              them and the regular list below — otherwise it reads as a
+              header for the wrong section. */}
+          <div
+            className="flex items-center gap-2.5 py-1 text-[11px]"
+            style={{ color: "var(--text-faint)", fontFamily: "var(--mono)" }}
+          >
+            <PinIcon size={12} filled />
+            <span>{t("memo.pinned_section")}</span>
+            <div className="flex-1" style={{ borderTop: "1px solid var(--border)" }} />
+          </div>
+          <ul className="flex flex-col gap-2">
+            {pinnedMemos.map((memo) => (
+              <MemoItem
+                key={memo.id}
+                memo={memo}
+                isExpanded={expandedIds.has(memo.id)}
+                searchQuery={searchQuery}
+                onToggleExpand={() => toggleExpand(memo.id)}
+                onUpdate={onUpdate}
+                onDelete={onDelete}
+              />
+            ))}
+          </ul>
+        </>
       )}
       <ul className="flex flex-col gap-2">
         {regularMemos.map((memo) => (
