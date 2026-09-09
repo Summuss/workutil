@@ -8,6 +8,7 @@ import type {
   BookmarkGroupOpenResponse,
   BookmarkGroupUpdatePayload,
   BookmarkListResponse,
+  BookmarkMoveResponse,
   BookmarkUpdatePayload,
   MoveDirection,
 } from "./types";
@@ -34,8 +35,13 @@ export function deleteBookmark(id: number): Promise<void> {
 export function moveBookmark(
   id: number,
   to: MoveDirection,
-): Promise<Bookmark[]> {
-  return post<Bookmark[]>(`/bookmarks/${id}/move`, { to });
+  groupId?: number | null,
+): Promise<BookmarkMoveResponse> {
+  const payload: { to: MoveDirection; group_id?: number | null } = { to };
+  if (groupId !== undefined) {
+    payload.group_id = groupId;
+  }
+  return post<BookmarkMoveResponse>(`/bookmarks/${id}/move`, payload);
 }
 
 export function openBookmark(id: number): Promise<void> {

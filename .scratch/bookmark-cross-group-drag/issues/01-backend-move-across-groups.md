@@ -10,16 +10,16 @@
 
 **Blocked by:** 无
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] bookmark 模块新增自己的移动请求 schema(带 `to` 与 `group_id`),`core/ordering.py` 的 `MoveRequest` **不动**
-- [ ] `service.move_bookmark` 支持跨组:改 `group_id`、目标组重排、**原组收拢序号**,一个事务
-- [ ] `group_id: null` 表示移到散装区,是合法目标
-- [ ] 目标组不存在 → 404
-- [ ] 端点返回受影响的两个列表(原组 / 目标组,散装区算一个),前端一次拿全
-- [ ] 测试:散装 → 组、组 → 散装、组 A → 组 B、移进空组
-- [ ] 测试:移动后**原组**的 `order` 从 0 连续,没有空洞
-- [ ] 测试:目标组的 `order` 从 0 连续,书签落在请求的位置
-- [ ] 测试:`group_id` 等于当前组时,行为与改造前的同组内移动一致(回归)
-- [ ] 测试:`to` 越界被钳制,不报错
-- [ ] `make check` 通过
+- [x] bookmark 模块新增自己的移动请求 schema(带 `to` 与 `group_id`),`core/ordering.py` 的 `MoveRequest` **不动**
+- [x] `service.move_bookmark` 支持跨组:改 `group_id`、目标组重排、**原组收拢序号**,一个事务
+- [x] `group_id: null` 表示移到散装区,是合法目标
+- [x] 目标组不存在 → 404
+- [x] 端点返回受影响的两个列表(原组 / 目标组,散装区算一个),前端一次拿全
+- [x] 测试:散装 → 组、组 → 散装、组 A → 组 B、移进空组
+- [x] 测试:移动后**原组**的 `order` 从 0 连续,没有空洞
+- [x] 测试:目标组的 `order` 从 0 连续,书签落在请求的位置
+- [x] 测试:`group_id` 等于当前组时,行为与改造前的同组内移动一致(回归)
+- [x] 测试:`to` 越界被钳制,不报错
+- [x] `make check` 通过

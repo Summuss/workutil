@@ -281,16 +281,63 @@ def delete_bookmark(session: Session, bookmark_id: int) -> None:
     session.commit()
 
 
-def move_bookmark(session: Session, bookmark_id: int, to: Move | int) -> list[Bookmark]:
+def move_bookmark(
+    session: Session,
+    bookmark_id: int,
+    to: Move | int,
+    target_group_id: int | None = None,
+    *,
+    has_target_group: bool = False,
+) -> tuple[int | None, list[Bookmark], int | None, list[Bookmark]]:
     bookmark = get_bookmark(session, bookmark_id)
-    if bookmark.group_id is not None:
-        siblings = _bookmarks_in_group(session, bookmark.group_id)
-    else:
-        siblings = _loose_bookmarks_in_order(session)
+    source_group_id = bookmark.group_id
 
-    reordered = reorder(siblings, bookmark, to)
+    if not has_target_group:
+        target_group_id = source_group_id
+
+    if target_group_id is not None:
+        get_group(session, target_group_id)
+
+    if source_group_id == target_group_id:
+        if source_group_id is not None:
+            siblings = _bookmarks_in_group(session, source_group_id)
+        else:
+            siblings = _loose_bookmarks_in_order(session)
+
+        reordered = reorder(siblings, bookmark, to)
+        session.commit()
+        return source_group_id, reordered, target_group_id, reordered
+
+    # Cross-group move
+    if source_group_id is not None:
+        old_siblings = [
+            b
+            for b in _bookmarks_in_group(session, source_group_id)
+            if b.id != bookmark.id
+        ]
+    else:
+        old_siblings = [
+            b for b in _loose_bookmarks_in_order(session) if b.id != bookmark.id
+        ]
+    renumber(old_siblings)
+
+    if target_group_id is not None:
+        new_siblings = _bookmarks_in_group(session, target_group_id)
+    else:
+        new_siblings = _loose_bookmarks_in_order(session)
+
+    if isinstance(to, Move):
+        target_index = 0 if to == Move.TOP else len(new_siblings)
+    else:
+        target_index = max(0, min(to, len(new_siblings)))
+
+    new_siblings.insert(target_index, bookmark)
+    bookmark.group_id = target_group_id
+    bookmark.updated_at = utc_now()
+    renumber(new_siblings)
+
     session.commit()
-    return reordered
+    return source_group_id, old_siblings, target_group_id, new_siblings
 
 
 def list_all_bookmarks(

@@ -25,6 +25,13 @@ export interface BookmarkListResponse {
 
 export type MoveDirection = "top" | "bottom" | number;
 
+export interface BookmarkMoveResponse {
+  source_group_id: number | null;
+  target_group_id: number | null;
+  source: Bookmark[];
+  target: Bookmark[];
+}
+
 export interface BookmarkCreatePayload {
   name: string;
   path: string;

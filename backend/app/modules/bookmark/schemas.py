@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
+from app.core.ordering import Move
 from app.core.ordering import MoveRequest as MoveRequest
 
 
@@ -58,6 +59,18 @@ class BookmarkListResponse(BaseModel):
 
     groups: list[BookmarkGroupRead]
     loose: list[BookmarkRead]
+
+
+class BookmarkMoveRequest(BaseModel):
+    to: Move | int
+    group_id: int | None = None
+
+
+class BookmarkMoveResponse(BaseModel):
+    source_group_id: int | None = None
+    target_group_id: int | None = None
+    source: list[BookmarkRead]
+    target: list[BookmarkRead]
 
 
 class BookmarkActionResponse(BaseModel):

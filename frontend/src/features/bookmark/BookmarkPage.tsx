@@ -304,8 +304,8 @@ export function BookmarkPage() {
         });
 
         try {
-          const reordered = await moveBookmark(bookmarkId, targetIndex);
-          setLoaded((curr) => (curr ? { ...curr, loose: reordered } : null));
+          const res = await moveBookmark(bookmarkId, targetIndex);
+          setLoaded((curr) => (curr ? { ...curr, loose: res.target } : null));
         } catch (cause) {
           setLoaded(prev);
           setError(messageOf(cause, t("bookmark.move_failed")));
@@ -329,13 +329,13 @@ export function BookmarkPage() {
         });
 
         try {
-          const reordered = await moveBookmark(bookmarkId, targetIndex);
+          const res = await moveBookmark(bookmarkId, targetIndex);
           setLoaded((curr) =>
             curr
               ? {
                   ...curr,
                   groups: curr.groups.map((g) =>
-                    g.id === groupId ? { ...g, bookmarks: reordered } : g,
+                    g.id === groupId ? { ...g, bookmarks: res.target } : g,
                   ),
                 }
               : null,

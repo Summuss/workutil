@@ -20,6 +20,8 @@ from app.modules.bookmark.schemas import (
     BookmarkGroupRead,
     BookmarkGroupUpdate,
     BookmarkListResponse,
+    BookmarkMoveRequest,
+    BookmarkMoveResponse,
     BookmarkRead,
     BookmarkUpdate,
     MoveRequest,
@@ -172,15 +174,29 @@ def delete_bookmark(bookmark_id: int, session: SessionDep) -> None:
         raise http_error(status.HTTP_404_NOT_FOUND, err) from err
 
 
-@bookmarks_router.post("/{bookmark_id}/move", response_model=list[BookmarkRead])
+@bookmarks_router.post("/{bookmark_id}/move", response_model=BookmarkMoveResponse)
 def move_bookmark(
-    bookmark_id: int, payload: MoveRequest, session: SessionDep
-) -> list[BookmarkRead]:
+    bookmark_id: int, payload: BookmarkMoveRequest, session: SessionDep
+) -> BookmarkMoveResponse:
+    has_target_group = "group_id" in payload.model_fields_set
     try:
-        reordered = service.move_bookmark(session, bookmark_id, payload.to)
+        source_gid, source_list, target_gid, target_list = service.move_bookmark(
+            session,
+            bookmark_id,
+            payload.to,
+            target_group_id=payload.group_id,
+            has_target_group=has_target_group,
+        )
     except service.BookmarkNotFound as err:
         raise http_error(status.HTTP_404_NOT_FOUND, err) from err
-    return [BookmarkRead.model_validate(b) for b in reordered]
+    except service.GroupNotFound as err:
+        raise http_error(status.HTTP_404_NOT_FOUND, err) from err
+    return BookmarkMoveResponse(
+        source_group_id=source_gid,
+        target_group_id=target_gid,
+        source=[BookmarkRead.model_validate(b) for b in source_list],
+        target=[BookmarkRead.model_validate(b) for b in target_list],
+    )
 
 
 @bookmarks_router.post("/{bookmark_id}/open", response_model=BookmarkActionResponse)
