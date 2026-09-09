@@ -12,20 +12,20 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** done
 
 - [x] `running.md` 里的 `summus@192.168.3.3` 改成占位符
 - [x] 建 public 仓库并推送(`Summuss/workutil`)
-- [ ] 发第一个 release,`make package` 的产物作为资产
+- [x] 发第一个 release,`make package` 的产物作为资产
 - [x] `requirements.md §6` 关掉「工作机能否装软件」那条,写上实测结论
 - [x] `requirements.md §5` 的「部署简单」补上现在的实际形态(解压即用)
-- [ ] `design.md` 新增打包章节:包的形状、为什么不用 PyInstaller、`frontend_dist` 三级查找、`open_app_window` 是平台层第三个动词
-- [ ] `design.md §7` 的「在服务器上验不了」补第二条:便携包能否跑起来、app 窗口长什么样
-- [ ] `running.md §C` 整节重写:下载 → **解压前右键 zip 解除锁定** → 解压 → 双击;以及升级就是删掉旧文件夹解压新的、数据在 `%LOCALAPPDATA%` 不受影响
-- [ ] `running.md` 补 Edge「安装为应用」的步骤,以及在哪儿打开开机自启
-- [ ] `running.md` 手动清单补:双击起得来、窗口有图标没有地址栏、重复双击只是把窗口拿到眼前、装成 PWA 后开始菜单里有条目、导航栏显示的版本号和下载的 zip 一致
-- [ ] 复核 ADR-0009(便携包在 Linux 上组装)与 ADR-0010(UI 仍然是浏览器)—— 两条都已写好,若实现中理由有变则一并更新
-- [ ] 若实现中对 spec 有偏离,在 `spec.md` 里改掉
+- [x] `design.md` 新增打包章节:包的形状、为什么不用 PyInstaller、`frontend_dist` 三级查找、`open_app_window` 是平台层第三个动词
+- [x] `design.md §7` 的「在服务器上验不了」补第二条:便携包能否跑起来、app 窗口长什么样
+- [x] `running.md §C` 整节重写:下载 → **解压前右键 zip 解除锁定** → 解压 → 双击;以及升级就是删掉旧文件夹解压新的、数据在 `%LOCALAPPDATA%` 不受影响
+- [x] `running.md` 补 Edge「安装为应用」的步骤,以及在哪儿打开开机自启
+- [x] `running.md` 手动清单补:双击起得来、窗口有图标没有地址栏、重复双击只是把窗口拿到眼前、装成 PWA 后开始菜单里有条目、导航栏显示的版本号和下载的 zip 一致
+- [x] 复核 ADR-0009(便携包在 Linux 上组装)与 ADR-0010(UI 仍然是浏览器)—— 两条都已写好,若实现中理由有变则一并更新
+- [x] 若实现中对 spec 有偏离,在 `spec.md` 里改掉
 
 ## Notes
 

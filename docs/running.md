@@ -317,31 +317,81 @@ Evidence 与 Case 这两层 —— 用例**里面**的内容看下一节:
 | 组里有一条书签指向的文件已被删除或改名 | 其余书签照常打开,页面上明确提示跳过了哪一条、为什么 |
 | 点一条指向 `.bat` / `.exe` 的书签 | 直接执行(知情接受,ADR-0005) |
 
+#### 便携包与独立窗口(M6 / Packaging)
+
+在服务器上验证:
+
+| 看什么 | 期望 |
+| --- | --- |
+| 访问 <http://localhost:8765/api/version> | 返回 `{"version": "0.1.0"}` |
+| 顶部导航栏右侧 workutil 标题旁 | 显示小字等宽 `v0.1.0` 版本号 |
+| 检查网页标题旁与标签栏图标 | 显示带有羽毛感 W 造型的品牌图标(favicon) |
+| 检查静态文件路由 <http://localhost:8765/manifest.webmanifest> | 正确返回 manifest JSON,且 MIME 类型为 `application/manifest+json` |
+
+在 Windows / macOS 本机上验证(服务器上验不了):
+
+| 看什么 | 期望 |
+| --- | --- |
+| 双击 `workutil.bat` 或 `workutil.command` | 后台服务正常起得来,并自动调出独立应用窗口 |
+| 弹出的应用窗口 | 无浏览器地址栏与标签栏,任务栏显示自定义的 W 品牌图标 |
+| 在已运行状态下重复双击启动脚本 | 终端打印「workutil 已经在运行」,直接将已有窗口拿到眼前,退出码为 0 |
+| 在 Edge 浏览器打开页面并「安装此站点为应用」 | 成功安装为 PWA,系统开始菜单里出现 workutil 快捷方式条目 |
+| 导航栏显示的版本号 | 与解压的便携包 zip 版本号(如 `v0.1.0`)完全一致 |
+
 ---
 
 ## C. 在工作机 / 私人 Mac 上使用
 
-```sh
-make build   # 构建前端(需要 Node)
-make run     # 启动
-```
+工作机不需要预装 Python、Node 或任何开发工具。直接从 GitHub Releases 下载预先组装好的解压即用便携包。
 
-打开 <http://127.0.0.1:8765>。
+### 1. 下载便携包
 
-**运行时只需要 Python(uv),不需要 Node** —— 前端已经是构建好的静态文件
-(design.md §3.1)。但 `frontend/dist/` 不进版本库,所以目标机上要么自己
-`make build` 一次(那就需要 Node),要么把 `dist/` 拷过去。
+从仓库 Releases 页面下载对应系统的压缩包:
+- Windows (x64): `workutil-<version>-windows-x64.zip`
+- macOS (Apple Silicon): `workutil-<version>-macos-arm64.zip`
 
-> ⚠️ **最终分发方式还没定**,取决于工作机允不允许装软件(requirements.md §6)。
-> 若不允许,退路是 uv 自带 Python + PyInstaller 打包(design.md §3.2),届时这一节要重写。
+### 2. 解压前解除锁定 (重要:仅 Windows)
+
+从网络下载的 zip 文件会带有 Windows Mark-of-the-Web (MOTW) 区域安全标记。**在解压之前必须先解除锁定**,否则解压出的批处理脚本与依赖可能被系统阻止运行:
+
+1. 右键下载的 `workutil-<version>-windows-x64.zip` 文件,选择 **「属性」**。
+2. 在常规选项卡最下方,勾选 **「解除锁定」** (Unblock)。
+3. 点击 **「确定」**。
+
+之后将 zip 解压到任意你喜欢的目录(例如 `D:\tools\workutil\` 或个人主目录)。
+
+### 3. 双击运行
+
+- **Windows**: 双击解压目录下的 `workutil.bat`。
+- **macOS**: 双击解压目录下的 `workutil.command`。
+
+启动脚本会在后台启动后端服务(`127.0.0.1:8765`),并自动调起无地址栏、无标签栏的独立 app 模式窗口。
+如果 workutil 已经在运行,再次双击启动脚本**不会产生冲突错误或启动重复服务**,而是会自动将已有窗口唤起到前台,进程以退出码 0 正常退出。
+
+### 4. 安装为应用与开机自启 (推荐)
+
+借助 Web Manifest 支持,可以在 Edge / Chrome 中将其固化为独立桌面应用:
+
+1. **安装为应用**:
+   - 在独立窗口或 Edge 中访问时,点击地址栏右侧的「应用」图标(或右上角菜单 `...` → **「应用」** → **「将此站点作为应用安装」**)。
+   - 安装完成后,系统开始菜单中会出现 **workutil** 图标,可直接固定到任务栏或桌面。
+2. **设置开机自启**:
+   - 打开 Edge 浏览器,在地址栏输入 `edge://apps` 进入应用管理。
+   - 找到 **workutil**,点击右侧 `...` 菜单(或右键)。
+   - 勾选 **「在设备登录时自动启动」** (Auto-start on device login)。
+   - 这样每天开机时 workutil 便会自动在后台或独立窗口中就绪。
+
+### 5. 版本更新与数据迁移
+
+- **数据去哪了**: 数据保存在系统标准数据目录下(Windows: `%APPDATA%\workutil`, macOS: `~/Library/Application Support/workutil`),不在解压文件夹内部。
+- **如何升级**: 下载新版本 zip 并解除锁定后,**直接删掉旧的 workutil 文件夹、解压新版本即可**。所有既有的 Memo、Todo、书签与 Evidence 数据零丢失、完全不受影响。
 
 ### 落差:有些东西在服务器上验不了
 
-开发时服务跑在 Linux 服务器上,所以这个行为**必须拿到 Windows / macOS 本机上测**:
+开发时服务跑在 Linux 服务器上,以下行为**必须拿到 Windows / macOS 本机上测**:
 
-- F3 书签「用默认程序打开文件」—— 在服务器上会去开服务器的文件,而服务器没有桌面
-
-UI、数据存取、Excel 导出可以在服务器上完整验证。详见 design.md §7、§9。
+1. **F3 书签「用默认程序打开文件」** —— 服务器无桌面环境,只能由 fake platform 覆盖参数逻辑。
+2. **便携包启动与独立 app 模式窗口** —— 包括批处理拉起 standalone Python、浏览器 `--app` 模式的唤起与 PWA 安装效果。
 
 ---
 
@@ -354,6 +404,7 @@ UI、数据存取、Excel 导出可以在服务器上完整验证。详见 desig
 | `make dev-frontend` | 前端 :5173,`/api` 反代到后端 |
 | `make build` | 构建前端到 `frontend/dist/` |
 | `make run` | 生产形态启动(单进程,含 UI) |
+| `make package` | 组装全平台便携包到 `dist/` |
 | `make test` | 后端测试 + 前端那一个渲染安全测试 |
 | `make check` | ruff check + ruff format --check + mypy + tsc |
 

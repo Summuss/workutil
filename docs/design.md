@@ -88,6 +88,58 @@
 
 固定外壳治不了「单条内容自己吃掉一屏」,那由 §6 F1 的图片缩略图解决。
 
+### 3.5 便携包分发与独立窗口
+
+工作机可以在任意位置执行程序但不能自由安装运行环境,且只能匿名访问 GitHub(见 requirements.md §6)。因此分发形态定为**解压即用的便携 zip 包**,通过 GitHub Release 发布。
+
+#### 包的形状与在 Linux 上的组装
+
+不使用 PyInstaller(它无法交叉编译,而在无桌面 Linux 开发服务器上借 Windows 构建不可行)。改为**组装**而不是编译(见 [ADR-0009](./adr/0009-portable-package-assembled-on-linux.md)):
+
+```
+workutil/
+├── workutil.bat            ← Windows 启动脚本
+├── workutil.command        ← macOS 启动脚本(0o755)
+├── python/                 ← python-build-standalone 解开的运行时
+├── site-packages/          ← 目标平台预编译 wheels 解开的依赖
+├── app/                    ← 后端源码(migrations 在包内,随目录拷贝)
+├── ui/                     ← 前端构建静态产物(frontend/dist 内容)
+└── README.txt              ← 快速使用说明
+```
+
+所有第三方依赖(Pillow、pydantic-core、watchfiles 等)均有目标平台的预编译 wheel,组装只是将 wheel 与 Python standalone 运行时解压到对应目录,全程在 Linux 开发机上完成(`make package`)。
+
+#### `frontend_dist` 三级查找
+
+便携包运行时后端脱离了 git 仓库源码树。`app/core/config.py` 中的前端静态文件路径按三级顺序查找:
+1. `WORKUTIL_UI_DIR` 环境变量
+2. 包布局:`app/` 源码同级的 `ui/` 目录
+3. 仓库布局:`<repo>/frontend/dist`
+
+若均不存在返回非空 Path 但不中断启动,访问静态资源时友好提示 404。
+
+#### 平台层第三个动词:`open_app_window`
+
+独立窗口通过浏览器 app 模式实现,不做原生桌面框架(见 [ADR-0010](./adr/0010-the-app-window-is-still-a-browser.md))。`app/core/platform.py` 补充第三个动词:
+
+- `open_app_window(url, data_dir=None)`:
+  - Windows: 依次尝试 `msedge --app=<url>` → `chrome --app=<url>` → `start <url>`
+  - macOS: 依次尝试 `open -na "Google Chrome" --args --app=<url>` → Edge 同理 → `open <url>`
+  - Linux: 抛出 `UnsupportedPlatformError`
+
+开窗使用数据目录下独立的 `browser-profile/` 作为 `--user-data-dir`,与日常浏览器的插件、策略及清理缓存操作完全隔离,保证 `localStorage` 的展开状态与语言偏好不受污染。
+
+#### 端口占用与防重复启动
+
+启动脚本设定 `WORKUTIL_OPEN_WINDOW=1`,uvicorn lifespan 启动后自动开窗。若 8765 端口已被占用,后端检测到后不会崩溃报错,而是打印提示「workutil 已经在运行」、唤起已有实例开窗并将进程以退出码 0 正常退出。
+
+#### favicon、Web Manifest 与版本号显示
+
+- 前端在 `frontend/public/` 提供 `favicon.svg`、`favicon.ico` 以及 192/512 尺寸的 PNG 图标,并配置 `manifest.webmanifest`(独立显示模式 `standalone`,主题色 `#4f679c`)。
+- 在 Edge / Chrome 中支持「安装此站点为应用」并可在 `edge://apps` 勾选开机自动启动。
+- 后端暴露 `GET /api/version` 返回 `pyproject.toml` 的版本号,顶部导航栏展示小字版本号,便于手动下载更新时核对版本。
+
+
 ## 4. 项目结构
 
 新增一个功能 = 加一个目录 + 一行注册。
@@ -289,11 +341,13 @@ TDD 只打在事先约定的接缝上,不追求覆盖率。
 
 **使用**:在 Windows / macOS 本机启动服务,浏览器打开 `localhost`。
 
-> ⚠️ **落差**:开发时服务跑在 Linux 服务器上,所以 F3 的「打开文件」会去开服务器上的文件,而服务器没有桌面。
+> ⚠️ **落差**:开发时服务跑在 Linux 服务器上,有两个行为在服务器上无法真实验证,必须拿到 Windows / macOS 本机上测:
 >
-> **这些原生行为无法在服务器上真实验证,必须拿到 Windows / macOS 本机上测。**
+> 1. **F3 书签「用默认程序打开文件」** —— 在服务器上会去开服务器的文件,而服务器没有桌面。通过 §3.3 的平台抽象层将这部分风险圈进可替换的小范围(fake platform 自动化测试覆盖)。
+> 2. **便携包本身能否跑起来、app 模式窗口长什么样** —— `make package` 组装出的便携包运行依赖宿主系统的环境分派与 Chromium 内核浏览器的 `--app` 模式。缓解手段是把逻辑尽量留在 Python 里(端口检测、退出码 0、开窗分派都有自动化测试),真机上主要验证「窗口真的正常调出且无白屏」。
 >
-> §3.3 的平台抽象层就是为了把这部分风险圈在一个可替换的小范围里。UI、数据存取、Excel 导出则可以在服务器上完整验证。
+> UI、数据存取、Excel 导出则可以在服务器上完整验证。
+
 
 ## 8. 实现顺序
 
