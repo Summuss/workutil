@@ -8,7 +8,13 @@ import {
 
 import { messageOf } from "../../shared/api";
 import { t } from "../../shared/i18n";
-import { ArrowRightIcon, ChevronUpIcon, EditIcon, TrashIcon } from "../../shared/icons";
+import {
+  ArrowRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  EditIcon,
+  TrashIcon,
+} from "../../shared/icons";
 import { formatTime } from "../../shared/time";
 import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, updateMemo } from "./api";
@@ -164,11 +170,7 @@ export function MemoItem({
 
     return (
       <li className="card px-4 py-3">
-        <button
-          type="button"
-          onClick={onToggleExpand}
-          className="group flex w-full cursor-pointer items-center justify-between gap-3 text-left"
-        >
+        <div className="flex items-center justify-between gap-3">
           <span className="flex min-w-0 items-center gap-2">
             <span
               className="truncate"
@@ -184,14 +186,21 @@ export function MemoItem({
                 {t("memo.image_count", { count: memo.image_count })}
               </span>
             )}
+            {isUnsaved && (
+              <span className="shrink-0 text-[11px]" style={{ color: "var(--warn)" }}>
+                {t("memo.unsaved")}
+              </span>
+            )}
           </span>
-          <span
-            className="shrink-0 text-[11px] opacity-0 transition-opacity group-focus-visible:opacity-100 group-hover:opacity-100"
-            style={{ color: "var(--text-faint)" }}
+          <button
+            type="button"
+            onClick={onToggleExpand}
+            className="icon-btn shrink-0"
+            title={t("memo.expand")}
           >
-            {isUnsaved ? t("memo.unsaved") : t("memo.expand")}
-          </span>
-        </button>
+            <ChevronDownIcon />
+          </button>
+        </div>
 
         {/* Outside the button on purpose: a snippet is the line you came to
             copy, and text inside a button cannot be dragged over. */}
