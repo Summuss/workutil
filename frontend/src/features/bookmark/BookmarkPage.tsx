@@ -490,31 +490,62 @@ export function BookmarkPage() {
             </p>
           )}
 
-          {notice !== null && (
-            <div
-              className="flex items-start justify-between gap-3 rounded-lg p-3 text-xs"
-              style={{ border: `1px solid ${NOTICE_STYLE[notice.type].border}`, background: NOTICE_STYLE[notice.type].bg, color: NOTICE_STYLE[notice.type].color }}
-            >
-              <div className="flex flex-col gap-1">
-                <span className="font-medium">{notice.message}</span>
-                {notice.details && notice.details.length > 0 && (
-                  <ul className="list-disc space-y-0.5 pl-4" style={{ color: "var(--text-muted)" }}>
-                    {notice.details.map((d, i) => (
-                      <li key={i}>{d}</li>
-                    ))}
-                  </ul>
+          {(notice !== null || error !== null) && (
+            <div className="relative w-full h-0 z-20 pointer-events-none">
+              <div className="absolute top-2 left-0 right-0 flex flex-col gap-2 pointer-events-auto">
+                {notice !== null && (
+                  <div
+                    className="flex items-start justify-between gap-3 rounded-lg p-3 text-xs shadow-lg"
+                    style={{
+                      border: `1px solid ${NOTICE_STYLE[notice.type].border}`,
+                      background: NOTICE_STYLE[notice.type].bg,
+                      color: NOTICE_STYLE[notice.type].color,
+                    }}
+                  >
+                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                      <span className="font-medium">{notice.message}</span>
+                      {notice.details && notice.details.length > 0 && (
+                        <ul
+                          className="list-disc space-y-0.5 pl-4 max-h-48 overflow-y-auto"
+                          style={{ color: "var(--text-muted)" }}
+                        >
+                          {notice.details.map((d, i) => (
+                            <li key={i}>{d}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNotice(null)}
+                      className="icon-btn shrink-0 cursor-pointer"
+                    >
+                      <XIcon size={11} />
+                    </button>
+                  </div>
+                )}
+
+                {error !== null && (
+                  <div
+                    className="flex items-center justify-between gap-2 rounded-lg p-3 text-xs shadow-lg"
+                    style={{
+                      border: "1px solid var(--danger-tint)",
+                      background: "var(--danger-tint)",
+                      color: "var(--danger)",
+                    }}
+                  >
+                    <span className="min-w-0 flex-1">{error}</span>
+                    <button
+                      type="button"
+                      onClick={() => setError(null)}
+                      className="icon-btn shrink-0 cursor-pointer"
+                    >
+                      <XIcon size={11} />
+                    </button>
+                  </div>
                 )}
               </div>
-              <button type="button" onClick={() => setNotice(null)} className="icon-btn">
-                <XIcon size={11} />
-              </button>
             </div>
-          )}
-
-          {error !== null && (
-            <p className="text-xs" style={{ color: "var(--danger)" }}>
-              {error}
-            </p>
           )}
         </>
       }
