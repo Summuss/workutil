@@ -24,8 +24,7 @@ export interface EvidenceDetail extends Evidence {
   cases: Case[];
 }
 
-/** Where a case or a block is being sent. Four buttons, no dragging (design.md §6 F5). */
-export type Move = "up" | "down" | "top" | "bottom";
+export type Move = "top" | "bottom" | number;
 
 /** The three things a case is made of. A log is `text`, not a kind of its own. */
 export type BlockKind = "text" | "image" | "table";

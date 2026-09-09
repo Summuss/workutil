@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
 
+import { arrayMove } from "@dnd-kit/sortable";
+
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
 import { ArrowLeftIcon } from "../../shared/icons";
@@ -92,9 +94,49 @@ export function EvidenceDetailPage() {
     });
   }
 
-  async function handleMove(caseId: number, to: Move): Promise<void> {
+  async function handleReorderCase(caseId: number, targetIndex: number): Promise<void> {
+    const oldIndex = cases.findIndex((c) => c.id === caseId);
+    if (oldIndex === -1 || oldIndex === targetIndex) return;
+
+    const prev = cases;
+    const reorderedOptimistic = arrayMove(cases, oldIndex, targetIndex).map(
+      (c, idx) => ({ ...c, order: idx }),
+    );
+    setCases(reorderedOptimistic);
+
     await caseEdit.run(async () => {
-      setCases(await moveCase(id, caseId, to));
+      try {
+        setCases(await moveCase(id, caseId, targetIndex));
+      } catch (cause) {
+        setCases(prev);
+        throw cause;
+      }
+    });
+  }
+
+  async function handleMove(caseId: number, to: Move): Promise<void> {
+    if (typeof to === "number") {
+      return handleReorderCase(caseId, to);
+    }
+    const oldIndex = cases.findIndex((c) => c.id === caseId);
+    if (oldIndex === -1) return;
+    const targetIndex = to === "top" ? 0 : cases.length - 1;
+    const prev = cases;
+
+    if (oldIndex !== targetIndex) {
+      const reorderedOptimistic = arrayMove(cases, oldIndex, targetIndex).map(
+        (c, idx) => ({ ...c, order: idx }),
+      );
+      setCases(reorderedOptimistic);
+    }
+
+    await caseEdit.run(async () => {
+      try {
+        setCases(await moveCase(id, caseId, to));
+      } catch (cause) {
+        setCases(prev);
+        throw cause;
+      }
     });
   }
 
@@ -204,6 +246,7 @@ export function EvidenceDetailPage() {
         onRename={handleRename}
         onDelete={handleDelete}
         onMove={handleMove}
+        onReorder={handleReorderCase}
       />
 
       {selectedId === null ? (

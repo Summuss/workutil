@@ -1,8 +1,17 @@
 import { useState } from "react";
 
+import { horizontalListSortingStrategy } from "@dnd-kit/sortable";
+
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
-import { ChevronsLeftIcon, ChevronsRightIcon, ChevronLeftIcon, ChevronRightIcon, EditIcon, TrashIcon, PlusIcon } from "../../shared/icons";
+import {
+  ChevronsLeftIcon,
+  ChevronsRightIcon,
+  EditIcon,
+  PlusIcon,
+  TrashIcon,
+} from "../../shared/icons";
+import { DragHandle, SortableList, useSortableItem } from "../../shared/sortable";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
 import type { Case, Move } from "./types";
 
@@ -16,19 +25,78 @@ interface CaseTabsProps {
   onRename: (caseId: number, name: string) => Promise<boolean>;
   onDelete: (caseId: number) => Promise<void>;
   onMove: (caseId: number, to: Move) => Promise<void>;
+  onReorder?: (caseId: number, newIndex: number) => void | Promise<void>;
 }
 
 type Editing = { kind: "add" } | { kind: "rename"; caseId: number } | null;
 
 const NAME_FIELD = "field-input w-28";
 
+interface CaseTabItemProps {
+  one: Case;
+  selectedId: number | null;
+  canReorder: boolean;
+  busy: boolean;
+  onSelect: (id: number) => void;
+  onDoubleClick: () => void;
+}
+
+function CaseTabItem({
+  one,
+  selectedId,
+  canReorder,
+  busy,
+  onSelect,
+  onDoubleClick,
+}: CaseTabItemProps) {
+  const { t } = useI18n();
+  const { ref, style, handleProps } = useSortableItem(one.id, !canReorder);
+  const isSelected = one.id === selectedId;
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        ...style,
+        background: isSelected ? "var(--accent)" : "transparent",
+        border: isSelected ? "1px solid var(--accent)" : "1px solid var(--border)",
+        borderRadius: "6px",
+      }}
+      className="group flex shrink-0 items-center transition-colors"
+    >
+      {canReorder && (
+        <DragHandle
+          title={t("common.drag_reorder")}
+          disabled={busy}
+          size={11}
+          className="tool-btn cursor-grab active:cursor-grabbing px-1 opacity-40 group-focus-within:opacity-100 group-hover:opacity-100"
+          style={{ color: isSelected ? "white" : undefined }}
+          {...handleProps}
+        />
+      )}
+      <button
+        type="button"
+        onClick={() => onSelect(one.id)}
+        onDoubleClick={onDoubleClick}
+        title={t("evidence.double_click_rename")}
+        className="cursor-pointer px-2.5 py-1 text-xs"
+        style={{
+          fontFamily: "var(--mono)",
+          color: isSelected ? "white" : "var(--text-muted)",
+        }}
+      >
+        {one.name}
+      </button>
+    </div>
+  );
+}
+
 /**
  * The cases of one evidence, in the order they will become sheets.
  *
  * A tab bar rather than a list because a case is a place you work *inside*:
  * only one case's content is on screen at a time, and the strip is how you get
- * between them. Left and right here are the "上下移动" of design.md §6 F5 —
- * the tabs run horizontally, so the arrows do too.
+ * between them.
  */
 export function CaseTabs({
   cases,
@@ -40,22 +108,20 @@ export function CaseTabs({
   onRename,
   onDelete,
   onMove,
+  onReorder,
 }: CaseTabsProps) {
   const { t } = useI18n();
   const [editing, setEditing] = useState<Editing>(null);
 
   const moveLabels: MoveLabels = {
     top: { Icon: ChevronsLeftIcon, title: t("evidence.move_case_top") },
-    up: { Icon: ChevronLeftIcon, title: t("evidence.move_case_left") },
-    down: { Icon: ChevronRightIcon, title: t("evidence.move_case_right") },
     bottom: { Icon: ChevronsRightIcon, title: t("evidence.move_case_bottom") },
   };
 
   const selected = cases.find((one) => one.id === selectedId) ?? null;
   const at = selected ? cases.indexOf(selected) : -1;
+  const canReorder = cases.length > 1;
 
-  // Closed only once the name was actually accepted, so a refused one stays in
-  // the box with the reason underneath it.
   async function commit(name: string) {
     if (editing === null) {
       return;
@@ -83,7 +149,13 @@ export function CaseTabs({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-1.5 overflow-x-auto pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
+      <SortableList
+        items={cases}
+        strategy={horizontalListSortingStrategy}
+        onReorder={(id, newIndex) => onReorder?.(Number(id), newIndex)}
+        className="flex items-center gap-1.5 overflow-x-auto pb-2"
+        style={{ borderBottom: "1px solid var(--border)" }}
+      >
         {cases.map((one) =>
           editing?.kind === "rename" && editing.caseId === one.id ? (
             <InlineEdit
@@ -96,23 +168,17 @@ export function CaseTabs({
               onCancel={() => setEditing(null)}
             />
           ) : (
-            <button
+            <CaseTabItem
               key={one.id}
-              type="button"
-              onClick={() => onSelect(one.id)}
+              one={one}
+              selectedId={selectedId}
+              canReorder={canReorder}
+              busy={busy}
+              onSelect={onSelect}
               onDoubleClick={() =>
                 setEditing({ kind: "rename", caseId: one.id })
               }
-              title={t("evidence.double_click_rename")}
-              className="shrink-0 cursor-pointer rounded-md px-3 py-1.5 text-xs transition-colors"
-              style={
-                one.id === selectedId
-                  ? { fontFamily: "var(--mono)", background: "var(--accent)", color: "white" }
-                  : { fontFamily: "var(--mono)", color: "var(--text-muted)" }
-              }
-            >
-              {one.name}
-            </button>
+            />
           ),
         )}
 
@@ -136,7 +202,7 @@ export function CaseTabs({
             <PlusIcon />
           </button>
         )}
-      </div>
+      </SortableList>
 
       {error !== null && (
         <p className="text-xs" style={{ color: "var(--danger)" }}>

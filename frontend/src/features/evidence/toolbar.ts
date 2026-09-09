@@ -1,7 +1,5 @@
 import type { ComponentType } from "react";
 
-import type { Move } from "./types";
-
 /** The small buttons that sit beside a case or a block. */
 export const TOOL_BUTTON = "tool-btn";
 
@@ -16,17 +14,15 @@ export const TOOL_BUTTON = "tool-btn";
  * as a no-op regardless.
  */
 export const MOVES: {
-  to: Move;
+  to: "top" | "bottom";
   stuck: (at: number, count: number) => boolean;
 }[] = [
   { to: "top", stuck: (at) => at === 0 },
-  { to: "up", stuck: (at) => at === 0 },
-  { to: "down", stuck: (at, count) => at === count - 1 },
   { to: "bottom", stuck: (at, count) => at === count - 1 },
 ];
 
-/** What one axis calls the four moves. */
+/** What one axis calls the moves. */
 export type MoveLabels = Record<
-  Move,
+  "top" | "bottom",
   { Icon: ComponentType<{ size?: number }>; title: string }
 >;

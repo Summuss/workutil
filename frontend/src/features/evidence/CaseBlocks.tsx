@@ -1,5 +1,7 @@
 import { useState } from "react";
 
+import { arrayMove } from "@dnd-kit/sortable";
+
 import { readImage } from "../../shared/images";
 import { useI18n } from "../../shared/i18n";
 import { useEditRunner } from "../../shared/useEditRunner";
@@ -21,6 +23,7 @@ import {
 } from "./api";
 import { BlockCard } from "./BlockCard";
 import { BlockTextArea } from "./BlockTextArea";
+import { SortableList } from "../../shared/sortable";
 import type { PastedText } from "./clipboard";
 import type { Block, CaseDetail, Move } from "./types";
 
@@ -137,9 +140,53 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     });
   }
 
-  async function handleMove(blockId: number, to: Move): Promise<void> {
+  async function handleReorderBlock(
+    activeId: number | string,
+    targetIndex: number,
+  ): Promise<void> {
+    const blockId = Number(activeId);
+    const oldIndex = blocks.findIndex((b) => b.id === blockId);
+    if (oldIndex === -1 || oldIndex === targetIndex) return;
+
+    const prev = blocks;
+    const reorderedOptimistic = arrayMove(blocks, oldIndex, targetIndex).map(
+      (b, idx) => ({ ...b, order: idx }),
+    );
+    setBlocks(reorderedOptimistic);
+
     await run(async () => {
-      setBlocks(await moveBlock(evidenceId, caseId, blockId, to));
+      try {
+        setBlocks(await moveBlock(evidenceId, caseId, blockId, targetIndex));
+      } catch (cause) {
+        setBlocks(prev);
+        throw cause;
+      }
+    });
+  }
+
+  async function handleMove(blockId: number, to: Move): Promise<void> {
+    if (typeof to === "number") {
+      return handleReorderBlock(blockId, to);
+    }
+    const oldIndex = blocks.findIndex((b) => b.id === blockId);
+    if (oldIndex === -1) return;
+    const targetIndex = to === "top" ? 0 : blocks.length - 1;
+    const prev = blocks;
+
+    if (oldIndex !== targetIndex) {
+      const reorderedOptimistic = arrayMove(blocks, oldIndex, targetIndex).map(
+        (b, idx) => ({ ...b, order: idx }),
+      );
+      setBlocks(reorderedOptimistic);
+    }
+
+    await run(async () => {
+      try {
+        setBlocks(await moveBlock(evidenceId, caseId, blockId, to));
+      } catch (cause) {
+        setBlocks(prev);
+        throw cause;
+      }
     });
   }
 
@@ -217,28 +264,34 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
           {t("evidence.case_empty_hint")}
         </p>
       ) : (
-        blocks.map((block, at) => (
-          <BlockCard
-            key={block.id}
-            block={block}
-            at={at}
-            count={blocks.length}
-            busy={busy}
-            guessed={guessed.has(block.id)}
-            onEditText={(text) => handleEditText(block.id, text)}
-            onLabel={(label) => handleLabel(block.id, label)}
-            onMove={(to) => handleMove(block.id, to)}
-            onDelete={() => handleDelete(block.id)}
-            table={{
-              onHeader: (hasHeader) => handleHeader(block.id, hasHeader),
-              onCell: (row, column, value) =>
-                handleCell(block.id, row, column, value),
-              onDeleteRow: (row) => handleDeleteRow(block.id, row),
-              onDeleteColumn: (column) => handleDeleteColumn(block.id, column),
-              onAsText: () => handleAsText(block.id),
-            }}
-          />
-        ))
+        <SortableList
+          items={blocks}
+          onReorder={handleReorderBlock}
+          className="flex flex-col gap-3.5"
+        >
+          {blocks.map((block, at) => (
+            <BlockCard
+              key={block.id}
+              block={block}
+              at={at}
+              count={blocks.length}
+              busy={busy}
+              guessed={guessed.has(block.id)}
+              onEditText={(text) => handleEditText(block.id, text)}
+              onLabel={(label) => handleLabel(block.id, label)}
+              onMove={(to) => handleMove(block.id, to)}
+              onDelete={() => handleDelete(block.id)}
+              table={{
+                onHeader: (hasHeader) => handleHeader(block.id, hasHeader),
+                onCell: (row, column, value) =>
+                  handleCell(block.id, row, column, value),
+                onDeleteRow: (row) => handleDeleteRow(block.id, row),
+                onDeleteColumn: (column) => handleDeleteColumn(block.id, column),
+                onAsText: () => handleAsText(block.id),
+              }}
+            />
+          ))}
+        </SortableList>
       )}
 
       {blockError !== null && (

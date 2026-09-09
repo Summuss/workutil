@@ -2,7 +2,13 @@ import { useState } from "react";
 
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
-import { ChevronsDownIcon, ChevronsUpIcon, ChevronDownIcon, ChevronUpIcon, EditIcon, TrashIcon } from "../../shared/icons";
+import {
+  ChevronsDownIcon,
+  ChevronsUpIcon,
+  EditIcon,
+  TrashIcon,
+} from "../../shared/icons";
+import { DragHandle, useSortableItem } from "../../shared/sortable";
 import { BlockTextArea } from "./BlockTextArea";
 import { TableBlockView } from "./TableBlockView";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
@@ -72,10 +78,11 @@ export function BlockCard({
   const [editingLabel, setEditingLabel] = useState(false);
   const [editingTable, setEditingTable] = useState(false);
 
+  const canReorder = count > 1 && !busy;
+  const { ref, style, handleProps } = useSortableItem(block.id, !canReorder);
+
   const moveLabels: MoveLabels = {
     top: { Icon: ChevronsUpIcon, title: t("evidence.move_block_top") },
-    up: { Icon: ChevronUpIcon, title: t("evidence.move_block_up") },
-    down: { Icon: ChevronDownIcon, title: t("evidence.move_block_down") },
     bottom: { Icon: ChevronsDownIcon, title: t("evidence.move_block_bottom") },
   };
 
@@ -102,7 +109,11 @@ export function BlockCard({
   }
 
   return (
-    <article className="card flex flex-col gap-2 px-4 py-3">
+    <article
+      ref={ref}
+      style={style}
+      className="card flex flex-col gap-2 px-4 py-3"
+    >
       <div className="flex items-center gap-1">
         {editingLabel ? (
           <InlineEdit
@@ -130,6 +141,13 @@ export function BlockCard({
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {count > 1 && (
+            <DragHandle
+              title={t("common.drag_reorder")}
+              disabled={busy}
+              {...handleProps}
+            />
+          )}
           {MOVES.map(({ to, stuck }) => (
             <button
               key={to}
