@@ -430,10 +430,16 @@ def duplicate_case(
     for block in orig_blocks:
         new_image_name = ""
         if block.kind is BlockKind.IMAGE and block.image_name:
-            if img_dir is not None:
-                new_image_name = _duplicate_image_file(img_dir, block.image_name)
-            else:
-                new_image_name = f"copy_{block.image_name}"
+            # No directory, no disk I/O — same convention `delete_case` and
+            # `delete_evidence` use for a DB-only caller. Falling back to a
+            # fabricated `copy_...` name here would point at a file that was
+            # never written, which is worse than the shared-name problem this
+            # whole duplication step exists to avoid.
+            new_image_name = (
+                _duplicate_image_file(img_dir, block.image_name)
+                if img_dir is not None
+                else block.image_name
+            )
 
         new_rows = [list(row) for row in block.rows] if block.rows else []
 
