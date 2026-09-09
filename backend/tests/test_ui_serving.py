@@ -19,6 +19,10 @@ def a_frontend_build(at: Path) -> Path:
     (at / "assets").mkdir(exist_ok=True)
     (at / "index.html").write_text(INDEX_HTML, encoding="utf-8")
     (at / "assets" / "index-abc123.js").write_text("console.log(1)\n")
+    (at / "favicon.ico").write_bytes(b"\x00\x00\x01\x00ico")
+    (at / "favicon.svg").write_text("<svg>fav</svg>", encoding="utf-8")
+    (at / "icon-192.png").write_bytes(b"\x89PNG192")
+    (at / "manifest.webmanifest").write_text('{"name":"workutil"}', encoding="utf-8")
     return at
 
 
@@ -113,3 +117,25 @@ def test_real_assets_are_still_served(client: TestClient) -> None:
 
     assert response.status_code == 200
     assert response.text.strip() == "console.log(1)"
+
+
+def test_favicon_and_manifest_served_correctly_not_index_html(
+    client: TestClient,
+) -> None:
+    manifest_res = client.get("/manifest.webmanifest")
+    assert manifest_res.status_code == 200
+    assert manifest_res.text == '{"name":"workutil"}'
+    assert manifest_res.text != INDEX_HTML
+
+    fav_res = client.get("/favicon.ico")
+    assert fav_res.status_code == 200
+    assert fav_res.content == b"\x00\x00\x01\x00ico"
+    assert fav_res.text != INDEX_HTML
+
+    svg_res = client.get("/favicon.svg")
+    assert svg_res.status_code == 200
+    assert svg_res.text == "<svg>fav</svg>"
+
+    png_res = client.get("/icon-192.png")
+    assert png_res.status_code == 200
+    assert png_res.content == b"\x89PNG192"

@@ -14,14 +14,14 @@
 
 **Blocked by:** 无(可与 01/02 并行)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] 新建 `frontend/public/`,放 favicon(SVG + ICO)与 192×192、512×512 两个 PNG
-- [ ] 图标在 16px 下仍然认得出来,配色与 `--accent` 一致
-- [ ] `manifest.webmanifest`:`name`、`short_name`、`icons`、`start_url: "/"`、`display: "standalone"`、`theme_color`、`background_color`
-- [ ] `index.html` link 上 favicon 与 manifest
-- [ ] `pnpm build` 后这些文件都在 `dist/` 里(Vite 会原样拷 `public/`)
-- [ ] 后端能正确提供它们 —— `_is_a_frontend_route` 认为带扩展名的路径不是前端路由,会走 `StaticFiles`,确认 `manifest.webmanifest` 与 `.png`/`.ico` 都拿得到而不是被喂了 `index.html`
-- [ ] 浏览器标签页显示图标(服务器上验)
-- [ ] Edge / Chrome 的菜单里出现「安装此站点为应用」(服务器上验)
-- [ ] `make check` 通过
+- [x] 新建 `frontend/public/`,放 favicon(SVG + ICO)与 192×192、512×512 两个 PNG
+- [x] 图标在 16px 下仍然认得出来,配色与 `--accent` 一致
+- [x] `manifest.webmanifest`:`name`、`short_name`、`icons`、`start_url: "/"`、`display: "standalone"`、`theme_color`、`background_color`
+- [x] `index.html` link 上 favicon 与 manifest
+- [x] `pnpm build` 后这些文件都在 `dist/` 里(Vite 会原样拷 `public/`)
+- [x] 后端能正确提供它们 —— `_is_a_frontend_route` 认为带扩展名的路径不是前端路由,会走 `StaticFiles`,确认 `manifest.webmanifest` 与 `.png`/`.ico` 都拿得到而不是被喂了 `index.html`
+- [x] 浏览器标签页显示图标(服务器上验)
+- [x] Edge / Chrome 的菜单里出现「安装此站点为应用」(服务器上验)
+- [x] `make check` 通过
