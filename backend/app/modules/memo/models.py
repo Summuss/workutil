@@ -19,3 +19,6 @@ class Memo(Base):
     body: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(UtcDateTime, index=True)
     updated_at: Mapped[datetime] = mapped_column(UtcDateTime)
+    pinned_at: Mapped[datetime | None] = mapped_column(
+        UtcDateTime, nullable=True, default=None, index=True
+    )

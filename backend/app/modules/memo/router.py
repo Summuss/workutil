@@ -79,6 +79,24 @@ def delete_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> Non
         raise http_error(status.HTTP_404_NOT_FOUND, not_found) from not_found
 
 
+@router.post("/{memo_id}/pin", response_model=MemoRead)
+def pin_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> MemoRead:
+    try:
+        memo = service.pin_memo(session, memo_id)
+    except service.MemoNotFound as not_found:
+        raise http_error(status.HTTP_404_NOT_FOUND, not_found) from not_found
+    return MemoRead.of(memo, service.count_images(settings.images_dir, memo.id))
+
+
+@router.delete("/{memo_id}/pin", response_model=MemoRead)
+def unpin_memo(memo_id: int, session: SessionDep, settings: SettingsDep) -> MemoRead:
+    try:
+        memo = service.unpin_memo(session, memo_id)
+    except service.MemoNotFound as not_found:
+        raise http_error(status.HTTP_404_NOT_FOUND, not_found) from not_found
+    return MemoRead.of(memo, service.count_images(settings.images_dir, memo.id))
+
+
 @router.get("/{memo_id}/images/{filename}")
 def get_memo_image(memo_id: int, filename: str, settings: SettingsDep) -> FileResponse:
     """One screenshot out of a memo's directory.

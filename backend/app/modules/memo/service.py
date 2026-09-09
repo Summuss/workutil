@@ -94,9 +94,19 @@ def create_memo(
     return memo
 
 
+def _pinned(session: Session) -> Sequence[Memo]:
+    """Memos pinned by the user, newest pinned first, unbounded."""
+    return session.scalars(
+        select(Memo)
+        .where(Memo.pinned_at.is_not(None))
+        .order_by(Memo.pinned_at.desc(), Memo.id.desc())
+    ).all()
+
+
 def _recent(session: Session) -> Sequence[Memo]:
     return session.scalars(
         select(Memo)
+        .where(Memo.pinned_at.is_(None))
         .order_by(Memo.created_at.desc(), Memo.id.desc())
         .limit(RECENT_MEMO_LIMIT)
     ).all()
@@ -129,7 +139,7 @@ def list_memos(
     finding things. Ties break on id, so the order never wobbles between calls.
     """
     q = query.strip()
-    memos = _matching(session, q) if q else _recent(session)
+    memos = _matching(session, q) if q else [*_pinned(session), *_recent(session)]
 
     listings = []
     for memo in memos:
@@ -189,3 +199,29 @@ def delete_memo(session: Session, memo_id: int, images_dir: Path | None = None) 
 
     if images_dir is not None:
         images.discard(memo_images_dir(images_dir, memo_id))
+
+
+def pin_memo(session: Session, memo_id: int) -> Memo:
+    """Pin a memo to the top of the list.
+
+    Idempotent: calling this on an already-pinned memo preserves the original
+    pinned_at. Does not touch updated_at.
+    """
+    memo = get_memo(session, memo_id)
+    if memo.pinned_at is None:
+        memo.pinned_at = utc_now()
+        session.commit()
+    return memo
+
+
+def unpin_memo(session: Session, memo_id: int) -> Memo:
+    """Unpin a memo.
+
+    Idempotent: calling this on an unpinned memo is a no-op.
+    Does not touch updated_at.
+    """
+    memo = get_memo(session, memo_id)
+    if memo.pinned_at is not None:
+        memo.pinned_at = None
+        session.commit()
+    return memo

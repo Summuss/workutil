@@ -753,3 +753,129 @@ def test_a_memo_matching_many_times_says_how_many(client: TestClient) -> None:
     found = client.get("/api/memos", params={"q": "timeout"}).json()[0]
     assert len(found["snippets"]) == 5
     assert found["snippet_total"] == 9
+
+
+def test_pin_and_unpin_are_idempotent(client: TestClient) -> None:
+    created = client.post("/api/memos", json={"body": "幂等性测试"}).json()
+    memo_id = created["id"]
+    assert created["pinned_at"] is None
+
+    # First pin
+    pinned1 = client.post(f"/api/memos/{memo_id}/pin")
+    assert pinned1.status_code == 200
+    pinned_at1 = pinned1.json()["pinned_at"]
+    assert pinned_at1 is not None
+
+    # Second pin (idempotent, timestamp unchanged)
+    pinned2 = client.post(f"/api/memos/{memo_id}/pin")
+    assert pinned2.status_code == 200
+    assert pinned2.json()["pinned_at"] == pinned_at1
+
+    # First unpin
+    unpinned1 = client.delete(f"/api/memos/{memo_id}/pin")
+    assert unpinned1.status_code == 200
+    assert unpinned1.json()["pinned_at"] is None
+
+    # Second unpin (idempotent, stays None)
+    unpinned2 = client.delete(f"/api/memos/{memo_id}/pin")
+    assert unpinned2.status_code == 200
+    assert unpinned2.json()["pinned_at"] is None
+
+
+def test_pinning_does_not_modify_updated_at_and_editing_preserves_pinned_at(
+    client: TestClient,
+) -> None:
+    created = client.post("/api/memos", json={"body": "时间戳保全测试"}).json()
+    memo_id = created["id"]
+    original_updated_at = created["updated_at"]
+
+    # Pinning does not touch updated_at
+    pinned = client.post(f"/api/memos/{memo_id}/pin").json()
+    assert pinned["updated_at"] == original_updated_at
+    assert pinned["pinned_at"] is not None
+    pinned_at = pinned["pinned_at"]
+
+    # Editing body updates updated_at, but preserves pinned_at
+    edited = client.patch(f"/api/memos/{memo_id}", json={"body": "修改后的正文"}).json()
+    assert edited["body"] == "修改后的正文"
+    assert edited["pinned_at"] == pinned_at
+    assert at(edited["updated_at"]) >= at(original_updated_at)
+
+
+def test_pin_and_unpin_nonexistent_memo_returns_404(client: TestClient) -> None:
+    assert client.post("/api/memos/99999/pin").status_code == 404
+    assert client.delete("/api/memos/99999/pin").status_code == 404
+
+
+def test_pinned_old_memo_appears_at_top_even_beyond_recent_limit(
+    client: TestClient, session: Session
+) -> None:
+    """An old memo beyond the 200 recent limit must appear at the top when pinned."""
+    oldest = Memo(
+        body="最老但被置顶的 memo",
+        created_at=datetime(2020, 1, 1, tzinfo=UTC),
+        updated_at=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+    session.add(oldest)
+    session.flush()
+    oldest_id = oldest.id
+
+    session.add_all(
+        Memo(
+            body=f"中间填充 memo {n}",
+            created_at=datetime(2021, 1, 1, tzinfo=UTC),
+            updated_at=datetime(2021, 1, 1, tzinfo=UTC),
+        )
+        for n in range(RECENT_MEMO_LIMIT + 5)
+    )
+    session.commit()
+
+    # Before pinning, oldest is beyond the recent limit
+    list_before = client.get("/api/memos").json()
+    assert len(list_before) == RECENT_MEMO_LIMIT
+    assert not any(m["id"] == oldest_id for m in list_before)
+
+    # Pin the oldest memo
+    client.post(f"/api/memos/{oldest_id}/pin")
+
+    # After pinning, oldest appears at the very top of the list,
+    # unbounded by the recent memo limit
+    list_after = client.get("/api/memos").json()
+    assert len(list_after) == RECENT_MEMO_LIMIT + 1
+    assert list_after[0]["id"] == oldest_id
+    assert list_after[0]["pinned_at"] is not None
+
+
+def test_newly_created_pinned_memo_appears_only_once_in_list(
+    client: TestClient,
+) -> None:
+    memo1 = client.post("/api/memos", json={"body": "memo 1"}).json()
+    memo2 = client.post("/api/memos", json={"body": "memo 2"}).json()
+    memo3 = client.post("/api/memos", json={"body": "memo 3"}).json()
+
+    # Pin memo 1 first, then pin memo 3
+    client.post(f"/api/memos/{memo1['id']}/pin")
+    client.post(f"/api/memos/{memo3['id']}/pin")
+
+    listed = client.get("/api/memos").json()
+    # Recently pinned memo3 is top, then memo1, then unpinned memo2
+    assert [m["id"] for m in listed] == [memo3["id"], memo1["id"], memo2["id"]]
+    # No duplicate ids
+    ids = [m["id"] for m in listed]
+    assert len(ids) == len(set(ids))
+
+
+def test_search_order_is_independent_of_pinning(client: TestClient) -> None:
+    memo_a = client.post("/api/memos", json={"body": "alpha first"}).json()
+    memo_b = client.post("/api/memos", json={"body": "alpha second"}).json()
+
+    # Pin memo_a (the older one)
+    client.post(f"/api/memos/{memo_a['id']}/pin")
+
+    # In default list, pinned memo_a is at the top
+    default_list = client.get("/api/memos").json()
+    assert default_list[0]["id"] == memo_a["id"]
+
+    # In search, order is strictly created_at DESC (memo_b then memo_a)
+    search_list = client.get("/api/memos", params={"q": "alpha"}).json()
+    assert [m["id"] for m in search_list] == [memo_b["id"], memo_a["id"]]

@@ -31,6 +31,7 @@ class MemoRead(BaseModel):
     body: str
     created_at: datetime
     updated_at: datetime
+    pinned_at: datetime | None = None
     image_count: int = 0
     snippets: list[str] = []
     #: How many places matched, which can be more than `snippets` shows.
@@ -49,6 +50,7 @@ class MemoRead(BaseModel):
             body=memo.body,
             created_at=memo.created_at,
             updated_at=memo.updated_at,
+            pinned_at=memo.pinned_at,
             image_count=image_count,
             snippets=list(snippets),
             snippet_total=snippet_total,
