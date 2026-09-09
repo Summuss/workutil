@@ -20,6 +20,7 @@ from app.modules.evidence.schemas import (
     CaseDetail,
     CaseRead,
     CaseRename,
+    DuplicateCaseResponse,
     EvidenceCreate,
     EvidenceDetail,
     EvidenceRead,
@@ -166,6 +167,26 @@ def move_case(
     with _as_http_error():
         cases = service.move_case(session, evidence_id, case_id, payload.to)
     return [CaseRead.model_validate(case) for case in cases]
+
+
+@router.post(
+    "/{evidence_id}/cases/{case_id}/duplicate",
+    response_model=DuplicateCaseResponse,
+)
+def duplicate_case(
+    evidence_id: int,
+    case_id: int,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> DuplicateCaseResponse:
+    with _as_http_error():
+        cases, new_case_id = service.duplicate_case(
+            session, evidence_id, case_id, settings.images_dir
+        )
+    return DuplicateCaseResponse(
+        cases=[CaseRead.model_validate(case) for case in cases],
+        new_case_id=new_case_id,
+    )
 
 
 @router.get("/{evidence_id}/cases/{case_id}", response_model=CaseDetail)

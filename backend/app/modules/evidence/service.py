@@ -1,5 +1,6 @@
 """What you can do with an Evidence and its Cases. Knows nothing about HTTP."""
 
+import shutil
 from collections.abc import Sequence
 from pathlib import Path
 from typing import NamedTuple
@@ -352,6 +353,105 @@ def rename_case(
     case.name = text
     session.commit()
     return case
+
+
+def _duplicate_image_file(directory: Path, original_name: str) -> str:
+    original_path = directory / original_name
+    if not original_path.is_file():
+        return original_name
+
+    taken = {path.name for path in directory.iterdir() if path.is_file()}
+    suffix = Path(original_name).suffix.lower()
+    if suffix not in images.IMAGE_EXTENSIONS:
+        suffix = ".png"
+    index = 1
+    while f"img_{index}{suffix}" in taken:
+        index += 1
+    new_name = f"img_{index}{suffix}"
+    shutil.copy2(original_path, directory / new_name)
+    return new_name
+
+
+def _generate_duplicate_case_name(
+    session: Session, evidence_id: int, original_name: str
+) -> str:
+    existing_folded = {
+        sibling.name.casefold() for sibling in _cases_in_order(session, evidence_id)
+    }
+    n = 2
+    while True:
+        suffix = f" ({n})"
+        max_base_len = SHEET_NAME_MAX_LENGTH - len(suffix)
+        base = (
+            original_name[:max_base_len]
+            if len(original_name) > max_base_len
+            else original_name
+        )
+        candidate = f"{base}{suffix}"
+        if candidate.casefold() not in existing_folded:
+            return validate_case_name(candidate)
+        n += 1
+
+
+def duplicate_case(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    images_dir: Path | None = None,
+) -> tuple[list[EvidenceCase], int]:
+    """Duplicate a case with all its blocks, files, and renumbered ordering.
+
+    Inserts the duplicate immediately following the original case,
+    renumbering all following cases so order remains strictly contiguous.
+    Returns the whole cases list and the new case's id.
+    """
+    case = get_case(session, evidence_id, case_id)
+    new_name = _generate_duplicate_case_name(session, evidence_id, case.name)
+
+    existing_cases = _cases_in_order(session, evidence_id)
+    orig_idx = next(i for i, c in enumerate(existing_cases) if c.id == case.id)
+
+    new_case = EvidenceCase(
+        evidence_id=evidence_id,
+        name=new_name,
+        order=orig_idx + 1,
+    )
+    session.add(new_case)
+    session.flush()
+
+    existing_cases.insert(orig_idx + 1, new_case)
+    _renumber(existing_cases)
+    session.flush()
+
+    img_dir = (
+        evidence_images_dir(images_dir, evidence_id) if images_dir is not None else None
+    )
+    orig_blocks = _blocks_in_order(session, case.id)
+    for block in orig_blocks:
+        new_image_name = ""
+        if block.kind is BlockKind.IMAGE and block.image_name:
+            if img_dir is not None:
+                new_image_name = _duplicate_image_file(img_dir, block.image_name)
+            else:
+                new_image_name = f"copy_{block.image_name}"
+
+        new_rows = [list(row) for row in block.rows] if block.rows else []
+
+        new_block = EvidenceBlock(
+            case_id=new_case.id,
+            kind=block.kind,
+            label=block.label,
+            text=block.text,
+            image_name=new_image_name,
+            rows=new_rows,
+            has_header=block.has_header,
+            table_source=block.table_source,
+            order=block.order,
+        )
+        session.add(new_block)
+
+    session.commit()
+    return _cases_in_order(session, evidence_id), new_case.id
 
 
 def delete_case(

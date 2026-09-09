@@ -225,3 +225,10 @@ class CaseDetail(CaseRead):
             **CaseRead.model_validate(case).model_dump(),
             blocks=[BlockRead.of(block, case.evidence_id) for block in blocks],
         )
+
+
+class DuplicateCaseResponse(BaseModel):
+    """The outcome of duplicating a case: the renumbered case list and new id."""
+
+    cases: list[CaseRead]
+    new_case_id: int
