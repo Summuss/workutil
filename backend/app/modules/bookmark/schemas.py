@@ -6,7 +6,7 @@ from app.core.ordering import Move
 
 
 class MoveRequest(BaseModel):
-    to: Move
+    to: Move | int
 
 
 class BookmarkGroupCreate(BaseModel):

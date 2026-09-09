@@ -8,13 +8,13 @@
 
 **Blocked by:** 无
 
-**Status:** todo
+**Status:** resolved
 
-- [ ] `core/ordering.py`:`Move`/`MoveRequest` 相关类型扩展,支持「移动到绝对位置」(方向枚举里去掉 `up`/`down`,保留 `top`/`bottom`,新增一个可携带目标 index 的变体;或改成判别联合 —— 选一种把"方向"与"绝对位置"两种意图表达清楚的形状)
-- [ ] `reorder`(或新增一个姊妹函数)接受目标位置,一次性完成「弹出-插入-整体重编号」,不改变现有 `top`/`bottom` 语义
-- [ ] `Todo`、`BookmarkGroup`、`Bookmark`、`EvidenceCase`、`EvidenceBlock` 五个模块的 `move_*` service 函数与 `MoveRequest` schema 透传新参数
-- [ ] 移除 `Move.UP`/`Move.DOWN` 及所有分支代码、以及五个模块里因此变成死代码的部分
-- [ ] 五个 `POST .../move` 路由的请求体校验体现新形状(拒绝旧的 `up`/`down`)
-- [ ] 主接缝测试(每个资源至少一条):移动到中间位置、移动到当前位置(应无变化)、移动到超出范围位置的边界处理
-- [ ] 既有测试里引用 `up`/`down` 的用例改写或删除
-- [ ] `make check` 通过
+- [x] `core/ordering.py`:`Move`/`MoveRequest` 相关类型扩展,支持「移动到绝对位置」(方向枚举里去掉 `up`/`down`,保留 `top`/`bottom`,新增一个可携带目标 index 的变体;或改成判别联合 —— 选一种把"方向"与"绝对位置"两种意图表达清楚的形状)
+- [x] `reorder`(或新增一个姊妹函数)接受目标位置,一次性完成「弹出-插入-整体重编号」,不改变现有 `top`/`bottom` 语义
+- [x] `Todo`、`BookmarkGroup`、`Bookmark`、`EvidenceCase`、`EvidenceBlock` 五个模块的 `move_*` service 函数与 `MoveRequest` schema 透传新参数
+- [x] 移除 `Move.UP`/`Move.DOWN` 及所有分支代码、以及五个模块里因此变成死代码的部分
+- [x] 五个 `POST .../move` 路由的请求体校验体现新形状(拒绝旧的 `up`/`down`)
+- [x] 主接缝测试(每个资源至少一条):移动到中间位置、移动到当前位置(应无变化)、移动到超出范围位置的边界处理
+- [x] 既有测试里引用 `up`/`down` 的用例改写或删除
+- [x] `make check` 通过

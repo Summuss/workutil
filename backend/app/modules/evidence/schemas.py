@@ -30,9 +30,9 @@ class CaseRename(BaseModel):
 
 
 class MoveRequest(BaseModel):
-    """Where to send a case, or a block. The same four words for both."""
+    """Where to send a case, or a block: boundary jump or target index."""
 
-    to: Move
+    to: Move | int
 
 
 class TextBlockCreate(BaseModel):

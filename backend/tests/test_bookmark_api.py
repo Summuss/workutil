@@ -333,12 +333,17 @@ def test_move_bookmark_group(client: TestClient) -> None:
     g1 = client.post("/api/bookmark-groups", json={"name": "G1"}).json()
     g2 = client.post("/api/bookmark-groups", json={"name": "G2"}).json()
 
-    # Move G0 down: order should become [G1, G0, G2]
-    res = client.post(f"/api/bookmark-groups/{g0['id']}/move", json={"to": "down"})
+    # Move G0 to middle (index 1): order should become [G1, G0, G2]
+    res = client.post(f"/api/bookmark-groups/{g0['id']}/move", json={"to": 1})
     assert res.status_code == 200
     reordered = res.json()
     assert [g["name"] for g in reordered] == ["G1", "G0", "G2"]
     assert [g["order"] for g in reordered] == [0, 1, 2]
+
+    # Move G0 to same position (index 1): no-op
+    res = client.post(f"/api/bookmark-groups/{g0['id']}/move", json={"to": 1})
+    assert res.status_code == 200
+    assert [g["name"] for g in res.json()] == ["G1", "G0", "G2"]
 
     # Move G2 to top: order should become [G2, G1, G0]
     res = client.post(f"/api/bookmark-groups/{g2['id']}/move", json={"to": "top"})
@@ -353,10 +358,19 @@ def test_move_bookmark_group(client: TestClient) -> None:
     reordered = res.json()
     assert [g["name"] for g in reordered] == ["G1", "G0", "G2"]
 
-    # Moving top item up is no-op
-    res = client.post(f"/api/bookmark-groups/{g1['id']}/move", json={"to": "up"})
+    # Moving to out of bounds clamps to boundary
+    res = client.post(f"/api/bookmark-groups/{g2['id']}/move", json={"to": -1})
+    assert res.status_code == 200
+    assert [g["name"] for g in res.json()] == ["G2", "G1", "G0"]
+
+    res = client.post(f"/api/bookmark-groups/{g2['id']}/move", json={"to": 999})
     assert res.status_code == 200
     assert [g["name"] for g in res.json()] == ["G1", "G0", "G2"]
+
+    # Refuse up / down
+    for invalid in ("up", "down", "sideways"):
+        res = client.post(f"/api/bookmark-groups/{g1['id']}/move", json={"to": invalid})
+        assert res.status_code == 422
 
 
 def test_move_bookmark_inside_group(client: TestClient, tmp_path: Path) -> None:
@@ -382,17 +396,31 @@ def test_move_bookmark_inside_group(client: TestClient, tmp_path: Path) -> None:
         json={"name": "B2", "path": str(f3), "group_id": group["id"]},
     ).json()
 
-    # Move b0 down -> [B1, B0, B2]
-    res = client.post(f"/api/bookmarks/{b0['id']}/move", json={"to": "down"})
+    # Move b0 to middle (index 1) -> [B1, B0, B2]
+    res = client.post(f"/api/bookmarks/{b0['id']}/move", json={"to": 1})
     assert res.status_code == 200
     assert [b["name"] for b in res.json()] == ["B1", "B0", "B2"]
     assert [b["order"] for b in res.json()] == [0, 1, 2]
+
+    # Move b0 to current position (index 1) -> no change
+    res = client.post(f"/api/bookmarks/{b0['id']}/move", json={"to": 1})
+    assert res.status_code == 200
+    assert [b["name"] for b in res.json()] == ["B1", "B0", "B2"]
 
     # Move b2 to top -> [B2, B1, B0]
     res = client.post(f"/api/bookmarks/{b2['id']}/move", json={"to": "top"})
     assert res.status_code == 200
     assert [b["name"] for b in res.json()] == ["B2", "B1", "B0"]
     assert [b["order"] for b in res.json()] == [0, 1, 2]
+
+    # Boundary clamping
+    res = client.post(f"/api/bookmarks/{b2['id']}/move", json={"to": 999})
+    assert res.status_code == 200
+    assert [b["name"] for b in res.json()] == ["B1", "B0", "B2"]
+
+    res = client.post(f"/api/bookmarks/{b2['id']}/move", json={"to": -10})
+    assert res.status_code == 200
+    assert [b["name"] for b in res.json()] == ["B2", "B1", "B0"]
 
     # Check GET /api/bookmarks maintains this order inside group
     list_res = client.get("/api/bookmarks").json()
@@ -401,6 +429,10 @@ def test_move_bookmark_inside_group(client: TestClient, tmp_path: Path) -> None:
         "B1",
         "B0",
     ]
+
+    for invalid in ("up", "down"):
+        res = client.post(f"/api/bookmarks/{b0['id']}/move", json={"to": invalid})
+        assert res.status_code == 422
 
 
 def test_move_loose_bookmark(client: TestClient, tmp_path: Path) -> None:
@@ -412,10 +444,25 @@ def test_move_loose_bookmark(client: TestClient, tmp_path: Path) -> None:
     l0 = client.post("/api/bookmarks", json={"name": "L0", "path": str(f1)}).json()
     client.post("/api/bookmarks", json={"name": "L1", "path": str(f2)})
 
-    res = client.post(f"/api/bookmarks/{l0['id']}/move", json={"to": "down"})
+    # Move l0 to index 1 -> [L1, L0]
+    res = client.post(f"/api/bookmarks/{l0['id']}/move", json={"to": 1})
     assert res.status_code == 200
     assert [b["name"] for b in res.json()] == ["L1", "L0"]
     assert [b["order"] for b in res.json()] == [0, 1]
+
+    # Move l0 to index 1 (current) -> [L1, L0]
+    res = client.post(f"/api/bookmarks/{l0['id']}/move", json={"to": 1})
+    assert res.status_code == 200
+    assert [b["name"] for b in res.json()] == ["L1", "L0"]
+
+    # Out of bounds clamping
+    res = client.post(f"/api/bookmarks/{l0['id']}/move", json={"to": -1})
+    assert res.status_code == 200
+    assert [b["name"] for b in res.json()] == ["L0", "L1"]
+
+    for invalid in ("up", "down"):
+        res = client.post(f"/api/bookmarks/{l0['id']}/move", json={"to": invalid})
+        assert res.status_code == 422
 
 
 def test_transfer_bookmark_between_groups_and_loose(

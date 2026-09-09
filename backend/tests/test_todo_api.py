@@ -198,8 +198,8 @@ def test_new_todos_appended_at_end(client: TestClient) -> None:
     assert [t["title"] for t in listed] == ["A", "B", "C"]
 
 
-def test_move_todo_up_down_top_bottom(client: TestClient) -> None:
-    todo_a = client.post("/api/todos", json={"title": "A"}).json()
+def test_move_todo_absolute_and_boundary(client: TestClient) -> None:
+    client.post("/api/todos", json={"title": "A"})
     client.post("/api/todos", json={"title": "B"})
     todo_c = client.post("/api/todos", json={"title": "C"}).json()
 
@@ -211,29 +211,35 @@ def test_move_todo_up_down_top_bottom(client: TestClient) -> None:
     orders = [t["order"] for t in resp.json()]
     assert orders == [0, 1, 2]
 
-    # Move C down -> [A, C, B]
-    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "down"})
+    # Move C to middle (index 1) -> [A, C, B]
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": 1})
     assert resp.status_code == 200
     assert [t["title"] for t in resp.json()] == ["A", "C", "B"]
 
-    # Move C up -> [C, A, B]
-    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "up"})
+    # Move C to same position (index 1) -> [A, C, B] (no change)
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": 1})
     assert resp.status_code == 200
-    assert [t["title"] for t in resp.json()] == ["C", "A", "B"]
+    assert [t["title"] for t in resp.json()] == ["A", "C", "B"]
 
     # Move C to bottom -> [A, B, C]
     resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "bottom"})
     assert resp.status_code == 200
     assert [t["title"] for t in resp.json()] == ["A", "B", "C"]
 
-    # Boundary moves do not change order
-    resp = client.post(f"/api/todos/{todo_a['id']}/move", json={"to": "top"})
+    # Boundary moves: moving to -1 clamps to 0 (top) -> [C, A, B]
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": -1})
+    assert resp.status_code == 200
+    assert [t["title"] for t in resp.json()] == ["C", "A", "B"]
+
+    # Moving to 999 clamps to end -> [A, B, C]
+    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": 999})
     assert resp.status_code == 200
     assert [t["title"] for t in resp.json()] == ["A", "B", "C"]
 
-    resp = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": "bottom"})
-    assert resp.status_code == 200
-    assert [t["title"] for t in resp.json()] == ["A", "B", "C"]
+    # Refuse deprecated "up" / "down"
+    for invalid in ("up", "down", "sideways"):
+        res = client.post(f"/api/todos/{todo_c['id']}/move", json={"to": invalid})
+        assert res.status_code == 422
 
 
 def test_cannot_move_completed_todo(client: TestClient) -> None:
@@ -246,7 +252,7 @@ def test_cannot_move_completed_todo(client: TestClient) -> None:
 
 
 def test_move_nonexistent_todo(client: TestClient) -> None:
-    resp = client.post("/api/todos/99999/move", json={"to": "up"})
+    resp = client.post("/api/todos/99999/move", json={"to": "top"})
     assert resp.status_code == 404
 
 

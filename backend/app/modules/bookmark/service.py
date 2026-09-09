@@ -169,7 +169,7 @@ def delete_group(session: Session, group_id: int) -> None:
     session.commit()
 
 
-def move_group(session: Session, group_id: int, to: Move) -> list[BookmarkGroup]:
+def move_group(session: Session, group_id: int, to: Move | int) -> list[BookmarkGroup]:
     group = get_group(session, group_id)
     groups = reorder(_groups_in_order(session), group, to)
     session.commit()
@@ -281,7 +281,7 @@ def delete_bookmark(session: Session, bookmark_id: int) -> None:
     session.commit()
 
 
-def move_bookmark(session: Session, bookmark_id: int, to: Move) -> list[Bookmark]:
+def move_bookmark(session: Session, bookmark_id: int, to: Move | int) -> list[Bookmark]:
     bookmark = get_bookmark(session, bookmark_id)
     if bookmark.group_id is not None:
         siblings = _bookmarks_in_group(session, bookmark.group_id)

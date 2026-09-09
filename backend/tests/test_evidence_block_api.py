@@ -427,7 +427,7 @@ def test_deleting_an_evidence_takes_every_block_with_it(
 
 
 def move(
-    client: TestClient, evidence_id: int, case_id: int, block_id: int, to: str
+    client: TestClient, evidence_id: int, case_id: int, block_id: int, to: str | int
 ) -> list[str]:
     moved = client.post(
         f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/move",
@@ -449,21 +449,21 @@ def four_blocks(
     return evidence_id, case_id, ids
 
 
-def test_a_block_can_move_up_one_place(
+def test_a_block_can_move_to_middle(
     client: TestClient, four_blocks: tuple[int, int, dict[str, int]]
 ) -> None:
     evidence_id, case_id, ids = four_blocks
 
-    assert move(client, evidence_id, case_id, ids["3"], "up") == ["1", "3", "2", "4"]
+    assert move(client, evidence_id, case_id, ids["3"], 1) == ["1", "3", "2", "4"]
     assert texts_of(client, evidence_id, case_id) == ["1", "3", "2", "4"]
 
 
-def test_a_block_can_move_down_one_place(
+def test_a_block_move_to_same_position_is_noop(
     client: TestClient, four_blocks: tuple[int, int, dict[str, int]]
 ) -> None:
     evidence_id, case_id, ids = four_blocks
 
-    assert move(client, evidence_id, case_id, ids["2"], "down") == ["1", "3", "2", "4"]
+    assert move(client, evidence_id, case_id, ids["2"], 1) == ["1", "2", "3", "4"]
 
 
 def test_a_block_can_move_to_the_top(
@@ -489,15 +489,13 @@ def test_a_block_can_move_to_the_bottom(
     ]
 
 
-def test_moving_past_either_end_leaves_the_order_alone(
+def test_moving_past_either_end_clamps_to_boundaries(
     client: TestClient, four_blocks: tuple[int, int, dict[str, int]]
 ) -> None:
-    """The first block moving up and the last moving down: the buttons stay
-    clickable at the ends, and the answer is just "still here"."""
     evidence_id, case_id, ids = four_blocks
 
-    assert move(client, evidence_id, case_id, ids["1"], "up") == ["1", "2", "3", "4"]
-    assert move(client, evidence_id, case_id, ids["4"], "down") == ["1", "2", "3", "4"]
+    assert move(client, evidence_id, case_id, ids["1"], -1) == ["1", "2", "3", "4"]
+    assert move(client, evidence_id, case_id, ids["1"], 999) == ["2", "3", "4", "1"]
     assert move(client, evidence_id, case_id, ids["1"], "top") == ["1", "2", "3", "4"]
     assert move(client, evidence_id, case_id, ids["4"], "bottom") == [
         "1",
@@ -513,7 +511,7 @@ def test_the_only_block_in_a_case_can_be_moved_anywhere(
     evidence_id, case_id = case
     block_id = add_text(client, evidence_id, case_id, "ひとつだけ")
 
-    for to in ("up", "down", "top", "bottom"):
+    for to in ("top", "bottom", 0, -1, 5):
         assert move(client, evidence_id, case_id, block_id, to) == ["ひとつだけ"]
 
 
@@ -522,12 +520,12 @@ def test_an_unknown_move_is_refused(
 ) -> None:
     evidence_id, case_id, ids = four_blocks
 
-    refused = client.post(
-        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{ids['1']}/move",
-        json={"to": "sideways"},
-    )
-
-    assert refused.status_code == 422
+    for invalid in ("up", "down", "sideways"):
+        refused = client.post(
+            f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{ids['1']}/move",
+            json={"to": invalid},
+        )
+        assert refused.status_code == 422
     assert texts_of(client, evidence_id, case_id) == ["1", "2", "3", "4"]
 
 
@@ -542,7 +540,7 @@ def test_deleting_a_block_leaves_the_rest_in_order(
     add_text(client, evidence_id, case_id, "5")
 
     assert texts_of(client, evidence_id, case_id) == ["1", "3", "4", "5"]
-    assert move(client, evidence_id, case_id, ids["4"], "up") == ["1", "4", "3", "5"]
+    assert move(client, evidence_id, case_id, ids["4"], 1) == ["1", "4", "3", "5"]
 
 
 def test_blocks_of_one_case_do_not_reorder_another(client: TestClient) -> None:

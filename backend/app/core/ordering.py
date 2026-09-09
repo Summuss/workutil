@@ -1,23 +1,23 @@
-"""Explicit ordering among siblings. Shared between Evidence and Bookmark."""
+"""Explicit ordering among siblings. Shared across Todo, Bookmark, and Evidence."""
 
 from collections.abc import Sequence
 from enum import StrEnum
 
+from pydantic import BaseModel
 from sqlalchemy.orm import Mapped, mapped_column
 
 
 class Move(StrEnum):
-    """Where a row is being sent among its siblings. Not a drag: four buttons.
+    """Boundary jumps for rows among siblings."""
 
-    Up and down are the everyday correction; top and bottom exist because
-    walking something up eight places one click at a time is not reordering, it
-    is clicking (design.md §6 F5).
-    """
-
-    UP = "up"
-    DOWN = "down"
     TOP = "top"
     BOTTOM = "bottom"
+
+
+class MoveRequest(BaseModel):
+    """Where a row is sent: boundary jump ("top"/"bottom") or target index."""
+
+    to: Move | int
 
 
 class Ordered:
@@ -30,20 +30,24 @@ class Ordered:
     order: Mapped[int] = mapped_column()
 
 
-def reorder[RowT: Ordered](rows: list[RowT], row: RowT, to: Move) -> list[RowT]:
+def reorder[RowT: Ordered](rows: list[RowT], row: RowT, to: Move | int) -> list[RowT]:
     """`rows` with `row` sent where `to` says, renumbered from 0.
 
-    A move off either end is not an error and not a different kind of answer:
-    the row was already there, so this is the same list back.
+    `to` can be:
+    - Move.TOP: jump to index 0
+    - Move.BOTTOM: jump to index len(rows) - 1
+    - int: absolute target index, clamped to [0, len(rows) - 1]
+
+    A move to the current position or past either end is not an error:
+    the row stays or is clamped to boundary, and the renumbered list is returned.
     """
     was = rows.index(row)
-    now = {
-        Move.UP: was - 1,
-        Move.DOWN: was + 1,
-        Move.TOP: 0,
-        Move.BOTTOM: len(rows) - 1,
-    }[to]
-    if 0 <= now < len(rows):
+    if isinstance(to, Move):
+        now = 0 if to == Move.TOP else len(rows) - 1
+    else:
+        now = max(0, min(to, len(rows) - 1))
+
+    if was != now:
         rows.insert(now, rows.pop(was))
         renumber(rows)
     return rows

@@ -378,7 +378,7 @@ def delete_case(
 
 
 def move_case(
-    session: Session, evidence_id: int, case_id: int, to: Move
+    session: Session, evidence_id: int, case_id: int, to: Move | int
 ) -> list[EvidenceCase]:
     """Move a case among its siblings and hand back the whole new order.
 
@@ -811,7 +811,7 @@ def turn_block_into_text(
 
 
 def move_block(
-    session: Session, evidence_id: int, case_id: int, block_id: int, to: Move
+    session: Session, evidence_id: int, case_id: int, block_id: int, to: Move | int
 ) -> list[EvidenceBlock]:
     """Move a block among the others and hand back the whole new order.
 

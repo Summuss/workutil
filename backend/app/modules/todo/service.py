@@ -138,7 +138,7 @@ def reopen_todo(session: Session, todo_id: int) -> Todo:
     return todo
 
 
-def move_todo(session: Session, todo_id: int, to: Move) -> list[Todo]:
+def move_todo(session: Session, todo_id: int, to: Move | int) -> list[Todo]:
     todo = get_todo(session, todo_id)
     if todo.completed_at is not None:
         raise CannotMoveCompletedTodo("已完成的待办不能移动")

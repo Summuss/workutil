@@ -455,7 +455,9 @@ def test_a_case_name_is_stored_with_its_surrounding_space_removed(
 # --- Reordering cases -------------------------------------------------------
 
 
-def move(client: TestClient, evidence_id: int, case_id: int, to: str) -> list[str]:
+def move(
+    client: TestClient, evidence_id: int, case_id: int, to: str | int
+) -> list[str]:
     moved = client.post(
         f"/api/evidence/{evidence_id}/cases/{case_id}/move", json={"to": to}
     )
@@ -470,21 +472,21 @@ def four_cases(client: TestClient) -> tuple[int, dict[str, int]]:
     return evidence_id, ids
 
 
-def test_a_case_can_move_up_one_place(
+def test_a_case_can_move_to_middle(
     client: TestClient, four_cases: tuple[int, dict[str, int]]
 ) -> None:
     evidence_id, ids = four_cases
 
-    assert move(client, evidence_id, ids["3"], "up") == ["1", "3", "2", "4"]
+    assert move(client, evidence_id, ids["3"], 1) == ["1", "3", "2", "4"]
     assert case_names(client, evidence_id) == ["1", "3", "2", "4"]
 
 
-def test_a_case_can_move_down_one_place(
+def test_a_case_move_to_same_position_is_noop(
     client: TestClient, four_cases: tuple[int, dict[str, int]]
 ) -> None:
     evidence_id, ids = four_cases
 
-    assert move(client, evidence_id, ids["2"], "down") == ["1", "3", "2", "4"]
+    assert move(client, evidence_id, ids["2"], 1) == ["1", "2", "3", "4"]
 
 
 def test_a_case_can_move_to_the_top(
@@ -503,16 +505,15 @@ def test_a_case_can_move_to_the_bottom(
     assert move(client, evidence_id, ids["1"], "bottom") == ["2", "3", "4", "1"]
 
 
-def test_moving_past_either_end_leaves_the_order_alone(
+def test_moving_past_either_end_clamps_to_boundaries(
     client: TestClient, four_cases: tuple[int, dict[str, int]]
 ) -> None:
-    """The buttons stay clickable at the ends; the answer is just "still here"."""
     evidence_id, ids = four_cases
 
-    assert move(client, evidence_id, ids["1"], "up") == ["1", "2", "3", "4"]
-    assert move(client, evidence_id, ids["4"], "down") == ["1", "2", "3", "4"]
+    assert move(client, evidence_id, ids["1"], -1) == ["1", "2", "3", "4"]
+    assert move(client, evidence_id, ids["1"], 999) == ["2", "3", "4", "1"]
     assert move(client, evidence_id, ids["1"], "top") == ["1", "2", "3", "4"]
-    assert move(client, evidence_id, ids["4"], "bottom") == ["1", "2", "3", "4"]
+    assert move(client, evidence_id, ids["1"], "bottom") == ["2", "3", "4", "1"]
 
 
 def test_an_unknown_move_is_refused(
@@ -520,11 +521,11 @@ def test_an_unknown_move_is_refused(
 ) -> None:
     evidence_id, ids = four_cases
 
-    refused = client.post(
-        f"/api/evidence/{evidence_id}/cases/{ids['1']}/move", json={"to": "sideways"}
-    )
-
-    assert refused.status_code == 422
+    for invalid in ("up", "down", "sideways"):
+        refused = client.post(
+            f"/api/evidence/{evidence_id}/cases/{ids['1']}/move", json={"to": invalid}
+        )
+        assert refused.status_code == 422
     assert case_names(client, evidence_id) == ["1", "2", "3", "4"]
 
 
@@ -548,7 +549,7 @@ def test_deleting_a_case_leaves_the_rest_in_order(client: TestClient) -> None:
     add_case(client, evidence_id, "5")
 
     assert case_names(client, evidence_id) == ["1", "3", "4", "5"]
-    assert move(client, evidence_id, ids["4"], "up") == ["1", "4", "3", "5"]
+    assert move(client, evidence_id, ids["4"], 1) == ["1", "4", "3", "5"]
 
 
 # --- Images -----------------------------------------------------------------
