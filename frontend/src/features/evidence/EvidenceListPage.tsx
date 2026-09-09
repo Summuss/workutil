@@ -6,6 +6,7 @@ import { useI18n } from "../../shared/i18n";
 import { TrashIcon } from "../../shared/icons";
 import { formatTime } from "../../shared/time";
 import { useLoad } from "../../shared/useLoad";
+import { PageLayout } from "../../shared/PageLayout";
 import { createEvidence, deleteEvidence, listEvidence } from "./api";
 import type { Evidence } from "./types";
 
@@ -72,30 +73,34 @@ export function EvidenceListPage() {
   }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-3.5 px-8 py-9">
-      <form onSubmit={(event) => void create(event)} className="flex items-center gap-2.5">
-        <input
-          type="text"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder={t("evidence.create_placeholder")}
-          className="field-input"
-        />
-        <button
-          type="submit"
-          disabled={creating || title.trim() === ""}
-          className="btn-primary shrink-0"
-        >
-          {creating ? t("common.creating") : t("evidence.create_button")}
-        </button>
-      </form>
+    <PageLayout
+      fixedHeader={
+        <>
+          <form onSubmit={(event) => void create(event)} className="flex items-center gap-2.5">
+            <input
+              type="text"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder={t("evidence.create_placeholder")}
+              className="field-input"
+            />
+            <button
+              type="submit"
+              disabled={creating || title.trim() === ""}
+              className="btn-primary shrink-0"
+            >
+              {creating ? t("common.creating") : t("evidence.create_button")}
+            </button>
+          </form>
 
-      {error !== null && (
-        <p className="text-xs" style={{ color: "var(--danger)" }}>
-          {error}
-        </p>
-      )}
-
+          {error !== null && (
+            <p className="text-xs" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+          )}
+        </>
+      }
+    >
       {evidence.length === 0 ? (
         <p className="py-8 text-center text-[13px]" style={{ color: "var(--text-faint)" }}>
           {loading ? t("common.loading") : t("evidence.empty_state")}
@@ -125,6 +130,6 @@ export function EvidenceListPage() {
           ))}
         </ul>
       )}
-    </main>
+    </PageLayout>
   );
 }

@@ -7,6 +7,7 @@ import { useI18n } from "../../shared/i18n";
 import { ChevronDownIcon, ChevronRightIcon, XIcon } from "../../shared/icons";
 import { SortableList } from "../../shared/sortable";
 import { useLoad } from "../../shared/useLoad";
+import { PageLayout } from "../../shared/PageLayout";
 import {
   completeTodo,
   createTodo,
@@ -193,65 +194,69 @@ export function TodoPage() {
   );
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-3.5 px-8 py-9">
-      {/* Low friction input form: enter to save */}
-      <form
-        onSubmit={(e) => void handleCreate(e)}
-        className="flex items-center gap-2 rounded-[9px] px-3.5 py-2.5"
-        style={{ border: "1px solid var(--border-strong)", background: "var(--surface)" }}
-      >
-        <input
-          type="text"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          placeholder={t("todo.composer_placeholder")}
-          autoFocus
-          className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] outline-none"
-          style={{ color: "var(--text)" }}
-        />
-        <div className="flex items-center gap-1">
-          <input
-            type="date"
-            value={newDueDate}
-            onChange={(e) => setNewDueDate(e.target.value)}
-            title={t("todo.optional_due_date")}
-            className="field-input"
-            style={{ width: "auto" }}
-          />
-          {newDueDate && (
+    <PageLayout
+      fixedHeader={
+        <>
+          {/* Low friction input form: enter to save */}
+          <form
+            onSubmit={(e) => void handleCreate(e)}
+            className="flex items-center gap-2 rounded-[9px] px-3.5 py-2.5"
+            style={{ border: "1px solid var(--border-strong)", background: "var(--surface)" }}
+          >
+            <input
+              type="text"
+              value={newTitle}
+              onChange={(e) => setNewTitle(e.target.value)}
+              placeholder={t("todo.composer_placeholder")}
+              autoFocus
+              className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] outline-none"
+              style={{ color: "var(--text)" }}
+            />
+            <div className="flex items-center gap-1">
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+                title={t("todo.optional_due_date")}
+                className="field-input"
+                style={{ width: "auto" }}
+              />
+              {newDueDate && (
+                <button
+                  type="button"
+                  onClick={() => setNewDueDate("")}
+                  title={t("todo.clear_date")}
+                  className="icon-btn"
+                >
+                  <XIcon size={11} />
+                </button>
+              )}
+            </div>
             <button
-              type="button"
-              onClick={() => setNewDueDate("")}
-              title={t("todo.clear_date")}
-              className="icon-btn"
+              type="submit"
+              disabled={creating || newTitle.trim() === ""}
+              className="btn-primary shrink-0"
             >
-              <XIcon size={11} />
+              {creating ? t("common.saving") : t("common.add")}
             </button>
+          </form>
+          {actionError !== null && (
+            <p className="px-1 text-xs" style={{ color: "var(--danger)" }}>
+              {actionError}
+            </p>
           )}
-        </div>
-        <button
-          type="submit"
-          disabled={creating || newTitle.trim() === ""}
-          className="btn-primary shrink-0"
-        >
-          {creating ? t("common.saving") : t("common.add")}
-        </button>
-      </form>
-      {actionError !== null && (
-        <p className="px-1 text-xs" style={{ color: "var(--danger)" }}>
-          {actionError}
-        </p>
-      )}
 
-      {error !== null && (
-        <div
-          className="rounded-md p-3 text-xs"
-          style={{ border: "1px solid var(--danger-tint)", background: "var(--danger-tint)", color: "var(--danger)" }}
-        >
-          {error}
-        </div>
-      )}
-
+          {error !== null && (
+            <div
+              className="rounded-md p-3 text-xs"
+              style={{ border: "1px solid var(--danger-tint)", background: "var(--danger-tint)", color: "var(--danger)" }}
+            >
+              {error}
+            </div>
+          )}
+        </>
+      }
+    >
       {/* Active todos list */}
       {loading ? (
         <p className="py-4 text-center text-xs" style={{ color: "var(--text-faint)" }}>
@@ -316,6 +321,6 @@ export function TodoPage() {
           )}
         </section>
       )}
-    </main>
+    </PageLayout>
   );
 }

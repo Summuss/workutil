@@ -7,6 +7,7 @@ import { messageOf } from "../../shared/api";
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
 import { ArrowLeftIcon } from "../../shared/icons";
+import { PageLayout } from "../../shared/PageLayout";
 import { useEditRunner } from "../../shared/useEditRunner";
 import { useLoad } from "../../shared/useLoad";
 import {
@@ -163,7 +164,7 @@ export function EvidenceDetailPage() {
 
   if (evidence === null) {
     return (
-      <main className="mx-auto max-w-2xl px-8 py-9">
+      <PageLayout>
         <p className="text-center text-[13px]" style={{ color: "var(--text-faint)" }}>
           {loading ? t("common.loading") : (error ?? t("evidence.not_found"))}
         </p>
@@ -180,81 +181,85 @@ export function EvidenceDetailPage() {
             {t("evidence.back_to_list_full")}
           </Link>
         </p>
-      </main>
+      </PageLayout>
     );
   }
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-3.5 px-8 py-9">
-      <div className="flex items-center gap-2.5">
-        <Link
-          to="/evidence"
-          className="inline-flex shrink-0 items-center gap-1 text-xs"
-          style={{ color: "var(--text-faint)" }}
-        >
-          <ArrowLeftIcon size={12} />
-          {t("evidence.back_to_list_short")}
-        </Link>
-        {editingTitle ? (
-          <InlineEdit
-            initial={evidence.title}
-            busy={titleEdit.busy}
-            className={TITLE_FIELD}
-            onCommit={commitTitle}
-            onCancel={() => setEditingTitle(false)}
+    <PageLayout
+      fixedHeader={
+        <>
+          <div className="flex items-center gap-2.5">
+            <Link
+              to="/evidence"
+              className="inline-flex shrink-0 items-center gap-1 text-xs"
+              style={{ color: "var(--text-faint)" }}
+            >
+              <ArrowLeftIcon size={12} />
+              {t("evidence.back_to_list_short")}
+            </Link>
+            {editingTitle ? (
+              <InlineEdit
+                initial={evidence.title}
+                busy={titleEdit.busy}
+                className={TITLE_FIELD}
+                onCommit={commitTitle}
+                onCancel={() => setEditingTitle(false)}
+              />
+            ) : (
+              <button
+                type="button"
+                title={t("evidence.click_to_rename")}
+                onClick={() => setEditingTitle(true)}
+                className="min-w-0 flex-1 cursor-pointer truncate text-left text-base font-semibold"
+              >
+                {evidence.title}
+              </button>
+            )}
+            <a
+              href={exportEvidenceUrl(id)}
+              download
+              aria-disabled={cases.length === 0}
+              tabIndex={cases.length === 0 ? -1 : undefined}
+              onClick={(event) => {
+                // pointer-events-none stops a click but not a keyboard Enter, and
+                // tabIndex=-1 alone leaves a keyboard-then-mouse activation path
+                // open — either would otherwise download the 422 refusal body as
+                // an .xlsx file.
+                if (cases.length === 0) {
+                  event.preventDefault();
+                }
+              }}
+              className="btn-ghost shrink-0"
+              style={cases.length === 0 ? { pointerEvents: "none", opacity: 0.4 } : undefined}
+              title={cases.length === 0 ? t("evidence.export_no_cases") : t("evidence.export_excel")}
+            >
+              {t("evidence.export_excel")}
+            </a>
+          </div>
+
+          {(error ?? titleEdit.error) !== null && (
+            <p className="text-xs" style={{ color: "var(--danger)" }}>
+              {error ?? titleEdit.error}
+            </p>
+          )}
+
+          <CaseTabs
+            cases={cases}
+            selectedId={selectedId}
+            busy={caseEdit.busy}
+            error={caseEdit.error}
+            onSelect={setPickedId}
+            onAdd={handleAdd}
+            onRename={handleRename}
+            onDelete={handleDelete}
+            onDuplicate={handleDuplicate}
+            onMove={handleMove}
+            onReorder={handleReorderCase}
           />
-        ) : (
-          <button
-            type="button"
-            title={t("evidence.click_to_rename")}
-            onClick={() => setEditingTitle(true)}
-            className="min-w-0 flex-1 cursor-pointer truncate text-left text-base font-semibold"
-          >
-            {evidence.title}
-          </button>
-        )}
-        <a
-          href={exportEvidenceUrl(id)}
-          download
-          aria-disabled={cases.length === 0}
-          tabIndex={cases.length === 0 ? -1 : undefined}
-          onClick={(event) => {
-            // pointer-events-none stops a click but not a keyboard Enter, and
-            // tabIndex=-1 alone leaves a keyboard-then-mouse activation path
-            // open — either would otherwise download the 422 refusal body as
-            // an .xlsx file.
-            if (cases.length === 0) {
-              event.preventDefault();
-            }
-          }}
-          className="btn-ghost shrink-0"
-          style={cases.length === 0 ? { pointerEvents: "none", opacity: 0.4 } : undefined}
-          title={cases.length === 0 ? t("evidence.export_no_cases") : t("evidence.export_excel")}
-        >
-          {t("evidence.export_excel")}
-        </a>
-      </div>
-
-      {(error ?? titleEdit.error) !== null && (
-        <p className="text-xs" style={{ color: "var(--danger)" }}>
-          {error ?? titleEdit.error}
-        </p>
-      )}
-
-      <CaseTabs
-        cases={cases}
-        selectedId={selectedId}
-        busy={caseEdit.busy}
-        error={caseEdit.error}
-        onSelect={setPickedId}
-        onAdd={handleAdd}
-        onRename={handleRename}
-        onDelete={handleDelete}
-        onDuplicate={handleDuplicate}
-        onMove={handleMove}
-        onReorder={handleReorderCase}
-      />
-
+        </>
+      }
+    >
       {selectedId === null ? (
         <div
           className="rounded-lg px-4 py-10 text-center text-xs"
@@ -268,6 +273,6 @@ export function EvidenceDetailPage() {
         // is in flight.
         <CaseBlocks key={selectedId} evidenceId={id} caseId={selectedId} />
       )}
-    </main>
+    </PageLayout>
   );
 }

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { messageOf } from "../../shared/api";
 import { useI18n } from "../../shared/i18n";
 import type { ImageUpload } from "../../shared/images";
+import { PageLayout } from "../../shared/PageLayout";
 import { createMemo, listMemos } from "./api";
 import { MemoComposer } from "./MemoComposer";
 import { MemoList } from "./MemoList";
@@ -126,9 +127,14 @@ export function MemoPage() {
   }, []);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-8 py-9">
-      <MemoComposer onSave={save} />
-      <MemoSearchBar onChange={handleSearch} />
+    <PageLayout
+      fixedHeader={
+        <>
+          <MemoComposer onSave={save} />
+          <MemoSearchBar onChange={handleSearch} />
+        </>
+      }
+    >
       <MemoList
         memos={memos}
         loading={loading}
@@ -137,6 +143,6 @@ export function MemoPage() {
         onUpdate={update}
         onDelete={remove}
       />
-    </main>
+    </PageLayout>
   );
 }

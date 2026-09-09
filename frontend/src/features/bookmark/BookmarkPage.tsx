@@ -6,6 +6,7 @@ import { messageOf } from "../../shared/api";
 import { SortableList } from "../../shared/sortable";
 import { useLoad } from "../../shared/useLoad";
 import { PlusIcon, XIcon } from "../../shared/icons";
+import { PageLayout } from "../../shared/PageLayout";
 import {
   checkBookmarks,
   createBookmark,
@@ -424,96 +425,100 @@ export function BookmarkPage() {
   }, [t]);
 
   return (
-    <main className="mx-auto flex max-w-2xl flex-col gap-4 px-8 py-9">
-      <div className="flex gap-2.5">
-        <button
-          type="button"
-          onClick={() => setShowAddForm((prev) => !prev)}
-          className="btn-ghost"
-        >
-          <PlusIcon />
-          {t("bookmark.submit_button")}
-        </button>
-        <button
-          type="button"
-          onClick={() => setShowNewGroupForm((prev) => !prev)}
-          className="btn-ghost"
-        >
-          <PlusIcon />
-          {t("bookmark.create_group_button")}
-        </button>
-      </div>
-
-      {showAddForm && (
-        <BookmarkForm groups={groups} onRegister={handleRegister} onCancel={() => setShowAddForm(false)} />
-      )}
-
-      {showNewGroupForm && (
-        <div className="card flex items-center gap-2.5 p-3.5">
-          <form
-            onSubmit={(e) => void handleCreateGroup(e)}
-            className="flex flex-1 items-center gap-2.5"
-          >
-            <input
-              type="text"
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              placeholder={t("bookmark.new_group_placeholder")}
-              autoFocus
-              className="field-input flex-1"
-            />
+    <PageLayout
+      fixedHeader={
+        <>
+          <div className="flex gap-2.5">
             <button
               type="button"
-              onClick={() => setShowNewGroupForm(false)}
+              onClick={() => setShowAddForm((prev) => !prev)}
               className="btn-ghost"
-              style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}
             >
-              {t("common.cancel")}
+              <PlusIcon />
+              {t("bookmark.submit_button")}
             </button>
             <button
-              type="submit"
-              disabled={creatingGroup || newGroupName.trim() === ""}
-              className="btn-primary"
-              style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}
+              type="button"
+              onClick={() => setShowNewGroupForm((prev) => !prev)}
+              className="btn-ghost"
             >
-              {creatingGroup ? t("common.creating") : t("bookmark.create_group_button")}
+              <PlusIcon />
+              {t("bookmark.create_group_button")}
             </button>
-          </form>
-        </div>
-      )}
-      {groupError !== null && (
-        <p className="text-xs" style={{ color: "var(--danger)" }}>
-          {groupError}
-        </p>
-      )}
-
-      {notice !== null && (
-        <div
-          className="flex items-start justify-between gap-3 rounded-lg p-3 text-xs"
-          style={{ border: `1px solid ${NOTICE_STYLE[notice.type].border}`, background: NOTICE_STYLE[notice.type].bg, color: NOTICE_STYLE[notice.type].color }}
-        >
-          <div className="flex flex-col gap-1">
-            <span className="font-medium">{notice.message}</span>
-            {notice.details && notice.details.length > 0 && (
-              <ul className="list-disc space-y-0.5 pl-4" style={{ color: "var(--text-muted)" }}>
-                {notice.details.map((d, i) => (
-                  <li key={i}>{d}</li>
-                ))}
-              </ul>
-            )}
           </div>
-          <button type="button" onClick={() => setNotice(null)} className="icon-btn">
-            <XIcon size={11} />
-          </button>
-        </div>
-      )}
 
-      {error !== null && (
-        <p className="text-xs" style={{ color: "var(--danger)" }}>
-          {error}
-        </p>
-      )}
+          {showAddForm && (
+            <BookmarkForm groups={groups} onRegister={handleRegister} onCancel={() => setShowAddForm(false)} />
+          )}
 
+          {showNewGroupForm && (
+            <div className="card flex items-center gap-2.5 p-3.5">
+              <form
+                onSubmit={(e) => void handleCreateGroup(e)}
+                className="flex flex-1 items-center gap-2.5"
+              >
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder={t("bookmark.new_group_placeholder")}
+                  autoFocus
+                  className="field-input flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewGroupForm(false)}
+                  className="btn-ghost"
+                  style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}
+                >
+                  {t("common.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingGroup || newGroupName.trim() === ""}
+                  className="btn-primary"
+                  style={{ fontSize: "12px", padding: "6px 13px", borderRadius: "6px" }}
+                >
+                  {creatingGroup ? t("common.creating") : t("bookmark.create_group_button")}
+                </button>
+              </form>
+            </div>
+          )}
+          {groupError !== null && (
+            <p className="text-xs" style={{ color: "var(--danger)" }}>
+              {groupError}
+            </p>
+          )}
+
+          {notice !== null && (
+            <div
+              className="flex items-start justify-between gap-3 rounded-lg p-3 text-xs"
+              style={{ border: `1px solid ${NOTICE_STYLE[notice.type].border}`, background: NOTICE_STYLE[notice.type].bg, color: NOTICE_STYLE[notice.type].color }}
+            >
+              <div className="flex flex-col gap-1">
+                <span className="font-medium">{notice.message}</span>
+                {notice.details && notice.details.length > 0 && (
+                  <ul className="list-disc space-y-0.5 pl-4" style={{ color: "var(--text-muted)" }}>
+                    {notice.details.map((d, i) => (
+                      <li key={i}>{d}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <button type="button" onClick={() => setNotice(null)} className="icon-btn">
+                <XIcon size={11} />
+              </button>
+            </div>
+          )}
+
+          {error !== null && (
+            <p className="text-xs" style={{ color: "var(--danger)" }}>
+              {error}
+            </p>
+          )}
+        </>
+      }
+    >
       {!hasItems ? (
         <p className="py-8 text-center text-[13px]" style={{ color: "var(--text-faint)" }}>
           {loading ? t("common.loading") : t("bookmark.empty_state")}
@@ -625,6 +630,6 @@ export function BookmarkPage() {
           </section>
         </div>
       )}
-    </main>
+    </PageLayout>
   );
 }

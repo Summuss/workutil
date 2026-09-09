@@ -24,7 +24,7 @@ export function App() {
   return (
     <I18nProvider>
       <BrowserRouter>
-        <div className="flex min-h-screen flex-col" style={{ background: "var(--bg)", color: "var(--text)" }}>
+        <div className="flex h-dvh overflow-hidden flex-col" style={{ background: "var(--bg)", color: "var(--text)" }}>
           <AppNav />
           <Routes>
             <Route path="/" element={<MemoPage />} />

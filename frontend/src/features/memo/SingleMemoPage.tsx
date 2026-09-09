@@ -4,6 +4,7 @@ import { useNavigate, useParams } from "react-router";
 import { messageOf } from "../../shared/api";
 import { useI18n } from "../../shared/i18n";
 import { ArrowLeftIcon } from "../../shared/icons";
+import { PageLayout } from "../../shared/PageLayout";
 import { getMemo } from "./api";
 import { MemoItem } from "./MemoItem";
 import type { Memo } from "./types";
@@ -62,19 +63,21 @@ export function SingleMemoPage() {
   }, [id]);
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-4 px-8 py-9">
-      <div>
-        <button
-          type="button"
-          onClick={handleBack}
-          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium transition-colors"
-          style={{ color: "var(--text-muted)" }}
-        >
-          <ArrowLeftIcon size={13} />
-          <span>{t("memo.back_to_all")}</span>
-        </button>
-      </div>
-
+    <PageLayout
+      fixedHeader={
+        <div>
+          <button
+            type="button"
+            onClick={handleBack}
+            className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium transition-colors"
+            style={{ color: "var(--text-muted)" }}
+          >
+            <ArrowLeftIcon size={13} />
+            <span>{t("memo.back_to_all")}</span>
+          </button>
+        </div>
+      }
+    >
       {loading && (
         <div className="py-12 text-center text-sm" style={{ color: "var(--text-faint)" }}>
           {t("common.loading")}
@@ -98,7 +101,7 @@ export function SingleMemoPage() {
           />
         </ul>
       )}
-    </main>
+    </PageLayout>
   );
 }
 
