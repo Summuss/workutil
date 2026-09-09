@@ -4,6 +4,7 @@ import { messageOf } from "../../shared/api";
 import { t } from "../../shared/i18n";
 import type { ImageUpload } from "../../shared/images";
 import { useImageAttachments } from "../../shared/useImageAttachments";
+import { insertTab } from "./insertTab";
 
 interface MemoComposerProps {
   onSave: (body: string, images?: ImageUpload[]) => Promise<void>;
@@ -64,6 +65,15 @@ export function MemoComposer({ onSave }: MemoComposerProps) {
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
       void save();
+      return;
+    }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      insertTab(event.currentTarget, setBody);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.currentTarget.blur();
     }
   }
 

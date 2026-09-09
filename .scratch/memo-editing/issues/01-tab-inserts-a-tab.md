@@ -17,14 +17,15 @@
 
 **Blocked by:** 无
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `MemoComposer` 与 `MemoItem` 编辑态里 `Tab` 插入 `\t`,焦点不移走
-- [ ] 选中一段文字按 `Tab`,选区被一个制表符替换
-- [ ] **连按几次 `Tab` 之后 `Ctrl+Z` 能一下一下撤销回去**
-- [ ] `execCommand` 返回 `false` 时退回 `setState`,输入仍然正确(撤销失效可接受)
-- [ ] `MemoComposer` 里 `Esc` 使焦点离开且**内容不清空**,之后 `Tab` 正常移焦
-- [ ] `MemoItem` 编辑态的 `Esc` 行为**无变化**(退出编辑、草稿保留、标「未保存」)
-- [ ] `Ctrl+Enter` / `Cmd+Enter` 保存的既有行为不受影响
-- [ ] **evidence 的 `BlockTextArea` 里 `Tab` 行为不变**(焦点移走)
-- [ ] `pnpm build` / `tsc` 通过;手动验证撤销那一条
+- [x] `MemoComposer` 与 `MemoItem` 编辑态里 `Tab` 插入 `\t`,焦点不移走
+- [x] 选中一段文字按 `Tab`,选区被一个制表符替换
+- [x] **连按几次 `Tab` 之后 `Ctrl+Z` 能一下一下撤销回去**
+- [x] `execCommand` 返回 `false` 时退回 `setState`,输入仍然正确(撤销失效可接受)
+- [x] `MemoComposer` 里 `Esc` 使焦点离开且**内容不清空**,之后 `Tab` 正常移焦
+- [x] `MemoItem` 编辑态的 `Esc` 行为**无变化**(退出编辑、草稿保留、标「未保存」)
+- [x] `Ctrl+Enter` / `Cmd+Enter` 保存的既有行为不受影响
+- [x] **evidence 的 `BlockTextArea` 里 `Tab` 行为不变**(焦点移走)
+- [x] `pnpm build` / `tsc` 通过;手动验证撤销那一条
+

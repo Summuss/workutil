@@ -20,6 +20,7 @@ import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, pinMemo, unpinMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
 import { HighlightText } from "./HighlightText";
+import { insertTab } from "./insertTab";
 import { Markdown } from "../../shared/Markdown";
 import type { Memo } from "./types";
 
@@ -169,6 +170,11 @@ export function MemoItem({
     if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
       event.preventDefault();
       void save();
+      return;
+    }
+    if (event.key === "Tab") {
+      event.preventDefault();
+      insertTab(event.currentTarget, changeDraft);
       return;
     }
     // Back to the rendered body. The draft is kept, not thrown away — the
