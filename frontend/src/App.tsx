@@ -5,6 +5,7 @@ import { BookmarkPage } from "./features/bookmark/BookmarkPage";
 import { EvidenceDetailPage } from "./features/evidence/EvidenceDetailPage";
 import { EvidenceListPage } from "./features/evidence/EvidenceListPage";
 import { MemoPage } from "./features/memo/MemoPage";
+import { SettingsPage } from "./features/settings/SettingsPage";
 import { SingleMemoPage } from "./features/memo/SingleMemoPage";
 import { TodoPage } from "./features/todo/TodoPage";
 import { I18nProvider } from "./shared/i18n";
@@ -33,6 +34,7 @@ export function App() {
             <Route path="/evidence/:evidenceId" element={<EvidenceDetailPage />} />
             <Route path="/bookmarks" element={<BookmarkPage />} />
             <Route path="/todos" element={<TodoPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
             {/* A mistyped URL lands on the thing you open this tool for. */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

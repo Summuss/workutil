@@ -54,6 +54,10 @@ def test_a_frontend_route_survives_a_reload(client: TestClient) -> None:
     assert response.status_code == 200
     assert response.text == INDEX_HTML
 
+    response_settings = client.get("/settings")
+    assert response_settings.status_code == 200
+    assert response_settings.text == INDEX_HTML
+
 
 def test_a_nested_frontend_route_survives_a_reload(client: TestClient) -> None:
     """Ticket 03 puts one evidence behind `/evidence/3`, which is where you sit
