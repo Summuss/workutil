@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { useNavigate, useParams } from "react-router";
 
 import { messageOf } from "../../shared/api";
 import { useI18n } from "../../shared/i18n";
@@ -19,6 +19,14 @@ export function SingleMemoPage() {
   const [isExpanded, setIsExpanded] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const handleBack = () => {
+    if (typeof window !== "undefined" && typeof window.history.state?.idx === "number" && window.history.state.idx > 0) {
+      navigate(-1);
+    } else {
+      navigate("/");
+    }
+  };
 
   useEffect(() => {
     if (!id || isNaN(Number(id))) {
@@ -56,14 +64,15 @@ export function SingleMemoPage() {
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-4 px-8 py-9">
       <div>
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors"
+        <button
+          type="button"
+          onClick={handleBack}
+          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-medium transition-colors"
           style={{ color: "var(--text-muted)" }}
         >
           <ArrowLeftIcon size={13} />
           <span>{t("memo.back_to_all")}</span>
-        </Link>
+        </button>
       </div>
 
       {loading && (

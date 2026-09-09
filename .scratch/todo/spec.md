@@ -61,7 +61,7 @@ Todo { id, title, order, due_date?, completed_at?, source_memo_id?, created_at }
 
 - **`source_memo_id` 只存 id,不建 FK**;取不到就不显示链接。真 FK 要么让 memo 的删除路径关心 todo 表,要么依赖 SQLite 的 `PRAGMA foreign_keys` —— 都是让新功能反向污染旧功能,而「新增一个功能不应改动既有功能」是第一约束。
 - **memo 那边不显示「已转成 Todo」**(那要求 memo 的查询去 join todo)。
-- 回溯目标是新路由 **`/memo/:id`**(只显示那一条,渲染态可编辑,顶部「回到全部」)。**不能**做成「滚到列表里那一条」—— memo 列表有 `RECENT_MEMO_LIMIT`,老 memo 根本不在里面。
+- 回溯目标是新路由 **`/memo/:id`**(只显示那一条,渲染态可编辑,顶部「返回」)。**不能**做成「滚到列表里那一条」—— memo 列表有 `RECENT_MEMO_LIMIT`,老 memo 根本不在里面。
 - 标题:转换时弹输入框,**预填正文首行**(`firstLine.ts` 已有),当场可改。不直接拿首行(它经常不是待办本身);不用选区(F1 那条「点正文进编辑会吃掉选区」的教训)。
 - 入口在 **memo 卡片工具条**。这让 `features/memo` **单向**依赖 `features/todo` 的 api —— 知情的一处例外,反向永远不许;**后端 memo 零改动**。
 

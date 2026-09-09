@@ -8,12 +8,12 @@
 
 **Blocked by:** 无
 
-**Status:** todo
+**Status:** resolved
 
-- [ ] `SingleMemoPage` 的返回操作改为 `navigate(-1)`
-- [ ] 判断「没有应用内历史记录可退」的情况(例如直接打开 `/memo/:id`、新标签页打开),此时兜底 `navigate("/")`
-- [ ] 从 Todo 卡片的「从 memo 而来」链接进入 Memo 详情页后点返回,回到原来的 Todo 画面(而不是 memo 列表)
-- [ ] 从 memo 列表点进详情页后点返回,行为不变(仍回到列表)
-- [ ] `memo.back_to_all` 文案改为通用的「返回」表达,`zh.json`/`ja.json` 同步更新且 key 对齐测试通过
-- [ ] `.scratch/todo/spec.md` § 从 memo 转出 里「顶部「回到全部」」的描述同步更新
-- [ ] `pnpm build`/`tsc` 通过;手动验证两条入口路径的返回行为
+- [x] `SingleMemoPage` 的返回操作改为 `navigate(-1)`
+- [x] 判断「没有应用内历史记录可退」的情况(例如直接打开 `/memo/:id`、新标签页打开),此时兜底 `navigate("/")`
+- [x] 从 Todo 卡片的「从 memo 而来」链接进入 Memo 详情页后点返回,回到原来的 Todo 画面(而不是 memo 列表)
+- [x] 从 memo 列表点进详情页后点返回,行为不变(仍回到列表)
+- [x] `memo.back_to_all` 文案改为通用的「返回」表达,`zh.json`/`ja.json` 同步更新且 key 对齐测试通过
+- [x] `.scratch/todo/spec.md` § 从 memo 转出 里「顶部「回到全部」」的描述同步更新
+- [x] `pnpm build`/`tsc` 通过;手动验证两条入口路径的返回行为

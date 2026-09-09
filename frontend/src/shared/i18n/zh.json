@@ -43,7 +43,7 @@
   "memo.ctrl_enter_save_esc_close": "Ctrl+Enter 保存 · Esc 收起编辑",
   "memo.invalid_id": "无效的 Memo ID",
   "memo.not_found": "该 Memo 不存在或已被删除",
-  "memo.back_to_all": "回到全部",
+  "memo.back_to_all": "返回",
   "todo.title_empty": "待办标题不能为空",
   "todo.title_label": "待办标题",
   "todo.title_placeholder": "待办内容",

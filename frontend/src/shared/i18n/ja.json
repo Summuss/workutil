@@ -43,7 +43,7 @@
   "memo.ctrl_enter_save_esc_close": "Ctrl+Enter で保存 · Esc で閉じる",
   "memo.invalid_id": "無効な Memo ID です",
   "memo.not_found": "この Memo は存在しないか、既に削除されています",
-  "memo.back_to_all": "すべてに戻る",
+  "memo.back_to_all": "戻る",
   "todo.title_empty": "ToDo のタイトルを入力してください",
   "todo.title_label": "ToDo タイトル",
   "todo.title_placeholder": "ToDo の内容",
