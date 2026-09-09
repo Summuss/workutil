@@ -27,6 +27,8 @@
 - [x] 复核 ADR-0009(便携包在 Linux 上组装)与 ADR-0010(UI 仍然是浏览器)—— 两条都已写好,若实现中理由有变则一并更新
 - [x] 若实现中对 spec 有偏离,在 `spec.md` 里改掉
 
+> **Review 修复(commit `f79b235`)**:「版本更新与数据迁移」那节和「数据在哪」表格都把 Windows 数据目录写成了 `%APPDATA%`(漫游),实际是 `%LOCALAPPDATA%`(本地)—— 代码本来就是对的(`platformdirs.user_data_dir(..., appauthor=False)`,`roaming` 保持默认 `False`),只是文档写错了字。两处都改了。另外 ticket 04 的 zip 压缩 bug 修复后重新打了包,已重新上传 release 资产,发布内容与仓库代码现在一致。
+
 ## Notes
 
 ### 历史提交里的那个 IP

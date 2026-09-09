@@ -38,6 +38,8 @@ workutil/
 - [x] 目录结构如上;`app/migrations/versions/*.py` 确实在包里
 - [x] `.bat` / `.command` 只做设环境变量与调用,不含判断逻辑
 - [x] `.command` 有可执行位(zip 里也要保住)
+
+> **Review 修复(commit `569d9ce`)**:`ZipFile(..., compression=ZIP_DEFLATED)` 没有生效 —— `writestr()` 只在传入普通文件名字符串时才套用 `ZipFile` 自己的 `compression=` 默认值,这里为了带上可执行位手动构造了 `ZipInfo` 传进去,那条路径完全不看 `compression=`,所有条目都按 `ZipInfo` 自己的默认值 `ZIP_STORED`(不压缩)写入。已发布的 v0.1.0 release 因此是 Windows 105MB、macOS 144MB,远超 spec 估的约 37MB。补上 `info.compress_type = zipfile.ZIP_DEFLATED` 后重新打包(Windows 38MB、macOS 53MB),并已重新上传替换了 release 资产。
 - [x] 产物名带 `pyproject.toml` 里的版本号
 - [x] 构建产物目录进 `.gitignore`
 - [x] 在 Linux 上解开产出的 Windows 包,断言 `app/`、`ui/index.html`、`site-packages/fastapi/`、`python/python.exe` 都在 —— 这是能在服务器上做的最强验证

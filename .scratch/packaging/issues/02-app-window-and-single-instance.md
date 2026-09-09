@@ -22,6 +22,8 @@
 
 - [x] `core/platform.py` 新增 `open_app_window(url)`,三个平台实现按上表
 - [x] `tests/fake_platform.py` 跟着记录这个调用
+
+> **Review 修复(commit `b48c9ef`)**:Windows 的 msedge→chrome→默认浏览器 兜底链用了 `subprocess.Popen(cmd, shell=True)`,`cmd` 是列表。`shell=True` 会让「命令不存在」不再抛异常(cmd.exe 自己打印错误就退出,Popen 视为调用成功),于是 msedge 不存在时兜底链在第一步就"成功"返回,chrome 和真正能用的兜底(`os.startfile`/`start`)永远不会被尝试。去掉 `shell=True` 后异常能正常传播;补了一条之前没覆盖过的测试(原测试只 mock 了 happy path)。
 - [x] Linux 实现抛 `UnsupportedPlatformError`,与 `open`/`reveal` 一致
 - [x] 用独立 `--user-data-dir`,路径在数据目录下
 - [x] 启动时端口被占用 → 打印「已经在运行」、开窗、退出码 **0**
