@@ -76,3 +76,6 @@ def test_layout_settings_has_expected_defaults() -> None:
     assert settings.row_height_px == 20
     assert settings.header_fill_color == "87E7AD"
     assert settings.border_style == "thin"
+    assert settings.font_name == "游ゴシック"
+    assert settings.font_size == 11
+    assert settings.literal_colors == {"\u226a NULL \u226b": "808080"}

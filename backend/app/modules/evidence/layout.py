@@ -24,7 +24,7 @@ Hard format limits respected:
 import io
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -92,6 +92,11 @@ class LayoutSettings:
     row_height_px: int = 20
     header_fill_color: str = "87E7AD"
     border_style: BorderStyle = "thin"
+    font_name: str = "游ゴシック"
+    font_size: int = 11
+    literal_colors: dict[str, str] = field(
+        default_factory=lambda: {"\u226a NULL \u226b": "808080"}
+    )
 
 
 DEFAULT_LAYOUT_SETTINGS = LayoutSettings()
@@ -143,7 +148,15 @@ def sanitize_filename(title: str) -> str:
     return f"エビデンス_{clean_title}.xlsx"
 
 
-def _text_cell(ws: Worksheet, row: int, column: int, value: str) -> Cell:
+def _text_cell(
+    ws: Worksheet,
+    row: int,
+    column: int,
+    value: str,
+    settings: LayoutSettings = DEFAULT_LAYOUT_SETTINGS,
+    bold: bool = False,
+    color: str | None = None,
+) -> Cell:
     """Write `value` into a cell as genuine, verbatim text.
 
     Two things openpyxl does regardless of `number_format`:
@@ -168,6 +181,12 @@ def _text_cell(ws: Worksheet, row: int, column: int, value: str) -> Cell:
     cell = ws.cell(row=row, column=column, value=cleaned)
     cell.data_type = "s"
     cell.number_format = "@"
+    cell.font = Font(
+        name=settings.font_name,
+        size=settings.font_size,
+        bold=bold,
+        color=color,
+    )
     return cell
 
 
@@ -240,12 +259,20 @@ def build_evidence_workbook(
 
             # Optional label occupies a single bold row
             if block.label and block.label.strip():
-                label_cell = _text_cell(ws, current_row, 1, block.label.strip())
-                label_cell.font = Font(bold=True)
+                _text_cell(
+                    ws,
+                    current_row,
+                    1,
+                    block.label.strip(),
+                    settings=settings,
+                    bold=True,
+                )
                 current_row += 1
 
             if block.kind == BlockKind.TEXT:
-                text_cell = _text_cell(ws, current_row, 1, block.text)
+                text_cell = _text_cell(
+                    ws, current_row, 1, block.text, settings=settings
+                )
                 text_cell.alignment = Alignment(wrap_text=True, vertical="top")
                 current_row += 1
 
@@ -277,13 +304,26 @@ def build_evidence_workbook(
 
                     for c_idx, cell_value in enumerate(row_cells):
                         col_num = c_idx + 1
-                        cell = _text_cell(ws, row_num, col_num, str(cell_value))
+                        str_val = str(cell_value)
+                        color: str | None = None
+                        if not is_header:
+                            color = settings.literal_colors.get(str_val)
+
+                        cell = _text_cell(
+                            ws,
+                            row_num,
+                            col_num,
+                            str_val,
+                            settings=settings,
+                            bold=is_header,
+                            color=color,
+                        )
                         cell.border = thin_border
                         if is_header:
-                            cell.font = Font(bold=True)
                             cell.fill = header_fill
-                        else:
-                            cell.font = Font(bold=False)
+                            cell.alignment = Alignment(
+                                wrap_text=True, vertical="center"
+                            )
 
                 current_row += len(block.rows)
 

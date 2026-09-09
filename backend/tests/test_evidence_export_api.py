@@ -416,3 +416,132 @@ def test_export_refuses_when_an_image_file_is_missing_from_disk(
 
     res = client.get(f"/api/evidence/{evidence_id}/export")
     assert res.status_code == 422
+
+
+def test_export_font_name_and_size_applied_everywhere(client: TestClient) -> None:
+    evidence_id = create_evidence(client, "フォントテスト")
+    case_id = add_case(client, evidence_id, "1")
+    add_text_block(client, evidence_id, case_id, "本文テキスト", label="見出し")
+    add_table_block(client, evidence_id, case_id, "col1\tcol2\nval1\tval2")
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws = wb["1"]
+
+    # Label (row 1)
+    label_cell = ws.cell(row=1, column=1)
+    assert label_cell.value == "見出し"
+    assert label_cell.font.name == "游ゴシック"
+    assert label_cell.font.size == 11
+    assert label_cell.font.bold is True
+
+    # Text block (row 2)
+    text_cell = ws.cell(row=2, column=1)
+    assert text_cell.value == "本文テキスト"
+    assert text_cell.font.name == "游ゴシック"
+    assert text_cell.font.size == 11
+
+    # Row 3 is empty separator
+
+    # Table header (row 4)
+    th_cell = ws.cell(row=4, column=1)
+    assert th_cell.value == "col1"
+    assert th_cell.font.name == "游ゴシック"
+    assert th_cell.font.size == 11
+    assert th_cell.font.bold is True
+
+    # Table data (row 5)
+    td_cell = ws.cell(row=5, column=1)
+    assert td_cell.value == "val1"
+    assert td_cell.font.name == "游ゴシック"
+    assert td_cell.font.size == 11
+    assert td_cell.font.bold is not True
+
+
+def test_table_header_alignment_wrap_and_center_data_row_default(
+    client: TestClient,
+) -> None:
+    evidence_id = create_evidence(client, "配置テスト")
+    case_id = add_case(client, evidence_id, "1")
+    add_table_block(client, evidence_id, case_id, "long_col_name\tother_col\nval\t1")
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws = wb["1"]
+
+    # Header cell: wrap_text=True and vertical="center"
+    header_cell = ws.cell(row=1, column=1)
+    assert header_cell.alignment.wrap_text is True
+    assert header_cell.alignment.vertical == "center"
+
+    # Data cell: default alignment (wrap_text not set, vertical not set)
+    data_cell = ws.cell(row=2, column=1)
+    assert data_cell.alignment.wrap_text is not True
+    assert data_cell.alignment.vertical is None
+
+
+def test_null_literal_exact_match_gray_color_and_variants_stay_black(
+    client: TestClient,
+) -> None:
+    evidence_id = create_evidence(client, "NULL色テスト")
+    case_id = add_case(client, evidence_id, "1")
+
+    # 5 test values in order:
+    # 1. Exact ≪ NULL ≫ (U+226A + ' NULL ' + U+226B)
+    # 2. ≪NULL≫ (no spaces)
+    # 3. « NULL » (U+00AB / U+00BB Guillemets)
+    # 4. NULL (plain)
+    # 5. 　≪ NULL ≫　 (leading/trailing whitespace)
+    v1 = "\u226a NULL \u226b"
+    v2 = "\u226aNULL\u226b"
+    v3 = "\u00ab NULL \u00bb"
+    v4 = "NULL"
+    v5 = "　\u226a NULL \u226b　"
+
+    tsv = f"head1\thead2\thead3\thead4\thead5\n{v1}\t{v2}\t{v3}\t{v4}\t{v5}"
+    add_table_block(client, evidence_id, case_id, tsv)
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws = wb["1"]
+
+    # Header cells must not be gray
+    for col in range(1, 6):
+        h_cell = ws.cell(row=1, column=col)
+        assert h_cell.font.color is None or h_cell.font.color.rgb not in (
+            "808080",
+            "00808080",
+        )
+
+    # Col 1: exact match -> gray #808080
+    c1 = ws.cell(row=2, column=1)
+    assert c1.value == v1
+    assert c1.font.color is not None
+    assert c1.font.color.rgb in ("808080", "00808080")
+
+    # Col 2-5: variants must NOT turn gray
+    for col in (2, 3, 4, 5):
+        c = ws.cell(row=2, column=col)
+        assert c.font.color is None or c.font.color.rgb not in ("808080", "00808080")
+
+
+def test_text_block_null_literal_does_not_turn_gray(client: TestClient) -> None:
+    evidence_id = create_evidence(client, "TextブロックNULL色テスト")
+    case_id = add_case(client, evidence_id, "1")
+    add_text_block(client, evidence_id, case_id, "\u226a NULL \u226b")
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws = wb["1"]
+
+    cell = ws.cell(row=1, column=1)
+    assert cell.value == "\u226a NULL \u226b"
+    assert cell.font.color is None or cell.font.color.rgb not in ("808080", "00808080")

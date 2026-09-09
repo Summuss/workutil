@@ -20,16 +20,17 @@
 
 **Blocked by:** 无
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `LayoutSettings` 加 `font_name` / `font_size` / NULL 字面量与颜色的映射
-- [ ] `_text_cell` 统一设置字体,`Font(...)` 构造收进漏斗,调用方只传 bold / color
-- [ ] 表头单元格 `wrap_text=True` + `vertical="center"`;数据行不设 alignment
-- [ ] 表格单元格值为 `≪ NULL ≫` 时字体色 `#808080`
-- [ ] 列宽、表头底色、边框、`@` 格式**均无变化**(回归)
-- [ ] 测试:导出后读回,任取一格字体名是 `游ゴシック`、字号 11
-- [ ] 测试:表头单元格 `alignment.wrap_text` 为真、`vertical` 为 `center`;数据行两者均为默认
-- [ ] **测试:NULL 的精确匹配** —— 造 `≪ NULL ≫`(变灰)与 `≪NULL≫`、`« NULL »`、`NULL`、`　≪ NULL ≫　`(前后带空白,不变灰)五种值,断言只有第一种是 `#808080`
-- [ ] 测试:文字 Block 里整段是 `≪ NULL ≫` 时**不**变灰
-- [ ] 测试:表头底色仍是 `87E7AD`、全表仍有细边框、单元格仍是 `@` 格式(回归)
-- [ ] `make check` 与 `make test` 通过
+- [x] `LayoutSettings` 加 `font_name` / `font_size` / NULL 字面量与颜色的映射
+- [x] `_text_cell` 统一设置字体,`Font(...)` 构造收进漏斗,调用方只传 bold / color
+- [x] 表头单元格 `wrap_text=True` + `vertical="center"`;数据行不设 alignment
+- [x] 表格单元格值为 `≪ NULL ≫` 时字体色 `#808080`
+- [x] 列宽、表头底色、边框、`@` 格式**均无变化**(回归)
+- [x] 测试:导出后读回,任取一格字体名是 `游ゴシック`、字号 11
+- [x] 测试:表头单元格 `alignment.wrap_text` 为真、`vertical` 为 `center`;数据行两者均为默认
+- [x] **测试:NULL 的精确匹配** —— 造 `≪ NULL ≫`(变灰)与 `≪NULL≫`、`« NULL »`、`NULL`、`　≪ NULL ≫　`(前后带空白,不变灰)五种值,断言只有第一种是 `#808080`
+- [x] 测试:文字 Block 里整段是 `≪ NULL ≫` 时**不**变灰
+- [x] 测试:表头底色仍是 `87E7AD`、全表仍有细边框、单元格仍是 `@` 格式(回归)
+- [x] `make check` 与 `make test` 通过
+
