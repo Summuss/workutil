@@ -47,6 +47,23 @@ import type {
   MoveDirection,
 } from "./types";
 
+/** Where a bookmark currently sits: its group (`null` for loose) and the
+ * sibling list it belongs to. `handleDragEnd` and `handleMoveBookmark` both
+ * need to resolve this from just an id before they can compute a target
+ * index, so it lives in one place instead of being re-derived twice. */
+function locateBookmark(
+  loaded: BookmarkListResponse,
+  bookmarkId: number,
+): { groupId: number | null; siblings: Bookmark[] } | null {
+  if (loaded.loose.some((b) => b.id === bookmarkId)) {
+    return { groupId: null, siblings: loaded.loose };
+  }
+  const group = loaded.groups.find((g) =>
+    g.bookmarks.some((b) => b.id === bookmarkId),
+  );
+  return group ? { groupId: group.id, siblings: group.bookmarks } : null;
+}
+
 interface Notice {
   type: "info" | "success" | "warning";
   message: string;
@@ -440,7 +457,7 @@ export function BookmarkPage() {
       if (!prev) return;
       setError(null);
 
-      // 1. 同组移动乐观更新
+      // Same group: a plain reorder, applied optimistically before the request lands.
       if (sourceGroupId === targetGroupId) {
         if (sourceGroupId === null) {
           const reorderedOptimistic = arrayMove(prev.loose, oldIndex, targetIndex).map(
@@ -464,7 +481,9 @@ export function BookmarkPage() {
           });
         }
       } else {
-        // 2. 跨组移动乐观更新
+        // Different groups: move it locally too — group_id changes, it leaves
+        // one array and is spliced into the other — so the UI doesn't sit
+        // still until the round trip below returns.
         const movingBookmark =
           sourceGroupId === null
             ? prev.loose.find((b) => b.id === bookmarkId)
@@ -522,7 +541,9 @@ export function BookmarkPage() {
         });
       }
 
-      // 3. 调用后端原子移动端点
+      // Both branches above are just a preview — confirm with the backend's
+      // atomic move endpoint, which also collapses the gap left behind in
+      // the source group (spec: bookmark-cross-group-drag ticket 01).
       try {
         const res = await moveBookmark(bookmarkId, targetIndex, targetGroupId);
         setLoaded((curr) => {
@@ -568,7 +589,7 @@ export function BookmarkPage() {
       if (!over) return;
       const currentActiveType = active.data.current?.type;
 
-      // 1. 分组拖拽
+      // Dragging a group: reorder among groups only.
       if (currentActiveType === "group") {
         if (active.id === over.id) return;
         const overGroupId = over.data.current?.id ?? over.id;
@@ -584,18 +605,16 @@ export function BookmarkPage() {
         return;
       }
 
-      // 2. 书签跨组/同组拖拽
+      // Dragging a bookmark: same-group reorder or a cross-group move,
+      // depending on where the drop landed.
       if (currentActiveType === "bookmark") {
         const bookmarkId = Number(active.id);
         const prev = loaded;
         if (!prev) return;
 
-        const inLoose = prev.loose.some((b) => b.id === bookmarkId);
-        const sourceGroup = inLoose
-          ? null
-          : prev.groups.find((g) => g.bookmarks.some((b) => b.id === bookmarkId));
-        if (!inLoose && !sourceGroup) return;
-        const sourceGroupId = sourceGroup?.id ?? null;
+        const source = locateBookmark(prev, bookmarkId);
+        if (!source) return;
+        const sourceGroupId = source.groupId;
 
         let targetGroupId: number | null = null;
         let targetIndex = 0;
@@ -611,30 +630,18 @@ export function BookmarkPage() {
           targetIndex = targetList.length;
         } else if (overData?.type === "bookmark") {
           const overBookmarkId = Number(over.id);
-          const overInLoose = prev.loose.some((b) => b.id === overBookmarkId);
-          const overGroup = overInLoose
-            ? null
-            : prev.groups.find((g) =>
-                g.bookmarks.some((b) => b.id === overBookmarkId),
-              );
-          targetGroupId = overGroup?.id ?? null;
+          const target = locateBookmark(prev, overBookmarkId);
+          if (!target) return;
+          targetGroupId = target.groupId;
 
-          const targetList =
-            targetGroupId === null
-              ? prev.loose
-              : (overGroup?.bookmarks ?? []);
-          const overIdx = targetList.findIndex((b) => b.id === overBookmarkId);
-          targetIndex = overIdx === -1 ? targetList.length : overIdx;
+          const overIdx = target.siblings.findIndex((b) => b.id === overBookmarkId);
+          targetIndex = overIdx === -1 ? target.siblings.length : overIdx;
         } else {
           return;
         }
 
         const isSameGroup = sourceGroupId === targetGroupId;
-        const sourceList =
-          sourceGroupId === null
-            ? prev.loose
-            : (sourceGroup?.bookmarks ?? []);
-        const oldIndex = sourceList.findIndex((b) => b.id === bookmarkId);
+        const oldIndex = source.siblings.findIndex((b) => b.id === bookmarkId);
 
         if (isSameGroup && oldIndex === targetIndex) {
           return;
@@ -657,14 +664,9 @@ export function BookmarkPage() {
       const prev = loaded;
       if (!prev) return;
 
-      const inLoose = prev.loose.some((b) => b.id === id);
-      const group = inLoose
-        ? null
-        : prev.groups.find((g) => g.bookmarks.some((b) => b.id === id));
-      if (!inLoose && !group) return;
-
-      const groupId = group?.id ?? null;
-      const siblings = inLoose ? prev.loose : (group?.bookmarks ?? []);
+      const location = locateBookmark(prev, id);
+      if (!location) return;
+      const { groupId, siblings } = location;
       const oldIndex = siblings.findIndex((b) => b.id === id);
       if (oldIndex === -1) return;
 
