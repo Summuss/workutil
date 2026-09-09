@@ -9,7 +9,6 @@ import {
 import { messageOf } from "../../shared/api";
 import { t } from "../../shared/i18n";
 import {
-  ArrowRightIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   EditIcon,
@@ -22,7 +21,6 @@ import { deleteMemo, pinMemo, unpinMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
 import { HighlightText } from "./HighlightText";
 import { Markdown } from "../../shared/Markdown";
-import { ConvertToTodoModal } from "./ConvertToTodoModal";
 import type { Memo } from "./types";
 
 interface MemoItemProps {
@@ -58,7 +56,6 @@ export function MemoItem({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [pinning, setPinning] = useState(false);
-  const [showConvertToTodo, setShowConvertToTodo] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -276,20 +273,9 @@ export function MemoItem({
             <PinIcon filled={Boolean(memo.pinned_at)} />
           </button>
           {!editing && (
-            <>
-              <button
-                type="button"
-                onClick={() => setShowConvertToTodo(true)}
-                className="btn-ghost mr-1"
-                style={{ fontSize: "11px", padding: "4px 9px", borderRadius: "5px" }}
-              >
-                <ArrowRightIcon />
-                {t("memo.to_todo")}
-              </button>
-              <button type="button" onClick={() => setEditing(true)} className="icon-btn" title={t("common.edit")}>
-                <EditIcon />
-              </button>
-            </>
+            <button type="button" onClick={() => setEditing(true)} className="icon-btn" title={t("common.edit")}>
+              <EditIcon />
+            </button>
           )}
           <button
             type="button"
@@ -362,13 +348,6 @@ export function MemoItem({
           )}
           <Markdown content={memo.body} />
         </div>
-      )}
-
-      {showConvertToTodo && (
-        <ConvertToTodoModal
-          memo={memo}
-          onClose={() => setShowConvertToTodo(false)}
-        />
       )}
     </li>
   );

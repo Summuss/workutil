@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router";
 
 import { t } from "../../shared/i18n";
 import {
@@ -259,16 +258,6 @@ export function TodoItem({
         </span>
       )}
 
-      {todo.source_memo_id != null && (
-        <Link
-          to={`/memo/${todo.source_memo_id}`}
-          title={t("todo.view_source_memo")}
-          className="inline-flex shrink-0 items-center rounded-full px-2 py-1 text-[10.5px] transition-colors"
-          style={{ border: "1px solid var(--border)", background: "var(--stripe)", color: "var(--text-muted)" }}
-        >
-          {t("todo.from_memo")}
-        </Link>
-      )}
 
       {canReorder && at !== undefined && count !== undefined && (
         <div className="flex items-center gap-0.5 opacity-40 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">

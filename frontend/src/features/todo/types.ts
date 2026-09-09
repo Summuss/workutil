@@ -3,7 +3,6 @@ export interface Todo {
   title: string;
   order: number;
   due_date: string | null;
-  source_memo_id: number | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -19,7 +18,6 @@ export interface TodoListResponse {
 export interface TodoCreatePayload {
   title: string;
   due_date?: string | null;
-  source_memo_id?: number | null;
 }
 
 export interface TodoUpdatePayload {

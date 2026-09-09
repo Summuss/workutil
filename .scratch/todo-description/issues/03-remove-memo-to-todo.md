@@ -13,13 +13,19 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `ConvertToTodoModal.tsx` 删除
-- [ ] `MemoItem` 展开态工具条上的「转 Todo」按钮与相关 state 删除
-- [ ] `TodoItem` 上的「从 memo 而来」徽章与 `Link` 删除,`Todo` 类型里的 `source_memo_id` 删除
-- [ ] `features/memo` 不再 import `features/todo` 的任何东西
-- [ ] `zh.json` / `ja.json` 里 `memo.to_todo`、`todo.from_memo`、`todo.view_source_memo` 等 key 两边一起删,key 对齐测试通过
-- [ ] **`firstLine.ts` 与它的测试保留**,折叠态 memo 首行显示不受影响
-- [ ] **`/memo/:id` 路由与 `SingleMemoPage` 保留**,直接敲地址仍能打开,「返回」行为不变
-- [ ] `pnpm build` / `tsc` 通过
+- [x] `ConvertToTodoModal.tsx` 删除
+- [x] `MemoItem` 展开态工具条上的「转 Todo」按钮与相关 state 删除
+- [x] `TodoItem` 上的「从 memo 而来」徽章与 `Link` 删除,`Todo` 类型里的 `source_memo_id` 删除
+- [x] `features/memo` 不再 import `features/todo` 的任何东西
+- [x] `zh.json` / `ja.json` 里 `memo.to_todo`、`todo.from_memo`、`todo.view_source_memo` 等 key 两边一起删,key 对齐测试通过
+- [x] **`firstLine.ts` 与它的测试保留**,折叠态 memo 首行显示不受影响
+- [x] **`/memo/:id` 路由与 `SingleMemoPage` 保留**,直接敲地址仍能打开,「返回」行为不变
+- [x] `pnpm build` / `tsc` 通过
+
+## Comments
+
+### Code Review
+- **Standards**: 彻底拆除 memo 到 todo 的跨模块耦合；TypeScript 类型与 i18n 键全数保持整洁，无遗留死代码。
+- **Spec**: `ConvertToTodoModal`、转 Todo 按钮与回溯徽章全部移除；`firstLine.ts` 及其测试完整保留；`/memo/:id` 路由与页面保留；i18n 对齐测试与前端构建全部通过。
