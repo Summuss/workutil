@@ -1,4 +1,4 @@
-.PHONY: install dev-backend dev-frontend build run test check
+.PHONY: install dev-backend dev-frontend build run test check package
 
 ## First-time setup
 install:
@@ -28,3 +28,7 @@ check:
 	cd backend && uv run ruff format --check .
 	cd backend && uv run mypy app tests
 	cd frontend && pnpm typecheck
+
+## Package: assemble portable zip packages for Windows and macOS
+package:
+	uv run python scripts/build_packages.py

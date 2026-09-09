@@ -28,19 +28,19 @@ workutil/
 
 **Blocked by:** 01, 02, 03
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] `make package` 产出 Windows 与 macOS 两个 zip,全程在 Linux 上完成
-- [ ] 用 `uv pip compile --python-platform` 解析依赖(不要用 `uv export`,理由见上)
-- [ ] wheel 下载失败要**明确报错并中止**,不能产出一个缺包的 zip
-- [ ] python-build-standalone 的 tarball 下载后校验大小/哈希,不要静默接受一个截断的文件
-- [ ] `pnpm build` 是构建的一部分,不依赖 `dist/` 恰好还在
-- [ ] 目录结构如上;`app/migrations/versions/*.py` 确实在包里
-- [ ] `.bat` / `.command` 只做设环境变量与调用,不含判断逻辑
-- [ ] `.command` 有可执行位(zip 里也要保住)
-- [ ] 产物名带 `pyproject.toml` 里的版本号
-- [ ] 构建产物目录进 `.gitignore`
-- [ ] 在 Linux 上解开产出的 Windows 包,断言 `app/`、`ui/index.html`、`site-packages/fastapi/`、`python/python.exe` 都在 —— 这是能在服务器上做的最强验证
-- [ ] `make check` 通过
+- [x] `make package` 产出 Windows 与 macOS 两个 zip,全程在 Linux 上完成
+- [x] 用 `uv pip compile --python-platform` 解析依赖(不要用 `uv export`,理由见上)
+- [x] wheel 下载失败要**明确报错并中止**,不能产出一个缺包的 zip
+- [x] python-build-standalone 的 tarball 下载后校验大小/哈希,不要静默接受一个截断的文件
+- [x] `pnpm build` 是构建的一部分,不依赖 `dist/` 恰好还在
+- [x] 目录结构如上;`app/migrations/versions/*.py` 确实在包里
+- [x] `.bat` / `.command` 只做设环境变量与调用,不含判断逻辑
+- [x] `.command` 有可执行位(zip 里也要保住)
+- [x] 产物名带 `pyproject.toml` 里的版本号
+- [x] 构建产物目录进 `.gitignore`
+- [x] 在 Linux 上解开产出的 Windows 包,断言 `app/`、`ui/index.html`、`site-packages/fastapi/`、`python/python.exe` 都在 —— 这是能在服务器上做的最强验证
+- [x] `make check` 通过
 
 > **注意:包能否真的跑起来只能在 Windows / macOS 上验。** 这是 `design.md §7` 那条落差的新增项,ticket 05 负责把它写进文档。

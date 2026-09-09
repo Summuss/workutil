@@ -14,3 +14,7 @@ frontend/dist/
 # Local data (never committed — see docs/design.md §5)
 *.db
 data/
+
+# Build and packaging artifacts
+dist/
+.cache/
