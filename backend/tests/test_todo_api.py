@@ -5,11 +5,15 @@ against a temporary data directory and test all required behaviors for Ticket 01
 """
 
 from datetime import timedelta
+from pathlib import Path
 
+from alembic import command
+from alembic.config import Config
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from app.core.db import utc_now
+from app.core.db import MIGRATIONS_DIR, utc_now
 from app.modules.todo.models import Todo
 from app.modules.todo.service import RECENT_COMPLETED_LIMIT
 
@@ -354,44 +358,135 @@ def test_ordering_is_independent_of_due_date(client: TestClient) -> None:
     assert listed_after_move[1]["id"] == todo_future["id"]
 
 
-def test_create_todo_with_source_memo_id(client: TestClient) -> None:
-    memo = client.post("/api/memos", json={"body": "来自会议纪要的待办"}).json()
-    resp = client.post(
+def test_create_todo_with_and_without_description(client: TestClient) -> None:
+    # With description
+    resp1 = client.post(
         "/api/todos",
-        json={"title": "会议待办", "source_memo_id": memo["id"]},
+        json={"title": "买书", "description": "要买《重构》第2版"},
     )
-    assert resp.status_code == 201
-    created = resp.json()
-    assert created["title"] == "会议待办"
-    assert created["source_memo_id"] == memo["id"]
+    assert resp1.status_code == 201
+    assert resp1.json()["description"] == "要买《重构》第2版"
+
+    # Without description (defaults to "")
+    resp2 = client.post("/api/todos", json={"title": "散步"})
+    assert resp2.status_code == 201
+    assert resp2.json()["description"] == ""
 
 
-def test_todo_with_deleted_memo_still_listed(client: TestClient) -> None:
-    """Main seam test for Ticket 04:
-
-    When the original memo is deleted, the todo is STILL normally listed,
-    without any foreign key violation or missing rows, but without a backlink
-    (source_memo_id resolved as None).
-    """
-    memo = client.post("/api/memos", json={"body": "临时记录备忘"}).json()
-    memo_id = memo["id"]
-
-    todo = client.post(
+def test_patch_todo_description(client: TestClient) -> None:
+    created = client.post(
         "/api/todos",
-        json={"title": "从备忘转出的待办", "source_memo_id": memo_id},
+        json={"title": "写代码", "description": "初始说明"},
     ).json()
-    todo_id = todo["id"]
+    todo_id = created["id"]
+    assert created["description"] == "初始说明"
 
-    # Delete the source memo
-    del_resp = client.delete(f"/api/memos/{memo_id}")
-    assert del_resp.status_code == 204
+    # None does not change description
+    resp_none = client.patch(f"/api/todos/{todo_id}", json={"title": "新标题"})
+    assert resp_none.status_code == 200
+    assert resp_none.json()["title"] == "新标题"
+    assert resp_none.json()["description"] == "初始说明"
 
-    # Todo list is still 200 OK, todo is present, without backlink
-    listed_resp = client.get("/api/todos")
-    assert listed_resp.status_code == 200
-    todos = listed_resp.json()["todos"]
+    # Update description with new content
+    resp_update = client.patch(
+        f"/api/todos/{todo_id}", json={"description": "修改后的说明"}
+    )
+    assert resp_update.status_code == 200
+    assert resp_update.json()["description"] == "修改后的说明"
 
-    match = next((t for t in todos if t["id"] == todo_id), None)
+    # Empty string "" clears description
+    resp_clear = client.patch(f"/api/todos/{todo_id}", json={"description": ""})
+    assert resp_clear.status_code == 200
+    assert resp_clear.json()["description"] == ""
+
+
+def test_list_todos_returns_full_description(client: TestClient) -> None:
+    client.post(
+        "/api/todos",
+        json={"title": "长说明待办", "description": "第1行\n第2行\n第3行"},
+    )
+    resp = client.get("/api/todos")
+    assert resp.status_code == 200
+    listed = resp.json()["todos"]
+    match = next((t for t in listed if t["title"] == "长说明待办"), None)
     assert match is not None
-    assert match["title"] == "从备忘转出的待办"
-    assert match["source_memo_id"] is None
+    assert match["description"] == "第1行\n第2行\n第3行"
+
+
+def test_todo_migration_preserves_live_memo_links(tmp_path: Path) -> None:
+    db_file = tmp_path / "migration_test.db"
+    engine = create_engine(f"sqlite:///{db_file}")
+
+    config = Config()
+    config.set_main_option("script_location", str(MIGRATIONS_DIR))
+    config.attributes["engine"] = engine
+
+    # Upgrade to the revision right before this one (a1b2c3d4e5f6)
+    command.upgrade(config, "a1b2c3d4e5f6")
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO memos (id, body, created_at, updated_at) "
+                "VALUES (1, 'live memo', '2026-09-01 00:00:00', "
+                "'2026-09-01 00:00:00')"
+            )
+        )
+        insert_todo = (
+            'INSERT INTO todos (id, title, "order", source_memo_id, '
+            "created_at, updated_at) VALUES (:id, :title, :order, "
+            ":source_memo_id, '2026-09-01 00:00:00', '2026-09-01 00:00:00')"
+        )
+        conn.execute(
+            text(insert_todo),
+            {
+                "id": 1,
+                "title": "Todo with live memo",
+                "order": 0,
+                "source_memo_id": 1,
+            },
+        )
+        conn.execute(
+            text(insert_todo),
+            {
+                "id": 2,
+                "title": "Todo with dead memo",
+                "order": 1,
+                "source_memo_id": 999,
+            },
+        )
+        conn.execute(
+            text(insert_todo),
+            {
+                "id": 3,
+                "title": "Todo with no memo",
+                "order": 2,
+                "source_memo_id": None,
+            },
+        )
+
+    # Run upgrade to our new revision
+    command.upgrade(config, "d3e7b1a9c4f2")
+
+    with engine.connect() as conn:
+        rows = conn.execute(text("SELECT id, description FROM todos ORDER BY id")).all()
+        assert rows[0] == (1, "[原 memo](/memo/1)")
+        assert rows[1] == (2, "")
+        assert rows[2] == (3, "")
+
+        columns = [
+            col[1] for col in conn.execute(text("PRAGMA table_info(todos)")).all()
+        ]
+        assert "source_memo_id" not in columns
+        assert "description" in columns
+
+    # Downgrade and verify
+    command.downgrade(config, "a1b2c3d4e5f6")
+    with engine.connect() as conn:
+        columns_after_down = [
+            col[1] for col in conn.execute(text("PRAGMA table_info(todos)")).all()
+        ]
+        assert "source_memo_id" in columns_after_down
+        assert "description" not in columns_after_down
+
+    engine.dispose()

@@ -1,6 +1,5 @@
 """What you can do with todos. Knows nothing about HTTP."""
 
-from collections.abc import Iterable
 from datetime import date
 
 from sqlalchemy import select
@@ -8,7 +7,6 @@ from sqlalchemy.orm import Session
 
 from app.core.db import utc_now
 from app.core.ordering import Move, renumber, reorder
-from app.modules.memo.models import Memo
 from app.modules.todo.models import Todo
 
 #: The ceiling on completed todos returned in the list. Same shape as memo's
@@ -42,15 +40,6 @@ def _clean_title(raw_title: str) -> str:
     return title
 
 
-def get_existing_memo_ids(session: Session, memo_ids: Iterable[int]) -> set[int]:
-    """Return the subset of given memo IDs that currently exist in the database."""
-    unique_ids = {mid for mid in memo_ids if mid is not None}
-    if not unique_ids:
-        return set()
-    stmt = select(Memo.id).where(Memo.id.in_(unique_ids))
-    return set(session.scalars(stmt).all())
-
-
 def get_todo(session: Session, todo_id: int) -> Todo:
     todo = session.get(Todo, todo_id)
     if todo is None:
@@ -66,8 +55,8 @@ def _unfinished_todos_in_order(session: Session) -> list[Todo]:
 def create_todo(
     session: Session,
     raw_title: str,
+    description: str = "",
     due_date: date | None = None,
-    source_memo_id: int | None = None,
 ) -> Todo:
     title = _clean_title(raw_title)
     unfinished = _unfinished_todos_in_order(session)
@@ -75,9 +64,9 @@ def create_todo(
     now = utc_now()
     todo = Todo(
         title=title,
+        description=description,
         order=order,
         due_date=due_date,
-        source_memo_id=source_memo_id,
         created_at=now,
         updated_at=now,
         completed_at=None,
@@ -92,12 +81,15 @@ def update_todo(
     session: Session,
     todo_id: int,
     raw_title: str | None = None,
+    description: str | None = None,
     due_date: date | None = None,
     update_due_date: bool = False,
 ) -> Todo:
     todo = get_todo(session, todo_id)
     if raw_title is not None:
         todo.title = _clean_title(raw_title)
+    if description is not None:
+        todo.description = description
     if update_due_date:
         todo.due_date = due_date
     todo.updated_at = utc_now()

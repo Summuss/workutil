@@ -8,18 +8,14 @@ from app.core.ordering import Ordered
 
 
 class Todo(Ordered, Base):
-    """A single task to be done — see CONTEXT.md and spec.md.
-
-    Has deliberately no foreign key to memos when created from memo:
-    source_memo_id is just an id, not a constraint (Ticket 04).
-    """
+    """A single task to be done — see CONTEXT.md and spec.md."""
 
     __tablename__ = "todos"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     title: Mapped[str] = mapped_column(Text)
+    description: Mapped[str] = mapped_column(Text, default="", nullable=False)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    source_memo_id: Mapped[int | None] = mapped_column(nullable=True, index=True)
     completed_at: Mapped[datetime | None] = mapped_column(
         UtcDateTime, nullable=True, index=True
     )

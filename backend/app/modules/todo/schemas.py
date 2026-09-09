@@ -7,12 +7,13 @@ from app.core.ordering import MoveRequest as MoveRequest
 
 class TodoCreate(BaseModel):
     title: str
+    description: str = ""
     due_date: date | None = None
-    source_memo_id: int | None = None
 
 
 class TodoUpdate(BaseModel):
     title: str | None = None
+    description: str | None = None
     due_date: date | None = None
 
 
@@ -23,9 +24,9 @@ class TodoRead(BaseModel):
 
     id: int
     title: str
+    description: str = ""
     order: int
     due_date: date | None = None
-    source_memo_id: int | None = None
     completed_at: datetime | None = None
     created_at: datetime
     updated_at: datetime

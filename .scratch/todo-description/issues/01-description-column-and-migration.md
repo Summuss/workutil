@@ -20,16 +20,22 @@
 
 **Blocked by:** 无
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `todos.description`(`Text`,default `""`,非空)
-- [ ] 一条迁移,三步顺序如上;`downgrade` 里 drop `description`、加回 `source_memo_id`(值补不回来,这是知情的)
-- [ ] `TodoCreate.description` / `TodoUpdate.description` / `TodoRead.description`
-- [ ] `service.create_todo` / `update_todo` 处理说明;`update_todo` 的 `None` 与 `""` 语义正确
-- [ ] `router.py` 拆掉 `valid_memo_ids` 那一整套,`service.get_existing_memo_ids` 删除
-- [ ] `backend/app/modules/todo/` 不再 import `app.modules.memo` 的任何东西
-- [ ] 测试:创建时带说明、不带说明(空字符串)
-- [ ] 测试:`PATCH` 传 `None` 不改说明、传 `""` 清空说明、传内容则替换
-- [ ] 测试:列表返回说明全文
-- [ ] **测试:迁移接住旧链接** —— 造三条 todo(指向存在的 memo / 指向已删的 memo / `source_memo_id` 为空),跑迁移,断言只有第一条的说明里多了 `[原 memo](/memo/N)`
-- [ ] `make check` 与 `make test` 通过
+- [x] `todos.description`(`Text`,default `""`,非空)
+- [x] 一条迁移,三步顺序如上;`downgrade` 里 drop `description`、加回 `source_memo_id`(值补不回来,这是知情的)
+- [x] `TodoCreate.description` / `TodoUpdate.description` / `TodoRead.description`
+- [x] `service.create_todo` / `update_todo` 处理说明;`update_todo` 的 `None` 与 `""` 语义正确
+- [x] `router.py` 拆掉 `valid_memo_ids` 那一整套,`service.get_existing_memo_ids` 删除
+- [x] `backend/app/modules/todo/` 不再 import `app.modules.memo` 的任何东西
+- [x] 测试:创建时带说明、不带说明(空字符串)
+- [x] 测试:`PATCH` 传 `None` 不改说明、传 `""` 清空说明、传内容则替换
+- [x] 测试:列表返回说明全文
+- [x] **测试:迁移接住旧链接** —— 造三条 todo(指向存在的 memo / 指向已删的 memo / `source_memo_id` 为空),跑迁移,断言只有第一条的说明里多了 `[原 memo](/memo/N)`
+- [x] `make check` 与 `make test` 通过
+
+## Comments
+
+### Code Review
+- **Standards**: 代码完全遵守项目的模块设计规范，`ruff check`、`ruff format`、`mypy` 静态类型检查全绿，行长控制在 88 字符以内。
+- **Spec**: 数据迁移 `d3e7b1a9c4f2` 严格按「加 description -> 回溯 live memo 写入链接 -> drop source_memo_id 与索引」执行；`TodoCreate`、`TodoUpdate`（`None` 不改，`""` 清空）、`TodoRead` 接口齐备；`service.get_existing_memo_ids` 与对 `memo` 的引用已彻底拆除；所有单测与迁移回滚测试全部通过。
