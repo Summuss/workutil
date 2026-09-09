@@ -110,6 +110,7 @@
   "bookmark.deleting_group": "削除中…",
   "bookmark.delete_group": "グループ削除",
   "bookmark.group_empty": "このグループにはまだブックマークがありません。登録時にこのグループを選択するか、既存のブックマークを編集して移動してください。",
+  "bookmark.drop_here": "ここにドロップ",
   "bookmark.move_item_top": "先頭へ移動",
   "bookmark.move_item_bottom": "末尾へ移動",
   "bookmark.update_failed": "更新に失敗しました",

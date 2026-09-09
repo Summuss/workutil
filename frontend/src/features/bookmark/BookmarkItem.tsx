@@ -59,8 +59,12 @@ export function BookmarkItem({
   onReveal,
 }: BookmarkItemProps) {
   const [editing, setEditing] = useState(false);
-  const canReorder = !editing && count > 1;
-  const { ref, style, handleProps } = useSortableItem(bookmark.id, !canReorder);
+  const canReorder = !editing;
+  const { ref, style, handleProps } = useSortableItem(bookmark.id, !canReorder, {
+    type: "bookmark",
+    id: bookmark.id,
+    groupId: bookmark.group_id,
+  });
   const [name, setName] = useState(bookmark.name);
   const [path, setPath] = useState(bookmark.path);
   const [groupId, setGroupId] = useState<number | null>(bookmark.group_id);

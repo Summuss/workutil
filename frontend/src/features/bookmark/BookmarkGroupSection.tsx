@@ -1,3 +1,4 @@
+import { useDroppable } from "@dnd-kit/core";
 import { useState, type FormEvent } from "react";
 
 import { messageOf } from "../../shared/api";
@@ -7,7 +8,7 @@ import {
   ChevronsUpIcon,
   FolderIcon,
 } from "../../shared/icons";
-import { DragHandle, SortableList, useSortableItem } from "../../shared/sortable";
+import { DragHandle, SortableSubList, useSortableItem } from "../../shared/sortable";
 import { BookmarkItem } from "./BookmarkItem";
 import type {
   BookmarkGroup,
@@ -22,6 +23,7 @@ interface BookmarkGroupSectionProps {
   at: number;
   count: number;
   getStatus: (id: number) => BookmarkStatus;
+  isDraggingBookmark?: boolean;
   onRenameGroup: (id: number, name: string) => Promise<void>;
   onDeleteGroup: (id: number) => Promise<void>;
   onMoveGroup: (id: number, to: MoveDirection) => Promise<void>;
@@ -29,7 +31,7 @@ interface BookmarkGroupSectionProps {
   onUpdateBookmark: (id: number, payload: BookmarkUpdatePayload) => Promise<void>;
   onDeleteBookmark: (id: number) => Promise<void>;
   onMoveBookmark: (id: number, to: MoveDirection) => Promise<void>;
-  onReorderBookmark: (groupId: number, id: number | string, newIndex: number) => void | Promise<void>;
+  onReorderBookmark?: (groupId: number, id: number | string, newIndex: number) => void | Promise<void>;
   onOpenBookmark: (id: number) => Promise<void>;
   onRevealBookmark: (id: number) => Promise<void>;
 }
@@ -50,6 +52,7 @@ export function BookmarkGroupSection({
   at,
   count,
   getStatus,
+  isDraggingBookmark = false,
   onRenameGroup,
   onDeleteGroup,
   onMoveGroup,
@@ -59,10 +62,20 @@ export function BookmarkGroupSection({
   onMoveBookmark,
   onOpenBookmark,
   onRevealBookmark,
-  onReorderBookmark,
+  onReorderBookmark: _onReorderBookmark,
 }: BookmarkGroupSectionProps) {
   const canReorder = count > 1;
-  const { ref, style, handleProps } = useSortableItem(group.id, !canReorder);
+  const { ref, style, handleProps } = useSortableItem(group.id, !canReorder, {
+    type: "group",
+    id: group.id,
+  });
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
+    id: `group-droppable-${group.id}`,
+    data: {
+      type: "container",
+      groupId: group.id,
+    },
+  });
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(group.name);
   const [saving, setSaving] = useState(false);
@@ -238,32 +251,42 @@ export function BookmarkGroupSection({
       </div>
 
       {group.bookmarks.length === 0 ? (
-        <p className="py-4 text-center text-xs" style={{ color: "var(--text-faint)" }}>
-          {t("bookmark.group_empty")}
-        </p>
-      ) : (
-        <SortableList
-          as="ul"
-          className="flex flex-col gap-1.5"
-          items={group.bookmarks}
-          onReorder={(id, newIndex) => onReorderBookmark(group.id, id, newIndex)}
+        <div
+          ref={setDroppableRef}
+          className="rounded-md border border-dashed py-4 text-center text-xs transition-colors"
+          style={{
+            borderColor: isOver ? "var(--accent)" : "var(--border-strong)",
+            background: isOver ? "var(--accent-tint)" : "transparent",
+            color: isOver ? "var(--accent)" : "var(--text-faint)",
+          }}
         >
-          {group.bookmarks.map((bookmark, idx) => (
-            <BookmarkItem
-              key={bookmark.id}
-              bookmark={bookmark}
-              status={getStatus(bookmark.id)}
-              groups={groups}
-              at={idx}
-              count={group.bookmarks.length}
-              onUpdate={onUpdateBookmark}
-              onDelete={onDeleteBookmark}
-              onMove={onMoveBookmark}
-              onOpen={onOpenBookmark}
-              onReveal={onRevealBookmark}
-            />
-          ))}
-        </SortableList>
+          {isDraggingBookmark ? t("bookmark.drop_here") : t("bookmark.group_empty")}
+        </div>
+      ) : (
+        <div ref={setDroppableRef}>
+          <SortableSubList
+            as="ul"
+            className="flex flex-col gap-1.5"
+            id={`group-${group.id}`}
+            items={group.bookmarks}
+          >
+            {group.bookmarks.map((bookmark, idx) => (
+              <BookmarkItem
+                key={bookmark.id}
+                bookmark={bookmark}
+                status={getStatus(bookmark.id)}
+                groups={groups}
+                at={idx}
+                count={group.bookmarks.length}
+                onUpdate={onUpdateBookmark}
+                onDelete={onDeleteBookmark}
+                onMove={onMoveBookmark}
+                onOpen={onOpenBookmark}
+                onReveal={onRevealBookmark}
+              />
+            ))}
+          </SortableSubList>
+        </div>
       )}
     </section>
   );

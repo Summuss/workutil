@@ -110,6 +110,7 @@
   "bookmark.deleting_group": "删组中…",
   "bookmark.delete_group": "删组",
   "bookmark.group_empty": "此组暂无书签。登记时选择此组，或编辑已有书签移入。",
+  "bookmark.drop_here": "拖到这里",
   "bookmark.move_item_top": "移到最前",
   "bookmark.move_item_bottom": "移到最后",
   "bookmark.update_failed": "更新失败",

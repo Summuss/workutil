@@ -1,11 +1,21 @@
+import {
+  closestCenter,
+  pointerWithin,
+  useDroppable,
+  type Active,
+  type CollisionDetection,
+  type DragCancelEvent,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 
 import { arrayMove } from "@dnd-kit/sortable";
 
 import { messageOf } from "../../shared/api";
-import { SortableList } from "../../shared/sortable";
+import { SortableContainer, SortableSubList } from "../../shared/sortable";
 import { useLoad } from "../../shared/useLoad";
-import { PlusIcon, XIcon } from "../../shared/icons";
+import { DragHandleIcon, FolderIcon, PlusIcon, XIcon } from "../../shared/icons";
 import { PageLayout } from "../../shared/PageLayout";
 import {
   checkBookmarks,
@@ -27,8 +37,10 @@ import { BookmarkGroupSection } from "./BookmarkGroupSection";
 import { BookmarkItem } from "./BookmarkItem";
 import { useI18n } from "../../shared/i18n";
 import type {
+  Bookmark,
   BookmarkCheckItem,
   BookmarkCreatePayload,
+  BookmarkGroup,
   BookmarkListResponse,
   BookmarkStatus,
   BookmarkUpdatePayload,
@@ -46,6 +58,91 @@ const NOTICE_STYLE: Record<Notice["type"], { border: string; bg: string; color: 
   warning: { border: "var(--warn)", bg: "var(--warn-tint)", color: "var(--warn)" },
   info: { border: "var(--accent)", bg: "var(--accent-tint)", color: "var(--accent-strong)" },
 };
+
+interface LooseSectionProps {
+  loose: Bookmark[];
+  groups: BookmarkGroup[];
+  getStatus: (id: number) => BookmarkStatus;
+  isDraggingBookmark: boolean;
+  onUpdateBookmark: (id: number, payload: BookmarkUpdatePayload) => Promise<void>;
+  onDeleteBookmark: (id: number) => Promise<void>;
+  onMoveBookmark: (id: number, to: MoveDirection) => Promise<void>;
+  onOpenBookmark: (id: number) => Promise<void>;
+  onRevealBookmark: (id: number) => Promise<void>;
+}
+
+function LooseSection({
+  loose,
+  groups,
+  getStatus,
+  isDraggingBookmark,
+  onUpdateBookmark,
+  onDeleteBookmark,
+  onMoveBookmark,
+  onOpenBookmark,
+  onRevealBookmark,
+}: LooseSectionProps) {
+  const { t } = useI18n();
+  const { setNodeRef: setLooseDroppableRef, isOver: isOverLoose } = useDroppable({
+    id: "loose-droppable",
+    data: {
+      type: "container",
+      groupId: null,
+    },
+  });
+
+  return (
+    <section className="card flex flex-col gap-2.5 p-4">
+      <div className="flex items-center justify-between pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
+        <div className="flex items-center gap-2">
+          <h2 className="text-[13.5px] font-medium">{t("bookmark.loose_bookmarks")}</h2>
+          <span className="text-xs" style={{ color: "var(--text-faint)" }}>
+            ({loose.length})
+          </span>
+        </div>
+      </div>
+
+      {loose.length === 0 ? (
+        <div
+          ref={setLooseDroppableRef}
+          className="rounded-md border border-dashed py-4 text-center text-xs transition-colors"
+          style={{
+            borderColor: isOverLoose ? "var(--accent)" : "var(--border-strong)",
+            background: isOverLoose ? "var(--accent-tint)" : "transparent",
+            color: isOverLoose ? "var(--accent)" : "var(--text-faint)",
+          }}
+        >
+          {isDraggingBookmark ? t("bookmark.drop_here") : t("bookmark.loose_empty")}
+        </div>
+      ) : (
+        <div ref={setLooseDroppableRef}>
+          <SortableSubList
+            as="ul"
+            className="flex flex-col gap-1.5"
+            id="loose-list"
+            items={loose}
+          >
+            {loose.map((bookmark, idx) => (
+              <BookmarkItem
+                key={bookmark.id}
+                bookmark={bookmark}
+                status={getStatus(bookmark.id)}
+                groups={groups}
+                at={idx}
+                count={loose.length}
+                onUpdate={onUpdateBookmark}
+                onDelete={onDeleteBookmark}
+                onMove={onMoveBookmark}
+                onOpen={onOpenBookmark}
+                onReveal={onRevealBookmark}
+              />
+            ))}
+          </SortableSubList>
+        </div>
+      )}
+    </section>
+  );
+}
 
 export function BookmarkPage() {
   const { t } = useI18n();
@@ -284,69 +381,275 @@ export function BookmarkPage() {
     [refreshList],
   );
 
-  const handleReorderBookmark = useCallback(
-    async (groupId: number | null, id: number | string, targetIndex: number) => {
-      const bookmarkId = Number(id);
-      setError(null);
+  const [activeType, setActiveType] = useState<"group" | "bookmark" | null>(null);
+
+  const customCollisionDetection: CollisionDetection = useCallback((args) => {
+    const currentActiveType = args.active.data.current?.type;
+
+    if (currentActiveType === "group") {
+      const groupContainers = args.droppableContainers.filter(
+        (c) => c.data.current?.type === "group",
+      );
+      return closestCenter({
+        ...args,
+        droppableContainers: groupContainers,
+      });
+    }
+
+    if (currentActiveType === "bookmark") {
+      const bookmarkContainers = args.droppableContainers.filter(
+        (c) => c.data.current?.type !== "group",
+      );
+      const pointerCollisions = pointerWithin({
+        ...args,
+        droppableContainers: bookmarkContainers,
+      });
+      if (pointerCollisions.length > 0) {
+        const bookmarkMatch = pointerCollisions.find(
+          (c) => c.data?.droppableContainer?.data?.current?.type === "bookmark",
+        );
+        return bookmarkMatch ? [bookmarkMatch] : pointerCollisions;
+      }
+      return closestCenter({
+        ...args,
+        droppableContainers: bookmarkContainers,
+      });
+    }
+
+    return closestCenter(args);
+  }, []);
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const type = event.active.data.current?.type as "group" | "bookmark" | undefined;
+    setActiveType(type ?? null);
+  }, []);
+
+  const handleDragCancel = useCallback((_event: DragCancelEvent) => {
+    setActiveType(null);
+  }, []);
+
+  const performMoveBookmark = useCallback(
+    async (
+      bookmarkId: number,
+      sourceGroupId: number | null,
+      targetGroupId: number | null,
+      oldIndex: number,
+      targetIndex: number,
+    ) => {
       const prev = loaded;
       if (!prev) return;
+      setError(null);
 
-      if (groupId === null) {
-        const oldIndex = prev.loose.findIndex((b) => b.id === bookmarkId);
-        if (oldIndex === -1 || oldIndex === targetIndex) return;
-
-        const reorderedOptimistic = arrayMove(prev.loose, oldIndex, targetIndex).map(
-          (item, idx) => ({ ...item, order: idx }),
-        );
-        setLoaded({
-          ...prev,
-          loose: reorderedOptimistic,
-        });
-
-        try {
-          const res = await moveBookmark(bookmarkId, targetIndex);
-          setLoaded((curr) => (curr ? { ...curr, loose: res.target } : null));
-        } catch (cause) {
-          setLoaded(prev);
-          setError(messageOf(cause, t("bookmark.move_failed")));
+      // 1. 同组移动乐观更新
+      if (sourceGroupId === targetGroupId) {
+        if (sourceGroupId === null) {
+          const reorderedOptimistic = arrayMove(prev.loose, oldIndex, targetIndex).map(
+            (item, idx) => ({ ...item, order: idx }),
+          );
+          setLoaded({
+            ...prev,
+            loose: reorderedOptimistic,
+          });
+        } else {
+          const group = prev.groups.find((g) => g.id === sourceGroupId);
+          if (!group) return;
+          const reorderedOptimistic = arrayMove(group.bookmarks, oldIndex, targetIndex).map(
+            (item, idx) => ({ ...item, order: idx }),
+          );
+          setLoaded({
+            ...prev,
+            groups: prev.groups.map((g) =>
+              g.id === sourceGroupId ? { ...g, bookmarks: reorderedOptimistic } : g,
+            ),
+          });
         }
       } else {
-        const group = prev.groups.find((g) => g.id === groupId);
-        if (!group) return;
+        // 2. 跨组移动乐观更新
+        const movingBookmark =
+          sourceGroupId === null
+            ? prev.loose.find((b) => b.id === bookmarkId)
+            : prev.groups
+                .find((g) => g.id === sourceGroupId)
+                ?.bookmarks.find((b) => b.id === bookmarkId);
+        if (!movingBookmark) return;
 
-        const oldIndex = group.bookmarks.findIndex((b) => b.id === bookmarkId);
-        if (oldIndex === -1 || oldIndex === targetIndex) return;
+        const updatedMoving = {
+          ...movingBookmark,
+          group_id: targetGroupId,
+        };
 
-        const reorderedOptimistic = arrayMove(group.bookmarks, oldIndex, targetIndex).map(
-          (item, idx) => ({ ...item, order: idx }),
-        );
+        let nextLoose = prev.loose;
+        let nextGroups = prev.groups;
+
+        if (sourceGroupId === null) {
+          nextLoose = prev.loose
+            .filter((b) => b.id !== bookmarkId)
+            .map((b, idx) => ({ ...b, order: idx }));
+        } else {
+          nextGroups = nextGroups.map((g) => {
+            if (g.id !== sourceGroupId) return g;
+            return {
+              ...g,
+              bookmarks: g.bookmarks
+                .filter((b) => b.id !== bookmarkId)
+                .map((b, idx) => ({ ...b, order: idx })),
+            };
+          });
+        }
+
+        if (targetGroupId === null) {
+          const clamped = Math.max(0, Math.min(targetIndex, nextLoose.length));
+          const newLoose = [...nextLoose];
+          newLoose.splice(clamped, 0, updatedMoving);
+          nextLoose = newLoose.map((b, idx) => ({ ...b, order: idx }));
+        } else {
+          nextGroups = nextGroups.map((g) => {
+            if (g.id !== targetGroupId) return g;
+            const clamped = Math.max(0, Math.min(targetIndex, g.bookmarks.length));
+            const newBookmarks = [...g.bookmarks];
+            newBookmarks.splice(clamped, 0, updatedMoving);
+            return {
+              ...g,
+              bookmarks: newBookmarks.map((b, idx) => ({ ...b, order: idx })),
+            };
+          });
+        }
 
         setLoaded({
           ...prev,
-          groups: prev.groups.map((g) =>
-            g.id === groupId ? { ...g, bookmarks: reorderedOptimistic } : g,
-          ),
+          groups: nextGroups,
+          loose: nextLoose,
         });
+      }
 
-        try {
-          const res = await moveBookmark(bookmarkId, targetIndex);
-          setLoaded((curr) =>
-            curr
-              ? {
-                  ...curr,
-                  groups: curr.groups.map((g) =>
-                    g.id === groupId ? { ...g, bookmarks: res.target } : g,
-                  ),
-                }
-              : null,
-          );
-        } catch (cause) {
-          setLoaded(prev);
-          setError(messageOf(cause, t("bookmark.move_failed")));
-        }
+      // 3. 调用后端原子移动端点
+      try {
+        const res = await moveBookmark(bookmarkId, targetIndex, targetGroupId);
+        setLoaded((curr) => {
+          if (!curr) return null;
+          let nextGroups = curr.groups;
+          let nextLoose = curr.loose;
+
+          if (res.source_group_id === null) {
+            nextLoose = res.source;
+          } else {
+            nextGroups = nextGroups.map((g) =>
+              g.id === res.source_group_id ? { ...g, bookmarks: res.source } : g,
+            );
+          }
+
+          if (res.target_group_id === null) {
+            nextLoose = res.target;
+          } else {
+            nextGroups = nextGroups.map((g) =>
+              g.id === res.target_group_id ? { ...g, bookmarks: res.target } : g,
+            );
+          }
+
+          return {
+            ...curr,
+            groups: nextGroups,
+            loose: nextLoose,
+          };
+        });
+      } catch (cause) {
+        setLoaded(prev);
+        setError(messageOf(cause, t("bookmark.move_failed")));
       }
     },
-    [loaded, setLoaded, t],
+    [loaded, setLoaded, t, setError],
+  );
+
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveType(null);
+
+      if (!over) return;
+      const currentActiveType = active.data.current?.type;
+
+      // 1. 分组拖拽
+      if (currentActiveType === "group") {
+        if (active.id === over.id) return;
+        const overGroupId = over.data.current?.id ?? over.id;
+        const oldIndex = (loaded?.groups ?? []).findIndex(
+          (g) => String(g.id) === String(active.id),
+        );
+        const newIndex = (loaded?.groups ?? []).findIndex(
+          (g) => String(g.id) === String(overGroupId),
+        );
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          await handleReorderGroup(Number(active.id), newIndex);
+        }
+        return;
+      }
+
+      // 2. 书签跨组/同组拖拽
+      if (currentActiveType === "bookmark") {
+        const bookmarkId = Number(active.id);
+        const prev = loaded;
+        if (!prev) return;
+
+        const inLoose = prev.loose.some((b) => b.id === bookmarkId);
+        const sourceGroup = inLoose
+          ? null
+          : prev.groups.find((g) => g.bookmarks.some((b) => b.id === bookmarkId));
+        if (!inLoose && !sourceGroup) return;
+        const sourceGroupId = sourceGroup?.id ?? null;
+
+        let targetGroupId: number | null = null;
+        let targetIndex = 0;
+
+        const overData = over.data.current;
+
+        if (overData?.type === "container") {
+          targetGroupId = overData.groupId ?? null;
+          const targetList =
+            targetGroupId === null
+              ? prev.loose
+              : (prev.groups.find((g) => g.id === targetGroupId)?.bookmarks ?? []);
+          targetIndex = targetList.length;
+        } else if (overData?.type === "bookmark") {
+          const overBookmarkId = Number(over.id);
+          const overInLoose = prev.loose.some((b) => b.id === overBookmarkId);
+          const overGroup = overInLoose
+            ? null
+            : prev.groups.find((g) =>
+                g.bookmarks.some((b) => b.id === overBookmarkId),
+              );
+          targetGroupId = overGroup?.id ?? null;
+
+          const targetList =
+            targetGroupId === null
+              ? prev.loose
+              : (overGroup?.bookmarks ?? []);
+          const overIdx = targetList.findIndex((b) => b.id === overBookmarkId);
+          targetIndex = overIdx === -1 ? targetList.length : overIdx;
+        } else {
+          return;
+        }
+
+        const isSameGroup = sourceGroupId === targetGroupId;
+        const sourceList =
+          sourceGroupId === null
+            ? prev.loose
+            : (sourceGroup?.bookmarks ?? []);
+        const oldIndex = sourceList.findIndex((b) => b.id === bookmarkId);
+
+        if (isSameGroup && oldIndex === targetIndex) {
+          return;
+        }
+
+        await performMoveBookmark(
+          bookmarkId,
+          sourceGroupId,
+          targetGroupId,
+          oldIndex,
+          targetIndex,
+        );
+      }
+    },
+    [loaded, handleReorderGroup, performMoveBookmark],
   );
 
   const handleMoveBookmark = useCallback(
@@ -361,15 +664,57 @@ export function BookmarkPage() {
       if (!inLoose && !group) return;
 
       const groupId = group?.id ?? null;
-      if (typeof to === "number") {
-        return handleReorderBookmark(groupId, id, to);
-      }
-
       const siblings = inLoose ? prev.loose : (group?.bookmarks ?? []);
-      const targetIndex = to === "top" ? 0 : siblings.length - 1;
-      return handleReorderBookmark(groupId, id, targetIndex);
+      const oldIndex = siblings.findIndex((b) => b.id === id);
+      if (oldIndex === -1) return;
+
+      const targetIndex =
+        typeof to === "number"
+          ? to
+          : to === "top"
+            ? 0
+            : siblings.length - 1;
+      return performMoveBookmark(id, groupId, groupId, oldIndex, targetIndex);
     },
-    [loaded, handleReorderBookmark],
+    [loaded, performMoveBookmark],
+  );
+
+  const renderOverlay = useCallback(
+    (active: Active) => {
+      const type = active.data.current?.type;
+      if (type === "group") {
+        const group = (loaded?.groups ?? []).find((g) => g.id === Number(active.id));
+        if (!group) return null;
+        return (
+          <div className="card flex items-center gap-2.5 p-3 shadow-2xl opacity-95 bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg min-w-[280px]">
+            <FolderIcon />
+            <span className="font-medium text-sm">{group.name}</span>
+            <span className="text-xs text-[var(--text-faint)]">
+              ({group.bookmarks.length})
+            </span>
+          </div>
+        );
+      }
+      if (type === "bookmark") {
+        const all = [
+          ...(loaded?.groups ?? []).flatMap((g) => g.bookmarks),
+          ...(loaded?.loose ?? []),
+        ];
+        const bookmark = all.find((b) => b.id === Number(active.id));
+        if (!bookmark) return null;
+        return (
+          <div className="card flex items-center gap-2.5 p-2.5 shadow-2xl opacity-95 bg-[var(--surface)] border border-[var(--border-strong)] rounded-lg min-w-[260px]">
+            <DragHandleIcon size={12} className="opacity-40" />
+            <span className="font-medium text-xs">{bookmark.name}</span>
+            <span className="text-[11px] text-[var(--text-faint)] truncate max-w-[200px]">
+              {bookmark.path}
+            </span>
+          </div>
+        );
+      }
+      return null;
+    },
+    [loaded],
   );
 
   const handleOpenBookmark = useCallback(async (id: number) => {
@@ -591,74 +936,54 @@ export function BookmarkPage() {
             </button>
           </div>
 
-          {/* Groups list */}
-          <SortableList
-            items={groups}
-            onReorder={handleReorderGroup}
-            className="flex flex-col gap-5"
+          <SortableContainer
+            collisionDetection={customCollisionDetection}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+            renderOverlay={renderOverlay}
           >
-            {groups.map((group, idx) => (
-              <BookmarkGroupSection
-                key={group.id}
-                group={group}
-                groups={groups}
-                at={idx}
-                count={groups.length}
-                getStatus={getStatus}
-                onRenameGroup={handleRenameGroup}
-                onDeleteGroup={handleDeleteGroup}
-                onMoveGroup={handleMoveGroup}
-                onOpenGroup={handleOpenGroup}
-                onUpdateBookmark={handleUpdateBookmark}
-                onDeleteBookmark={handleDeleteBookmark}
-                onMoveBookmark={handleMoveBookmark}
-                onReorderBookmark={handleReorderBookmark}
-                onOpenBookmark={handleOpenBookmark}
-                onRevealBookmark={handleRevealBookmark}
-              />
-            ))}
-          </SortableList>
+            {/* Groups list */}
+            <SortableSubList
+              id="groups-list"
+              items={groups}
+              className="flex flex-col gap-5"
+            >
+              {groups.map((group, idx) => (
+                <BookmarkGroupSection
+                  key={group.id}
+                  group={group}
+                  groups={groups}
+                  at={idx}
+                  count={groups.length}
+                  getStatus={getStatus}
+                  isDraggingBookmark={activeType === "bookmark"}
+                  onRenameGroup={handleRenameGroup}
+                  onDeleteGroup={handleDeleteGroup}
+                  onMoveGroup={handleMoveGroup}
+                  onOpenGroup={handleOpenGroup}
+                  onUpdateBookmark={handleUpdateBookmark}
+                  onDeleteBookmark={handleDeleteBookmark}
+                  onMoveBookmark={handleMoveBookmark}
+                  onOpenBookmark={handleOpenBookmark}
+                  onRevealBookmark={handleRevealBookmark}
+                />
+              ))}
+            </SortableSubList>
 
-          {/* Loose bookmarks section */}
-          <section className="card flex flex-col gap-2.5 p-4">
-            <div className="flex items-center justify-between pb-2" style={{ borderBottom: "1px solid var(--border)" }}>
-              <div className="flex items-center gap-2">
-                <h2 className="text-[13.5px] font-medium">{t("bookmark.loose_bookmarks")}</h2>
-                <span className="text-xs" style={{ color: "var(--text-faint)" }}>
-                  ({loose.length})
-                </span>
-              </div>
-            </div>
-
-            {loose.length === 0 ? (
-              <p className="py-4 text-center text-xs" style={{ color: "var(--text-faint)" }}>
-                {t("bookmark.loose_empty")}
-              </p>
-            ) : (
-              <SortableList
-                as="ul"
-                className="flex flex-col gap-1.5"
-                items={loose}
-                onReorder={(id, newIndex) => handleReorderBookmark(null, id, newIndex)}
-              >
-                {loose.map((bookmark, idx) => (
-                  <BookmarkItem
-                    key={bookmark.id}
-                    bookmark={bookmark}
-                    status={getStatus(bookmark.id)}
-                    groups={groups}
-                    at={idx}
-                    count={loose.length}
-                    onUpdate={handleUpdateBookmark}
-                    onDelete={handleDeleteBookmark}
-                    onMove={handleMoveBookmark}
-                    onOpen={handleOpenBookmark}
-                    onReveal={handleRevealBookmark}
-                  />
-                ))}
-              </SortableList>
-            )}
-          </section>
+            {/* Loose bookmarks section */}
+            <LooseSection
+              loose={loose}
+              groups={groups}
+              getStatus={getStatus}
+              isDraggingBookmark={activeType === "bookmark"}
+              onUpdateBookmark={handleUpdateBookmark}
+              onDeleteBookmark={handleDeleteBookmark}
+              onMoveBookmark={handleMoveBookmark}
+              onOpenBookmark={handleOpenBookmark}
+              onRevealBookmark={handleRevealBookmark}
+            />
+          </SortableContainer>
         </div>
       )}
     </PageLayout>
