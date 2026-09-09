@@ -44,6 +44,7 @@ interface BlockCardProps {
   onLabel: (label: string) => Promise<boolean>;
   onMove: (to: Move) => Promise<void>;
   onDelete: () => Promise<void>;
+  onSplitLines?: (splitLines: boolean) => Promise<void>;
   table: TableActions;
 }
 
@@ -57,7 +58,7 @@ const LABEL_FIELD = "field-input min-w-0 flex-1";
  * a stack trace out of what you just pasted is an everyday move here too, and
  * drag-selecting text ends in a click that would throw the selection away.
  *
- * A block changes kind exactly once and in one direction: a table the server
+ * A block changes kind practical once and in one direction: a table the server
  * read out of a paste can be told it was a log all along. Nothing else does —
  * an image is retaken and re-pasted, not edited.
  */
@@ -71,6 +72,7 @@ export function BlockCard({
   onLabel,
   onMove,
   onDelete,
+  onSplitLines,
   table,
 }: BlockCardProps) {
   const { t } = useI18n();
@@ -164,15 +166,30 @@ export function BlockCard({
             </button>
           ))}
           {block.kind === "text" && (
-            <button
-              type="button"
-              disabled={busy || editingText}
-              onClick={() => setEditingText(true)}
-              className="icon-btn"
-              title={t("common.edit")}
-            >
-              <EditIcon size={12} />
-            </button>
+            <>
+              {block.text.includes("\n") && (
+                <button
+                  type="button"
+                  title={t("evidence.split_lines_tooltip")}
+                  disabled={busy}
+                  onClick={() => void onSplitLines?.(!block.split_lines)}
+                  className={TOOL_BUTTON}
+                >
+                  {block.split_lines
+                    ? t("evidence.split_lines_merge")
+                    : t("evidence.split_lines_split")}
+                </button>
+              )}
+              <button
+                type="button"
+                disabled={busy || editingText}
+                onClick={() => setEditingText(true)}
+                className="icon-btn"
+                title={t("common.edit")}
+              >
+                <EditIcon size={12} />
+              </button>
+            </>
           )}
           {block.kind === "table" && (
             <>

@@ -270,11 +270,23 @@ def build_evidence_workbook(
                 current_row += 1
 
             if block.kind == BlockKind.TEXT:
-                text_cell = _text_cell(
-                    ws, current_row, 1, block.text, settings=settings
-                )
-                text_cell.alignment = Alignment(wrap_text=True, vertical="top")
-                current_row += 1
+                if block.split_lines:
+                    lines = block.text.split("\n")
+                    for line_idx, line in enumerate(lines):
+                        _text_cell(
+                            ws,
+                            current_row + line_idx,
+                            1,
+                            line,
+                            settings=settings,
+                        )
+                    current_row += len(lines)
+                else:
+                    text_cell = _text_cell(
+                        ws, current_row, 1, block.text, settings=settings
+                    )
+                    text_cell.alignment = Alignment(wrap_text=True, vertical="top")
+                    current_row += 1
 
             elif block.kind == BlockKind.IMAGE:
                 img_path = evidence_images_dir / block.image_name

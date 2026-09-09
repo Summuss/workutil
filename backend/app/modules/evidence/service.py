@@ -738,6 +738,26 @@ def set_block_text(
     return block
 
 
+def set_text_block_split_lines(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    split_lines: bool,
+) -> EvidenceBlock:
+    """Say whether a text block's lines are split row-by-row on export.
+
+    Refuses non-text blocks with WrongBlockKind.
+    """
+    block = get_block(session, evidence_id, case_id, block_id)
+    if block.kind is not BlockKind.TEXT:
+        raise WrongBlockKind("这一段不是文字")
+
+    block.split_lines = split_lines
+    session.commit()
+    return block
+
+
 def set_block_label(
     session: Session,
     evidence_id: int,
@@ -912,6 +932,7 @@ def turn_block_into_text(
     block.table_source = ""
     block.has_header = False
     block.rows = []
+    block.split_lines = True
     session.commit()
     return block
 

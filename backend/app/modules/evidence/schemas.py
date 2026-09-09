@@ -114,6 +114,15 @@ class TableHeaderEdit(BaseModel):
     has_header: bool
 
 
+class TextBlockSplitLinesEdit(BaseModel):
+    """Whether a text block's lines are exported row-by-row or into a single cell.
+
+    Stated rather than toggled, matching TableHeaderEdit.
+    """
+
+    split_lines: bool
+
+
 class BlockRead(BaseModel):
     """A block as the case shows it.
 
@@ -141,6 +150,7 @@ class BlockRead(BaseModel):
     image_url: str | None = None
     rows: list[list[str]] = []
     has_header: bool = False
+    split_lines: bool = True
 
     @classmethod
     def of(cls, block: EvidenceBlock, evidence_id: int) -> "BlockRead":
@@ -157,6 +167,7 @@ class BlockRead(BaseModel):
             ),
             rows=block.rows,
             has_header=block.has_header,
+            split_lines=block.split_lines,
         )
 
 

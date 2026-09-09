@@ -30,6 +30,7 @@ from app.modules.evidence.schemas import (
     PastedBlockCreate,
     TableCellEdit,
     TableHeaderEdit,
+    TextBlockSplitLinesEdit,
 )
 
 router = APIRouter(prefix="/evidence", tags=["evidence"])
@@ -293,6 +294,24 @@ def turn_block_into_text(
     """
     with _as_http_error():
         block = service.turn_block_into_text(session, evidence_id, case_id, block_id)
+    return BlockRead.of(block, evidence_id)
+
+
+@router.put(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/split-lines",
+    response_model=BlockRead,
+)
+def set_text_block_split_lines(
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    payload: TextBlockSplitLinesEdit,
+    session: SessionDep,
+) -> BlockRead:
+    with _as_http_error():
+        block = service.set_text_block_split_lines(
+            session, evidence_id, case_id, block_id, payload.split_lines
+        )
     return BlockRead.of(block, evidence_id)
 
 

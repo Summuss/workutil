@@ -51,6 +51,8 @@ export interface Block {
   rows: string[][];
   /** Whether the first row is column names — never guessed, one click to flip. */
   has_header: boolean;
+  /** Whether lines are split row-by-row on export. */
+  split_lines: boolean;
 }
 
 /** One case with what is in it — a case at a time, not the whole workbook. */

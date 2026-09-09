@@ -133,6 +133,18 @@ export function setTableHeader(
   });
 }
 
+/** Says whether a text block's lines are split row-by-row on export. */
+export function setTextBlockSplitLines(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  splitLines: boolean,
+): Promise<Block> {
+  return put<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/split-lines`, {
+    split_lines: splitLines,
+  });
+}
+
 export function setTableCell(
   evidenceId: number,
   caseId: number,

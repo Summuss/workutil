@@ -19,6 +19,7 @@ import {
   setBlockLabel,
   setTableCell,
   setTableHeader,
+  setTextBlockSplitLines,
   turnBlockIntoText,
 } from "./api";
 import { BlockCard } from "./BlockCard";
@@ -221,6 +222,17 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     });
   }
 
+  async function handleSplitLines(
+    blockId: number,
+    splitLines: boolean,
+  ): Promise<void> {
+    await run(async () => {
+      replace(
+        await setTextBlockSplitLines(evidenceId, caseId, blockId, splitLines),
+      );
+    });
+  }
+
   return (
     <div className="flex flex-1 min-h-0 flex-col">
       <div
@@ -262,6 +274,9 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
                   onLabel={(label) => handleLabel(block.id, label)}
                   onMove={(to) => handleMove(block.id, to)}
                   onDelete={() => handleDelete(block.id)}
+                  onSplitLines={(splitLines) =>
+                    handleSplitLines(block.id, splitLines)
+                  }
                   table={{
                     onHeader: (hasHeader) => handleHeader(block.id, hasHeader),
                     onCell: (row, column, value) =>

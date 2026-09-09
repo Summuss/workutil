@@ -19,20 +19,21 @@
 
 **Blocked by:** 无
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] `evidence_block.split_lines`(`Boolean`,default `True`,非空)+ 一条迁移
-- [ ] `PUT /api/evidence/{eid}/cases/{cid}/blocks/{bid}/split-lines`,请求体一个布尔,返回更新后的 Block
-- [ ] 该端点对图片 / 表格 Block 返回 422
-- [ ] `BlockRead` 带上 `split_lines`
-- [ ] 导出:逐行时每行一格、占 `len(lines)` 行、不设 `wrap_text`
-- [ ] 导出:合并时一格 + `wrap_text`(与改动前一致)
-- [ ] 导出:空行原样成为空 Excel 行;Block 之间仍空一行
-- [ ] 前端:文字 Block 工具条上的开关,**只在正文含 `\n` 时显示**
-- [ ] 文案中日双份,key 对齐测试通过
-- [ ] 测试:三行文字逐行导出占三行,每行是独立单元格
-- [ ] 测试:同一段切到合并后占一行且 `wrap_text` 为真
-- [ ] 测试:`"a\n\nb"` 逐行导出占三行,中间那格是空的
-- [ ] 测试:逐行导出的单元格 `wrap_text` 为假
-- [ ] 测试:迁移后既有文字 Block 的 `split_lines` 是 `True`
-- [ ] `make check` 与 `make test` 通过
+- [x] `evidence_block.split_lines`(`Boolean`,default `True`,非空)+ 一条迁移
+- [x] `PUT /api/evidence/{eid}/cases/{cid}/blocks/{bid}/split-lines`,请求体一个布尔,返回更新后的 Block
+- [x] 该端点对图片 / 表格 Block 返回 422
+- [x] `BlockRead` 带上 `split_lines`
+- [x] 导出:逐行时每行一格、占 `len(lines)` 行、不设 `wrap_text`
+- [x] 导出:合并时一格 + `wrap_text`(与改动前一致)
+- [x] 导出:空行原样成为空 Excel 行;Block 之间仍空一行
+- [x] 前端:文字 Block 工具条上的开关,**只在正文含 `\n` 时显示**
+- [x] 文案中日双份,key 对齐测试通过
+- [x] 测试:三行文字逐行导出占三行,每行是独立单元格
+- [x] 测试:同一段切到合并后占一行且 `wrap_text` 为真
+- [x] 测试:`"a\n\nb"` 逐行导出占三行,中间那格是空的
+- [x] 测试:逐行导出的单元格 `wrap_text` 为假
+- [x] 测试:迁移后既有文字 Block 的 `split_lines` 是 `True`
+- [x] `make check` 与 `make test` 通过
+

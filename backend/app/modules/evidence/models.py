@@ -125,6 +125,9 @@ class EvidenceBlock(Ordered, Base):
     #: `True` by `service.add_table_block` and it is one click to flip; the
     #: `False` here is what the kinds that have no header row carry.
     has_header: Mapped[bool] = mapped_column(Boolean, default=False)
+    #: Whether a text block's lines are split row-by-row on Excel export.
+    #: True by default: log lines stay individual rows rather than wrapped into one.
+    split_lines: Mapped[bool] = mapped_column(Boolean, default=True)
     #: The paste a table block was made of, kept verbatim so that recognising
     #: it wrongly costs one click and not a paragraph. Recognition is a guess
     #: — an indented log has every mark of a table — and the way back has to

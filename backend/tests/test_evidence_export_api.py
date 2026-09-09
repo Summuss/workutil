@@ -171,20 +171,25 @@ def test_export_text_blocks_and_labels_layout(client: TestClient) -> None:
     assert c1.font.bold is True
     assert c1.number_format == "@"
 
-    # Row 2: text "事前ログ\n行2", @
+    # Row 2: line 1 of "事前ログ\n行2"
     c2 = ws.cell(row=2, column=1)
-    assert c2.value == "事前ログ\n行2"
+    assert c2.value == "事前ログ"
     assert c2.number_format == "@"
 
-    # Row 3: empty row separating blocks
+    # Row 3: line 2 of "事前ログ\n行2"
     c3 = ws.cell(row=3, column=1)
-    assert c3.value is None
+    assert c3.value == "行2"
+    assert c3.number_format == "@"
 
-    # Row 4: text "事後確認テキスト" (no label), @
+    # Row 4: empty row separating blocks
     c4 = ws.cell(row=4, column=1)
-    assert c4.value == "事後確認テキスト"
-    assert c4.font.bold is not True
-    assert c4.number_format == "@"
+    assert c4.value is None
+
+    # Row 5: text "事後確認テキスト" (no label), @
+    c5 = ws.cell(row=5, column=1)
+    assert c5.value == "事後確認テキスト"
+    assert c5.font.bold is not True
+    assert c5.number_format == "@"
 
 
 def test_guardrail_cell_with_007_remains_string(client: TestClient) -> None:
@@ -545,3 +550,105 @@ def test_text_block_null_literal_does_not_turn_gray(client: TestClient) -> None:
     cell = ws.cell(row=1, column=1)
     assert cell.value == "\u226a NULL \u226b"
     assert cell.font.color is None or cell.font.color.rgb not in ("808080", "00808080")
+
+
+def test_put_split_lines_updates_block_and_refuses_non_text(
+    client: TestClient,
+) -> None:
+    evidence_id = create_evidence(client, "split-lines APIテスト")
+    case_id = add_case(client, evidence_id, "1")
+
+    # 1. Text block: defaults to split_lines=True, can flip to False
+    text_block_id = add_text_block(client, evidence_id, case_id, "hello\nworld")
+    case_data = client.get(f"/api/evidence/{evidence_id}/cases/{case_id}").json()
+    b = next(blk for blk in case_data["blocks"] if blk["id"] == text_block_id)
+    assert b["split_lines"] is True
+
+    put_res = client.put(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{text_block_id}/split-lines",
+        json={"split_lines": False},
+    )
+    assert put_res.status_code == 200
+    assert put_res.json()["split_lines"] is False
+
+    # 2. Table block: returns 422
+    table_block_id = add_table_block(client, evidence_id, case_id, "a\tb\n1\t2")
+    put_table_res = client.put(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{table_block_id}/split-lines",
+        json={"split_lines": True},
+    )
+    assert put_table_res.status_code == 422
+
+    # 3. Image block: returns 422
+    img_block_id = add_image_block(client, evidence_id, case_id, make_png(10, 10))
+    put_img_res = client.put(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{img_block_id}/split-lines",
+        json={"split_lines": True},
+    )
+    assert put_img_res.status_code == 422
+
+
+def test_text_block_split_lines_export_behavior(client: TestClient) -> None:
+    evidence_id = create_evidence(client, "split-lines 导出テスト")
+    case_id = add_case(client, evidence_id, "1")
+
+    # Three-line text block
+    text_block_id = add_text_block(client, evidence_id, case_id, "line1\nline2\nline3")
+
+    # 1. By default: split_lines is True -> exports 3 separate rows without wrap_text
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws = wb["1"]
+
+    assert ws.cell(row=1, column=1).value == "line1"
+    assert ws.cell(row=1, column=1).alignment.wrap_text is not True
+    assert ws.cell(row=2, column=1).value == "line2"
+    assert ws.cell(row=2, column=1).alignment.wrap_text is not True
+    assert ws.cell(row=3, column=1).value == "line3"
+    assert ws.cell(row=3, column=1).alignment.wrap_text is not True
+    assert ws.cell(row=4, column=1).value is None
+
+    # 2. Switch to merged (split_lines=False) -> exports 1 row with wrap_text=True
+    client.put(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{text_block_id}/split-lines",
+        json={"split_lines": False},
+    )
+    res_merged = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res_merged.status_code == 200
+    wb_merged = openpyxl.load_workbook(io.BytesIO(res_merged.content))
+    ws_merged = wb_merged["1"]
+
+    c1 = ws_merged.cell(row=1, column=1)
+    assert c1.value == "line1\nline2\nline3"
+    assert c1.alignment.wrap_text is True
+    assert ws_merged.cell(row=2, column=1).value is None
+
+
+def test_text_block_split_lines_with_empty_lines_and_subsequent_block(
+    client: TestClient,
+) -> None:
+    evidence_id = create_evidence(client, "空行保持テスト")
+    case_id = add_case(client, evidence_id, "1")
+
+    # "a\n\nb" occupies 3 rows, with middle row empty
+    add_text_block(client, evidence_id, case_id, "a\n\nb")
+    # Followed by another block
+    add_text_block(client, evidence_id, case_id, "next")
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws = wb["1"]
+
+    # Row 1: "a"
+    assert ws.cell(row=1, column=1).value == "a"
+    # Row 2: empty
+    assert not ws.cell(row=2, column=1).value
+    # Row 3: "b"
+    assert ws.cell(row=3, column=1).value == "b"
+    # Row 4: empty row separating blocks
+    assert ws.cell(row=4, column=1).value is None
+    # Row 5: "next"
+    assert ws.cell(row=5, column=1).value == "next"
