@@ -8,6 +8,13 @@
 随手记下的一则琐碎信息,可以包含文字和图片。一次保存产生一条 Memo,粒度由记录者当场决定。
 _Avoid_: Note, 笔记, 碎片信息
 
+**置顶(Pinned)**:
+Memo 上的一个比特:「这条现在常用」。置顶的 Memo 排在列表最前,彼此按置顶时间倒序。
+它**不是分类** —— 没有维度、没有名字、发生在记录之后、随手可开可关,因此不构成录入负担;
+这正是它与被推迟的「标签归类」的分界线(见 [ADR-0008](./docs/adr/0008-memo-can-be-pinned-but-not-categorised.md))。
+只有 Memo 有这个概念:Todo、Bookmark、Case、Block 本来就有显式顺序,想要靠前直接拖过去。
+_Avoid_: 收藏, 标签, 星标, Favorite, Bookmark(那是 F3 里另一个真实存在的东西)
+
 **Evidence**:
 一次功能验证的完整记录,由多个 Case 组成,最终导出为**一个** Excel 文件交付出去。
 _Avoid_: 証跡, エビデンス, Proof, Verification record
@@ -32,6 +39,6 @@ _Avoid_: Folder, 文件夹(会和 Bookmark 指向的东西撞), Category, 分类
 一件待办。可以由一条 Memo 转出并保留回溯链接,但转出后两者各自独立 —— Memo 不知道自己被转过。
 _Avoid_: Task(F4 的脚本执行会带来「任务」这个词), Item, TODO(全大写是代码注释里的那个)
 
-> Memo 与 Evidence 是**两个独立的概念**,不是同一个东西的两种视图。它们表面都是「文字 + 图片的序列」,但 Memo 无序、长期沉淀、靠搜索捞回;Evidence 分用例、每个用例内有序、导出后使命即完成。两者只共享图片的存储机制,不共享领域模型。详见 [ADR-0001](./docs/adr/0001-memo-and-evidence-are-separate-concepts.md)。
+> Memo 与 Evidence 是**两个独立的概念**,不是同一个东西的两种视图。它们表面都是「文字 + 图片的序列」,但 Memo **除置顶外无序**、长期沉淀、靠搜索捞回;Evidence 分用例、每个用例内有序、导出后使命即完成。两者只共享图片的存储机制,不共享领域模型。详见 [ADR-0001](./docs/adr/0001-memo-and-evidence-are-separate-concepts.md)。
 
 > Bookmark 与它指向的文件也是**两个东西**。Bookmark 是一个入口:它有自己的名字、自己在组里的位置,而同一个文件可以有两个入口。所以「同一路径已存在」不是一个需要去重的错误。详见 [ADR-0006](./docs/adr/0006-a-bookmark-is-an-entry-not-a-file.md)。
