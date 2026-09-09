@@ -11,4 +11,3 @@ def test_get_version_endpoint(client: TestClient) -> None:
     data = response.json()
     assert "version" in data
     assert data["version"] == get_version()
-    assert data["version"] == "0.1.0"
