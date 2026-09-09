@@ -6,15 +6,15 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] 核对 `design.md` F5 里复制用例那条与实际接口、命名规则一致
-- [ ] `running.md` 补:复制一个有文字 / 图片 / 表格三种 Block 的用例,副本逐段一致
-- [ ] `running.md` 补:复制后自动切过去,标签处于重命名状态且名字已全选
-- [ ] `running.md` 补:`Esc` 不会撤销复制
-- [ ] `running.md` 补:改成一个已存在的编号会被拒
-- [ ] `running.md` 补:新用例紧跟原用例,不在末尾
-- [ ] `running.md` 补:**删掉副本,去 `images/evidence/<id>/` 看原用例的图片文件仍在**
-- [ ] `running.md` 补:复制后导出 Excel,两个 sheet 内容相同、图片都在、位置正确
-- [ ] `running.md` 补:日语界面下复制按钮的提示与错误文案是日语
-- [ ] 若实现中对 spec 做了偏离,在 `spec.md` 里改掉
+- [x] 核对 `design.md` F5 里复制用例那条与实际接口、命名规则一致
+- [x] `running.md` 补:复制一个有文字 / 图片 / 表格三种 Block 的用例,副本逐段一致
+- [x] `running.md` 补:复制后自动切过去,标签处于重命名状态且名字已全选
+- [x] `running.md` 补:`Esc` 不会撤销复制
+- [x] `running.md` 补:改成一个已存在的编号会被拒
+- [x] `running.md` 补:新用例紧跟原用例,不在末尾
+- [x] `running.md` 补:**删掉副本,去 `images/evidence/<id>/` 看原用例的图片文件仍在**
+- [x] `running.md` 补:复制后导出 Excel,两个 sheet 内容相同、图片都在、位置正确
+- [x] `running.md` 补:日语界面下复制按钮的提示与错误文案是日语
+- [x] 若实现中对 spec 做了偏离,在 `spec.md` 里改掉
