@@ -383,7 +383,7 @@ Evidence 与 Case 这两层 —— 用例**里面**的内容看下一节:
 
 ### 5. 版本更新与数据迁移
 
-- **数据去哪了**: 数据保存在系统标准数据目录下(Windows: `%APPDATA%\workutil`, macOS: `~/Library/Application Support/workutil`),不在解压文件夹内部。
+- **数据去哪了**: 数据保存在系统标准数据目录下(Windows: `%LOCALAPPDATA%\workutil`, macOS: `~/Library/Application Support/workutil`),不在解压文件夹内部。
 - **如何升级**: 下载新版本 zip 并解除锁定后,**直接删掉旧的 workutil 文件夹、解压新版本即可**。所有既有的 Memo、Todo、书签与 Evidence 数据零丢失、完全不受影响。
 
 ### 落差:有些东西在服务器上验不了
@@ -420,7 +420,7 @@ cd backend && uv run alembic revision --autogenerate -m "描述"
 
 | 平台 | 位置 |
 | --- | --- |
-| Windows | `%APPDATA%\workutil` |
+| Windows | `%LOCALAPPDATA%\workutil` |
 | macOS | `~/Library/Application Support/workutil` |
 | Linux | `~/.local/share/workutil` |
 
