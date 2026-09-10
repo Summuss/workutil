@@ -127,10 +127,11 @@ def test_a_paste_with_no_tabs_is_text(
 def test_a_single_line_is_not_a_table(
     client: TestClient, case: tuple[int, int]
 ) -> None:
-    """One line of tabs is a line, not a table — the rule is 多行 (design.md §6 F5).
+    """One line of tabs, stopping where it does, is a line — 多行 (design.md §6 F5).
 
-    It still parses; what it does not do is become a table with one row, which
-    under a default header would be a table that is nothing but its header.
+    No line ending: the selection ended mid-line, which is what text dragged
+    out of an indented log looks like and what a copied row never does. It
+    still parses; what it does not do is become a table.
     """
     evidence_id, case_id = case
 
@@ -138,6 +139,49 @@ def test_a_single_line_is_not_a_table(
 
     assert block["kind"] == "text"
     assert block["text"] == "id\tcode\tname"
+
+
+def test_a_single_row_copied_off_a_grid_is_a_table(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """A result set of one record is still a result set.
+
+    What separates it from the line above is where the copy stops: a grid hands
+    over whole lines, terminator included, so this one ends in a newline. Under
+    the old flat 多行 rule the one-row result was the single case the whole
+    feature could not see.
+    """
+    evidence_id, case_id = case
+
+    block = paste(client, evidence_id, case_id, "1\t007\t山田\n")
+
+    assert block["kind"] == "table"
+    assert block["rows"] == [["1", "007", "山田"]]
+
+
+def test_a_one_row_table_does_not_start_as_all_header(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """`has_header` off, and not as a guess: there is nothing under it.
+
+    True would draw the whole block as a bold, green-filled header row with no
+    data beneath — which was the objection to reading one row as a table.
+    """
+    evidence_id, case_id = case
+
+    block = paste(client, evidence_id, case_id, "1\t007\t山田\n")
+
+    assert block["has_header"] is False
+
+
+def test_a_multi_row_table_still_starts_with_a_header(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    evidence_id, case_id = case
+
+    block = paste(client, evidence_id, case_id, QUERY_RESULT)
+
+    assert block["has_header"] is True
 
 
 def test_several_plain_lines_are_not_a_table(
@@ -403,6 +447,81 @@ def test_tabs_win_over_html(client: TestClient, case: tuple[int, int]) -> None:
     )
 
     assert block["rows"][0] == ["id", "code", "name"]
+
+
+def test_a_fragment_that_starts_inside_a_table_is_read(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """What Windows actually hands over, which is not always a whole table.
+
+    The clipboard's HTML flavour there is CF_HTML: a fragment marked inside a
+    larger document, and Chrome hands over the fragment alone. Excel's marker
+    sits after the `<table>` tag, and selecting part of a table on a web page
+    starts inside one too — so the markup arrives as bare rows, with no table
+    element anywhere in it. Nothing on macOS looks like this, which is why it
+    only ever showed up on the work machine.
+    """
+    evidence_id, case_id = case
+
+    block = paste(
+        client,
+        evidence_id,
+        case_id,
+        "id name\n1 山田\n",
+        html=(
+            "<col width=64 span=2>"
+            "<tr height=20><td>id</td><td>name</td></tr>"
+            "<tr height=20><td>1</td><td>山田</td></tr>"
+        ),
+    )
+
+    assert block["kind"] == "table"
+    assert block["rows"] == [["id", "name"], ["1", "山田"]]
+
+
+def test_the_data_table_wins_over_the_layout_table_around_it(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """Nested tables: the inner one is the data, the outer one is a page.
+
+    Reading only the outermost would give a single cell holding the whole inner
+    table — one row, and not a table at all.
+    """
+    evidence_id, case_id = case
+
+    block = paste(
+        client,
+        evidence_id,
+        case_id,
+        "id name\n1 山田\n",
+        html=(
+            "<table><tr><td>"
+            "<table><tr><th>id</th><th>name</th></tr>"
+            "<tr><td>1</td><td>山田</td></tr></table>"
+            "</td></tr></table>"
+        ),
+    )
+
+    assert block["kind"] == "table"
+    assert block["rows"] == [["id", "name"], ["1", "山田"]]
+
+
+def test_one_row_of_markup_is_a_table(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """Markup needs no row count: `<table>` says outright what tabs suggest."""
+    evidence_id, case_id = case
+
+    block = paste(
+        client,
+        evidence_id,
+        case_id,
+        "1 山田",
+        html="<table><tr><td>1</td><td>山田</td></tr></table>",
+    )
+
+    assert block["kind"] == "table"
+    assert block["rows"] == [["1", "山田"]]
 
 
 def test_html_that_holds_no_table_is_ignored(

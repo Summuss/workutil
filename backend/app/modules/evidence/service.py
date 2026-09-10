@@ -644,6 +644,11 @@ def add_table_block(
     worked out: whether a DB client copies the column names is a setting inside
     that client (design.md §6 F5). It is one click to flip.
 
+    One row is the exception, and not a guess: a single row cannot be a header
+    *and* the data under it, so starting it true would draw the whole block as
+    a green bold header with nothing beneath — which is the objection the 多行
+    rule used to answer by refusing such a paste outright.
+
     `source` is the paste these rows were cut from, kept so that a wrong guess
     can be taken back whole — see `turn_block_into_text`.
     """
@@ -653,7 +658,7 @@ def add_table_block(
         case_id=case.id,
         kind=BlockKind.TABLE,
         rows=rows,
-        has_header=True,
+        has_header=len(rows) > 1,
         table_source=source,
         label=_clean_label(label),
         order=len(_blocks_in_order(session, case.id)),

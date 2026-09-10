@@ -25,8 +25,14 @@ import csv
 import io
 from html.parser import HTMLParser
 
-#: 多行, from the rule in design.md §6 F5. One line of tabs is a line: under a
-#: default header row it would be a table that is nothing but its header.
+#: 多行, from the rule in design.md §6 F5 — what a paste of *bare* tab
+#: separated text has to clear. One line of tabs, with nothing after it, is a
+#: line: a fragment selected out of the middle of an indented log looks exactly
+#: like it.
+#:
+#: A row that came out of a grid does not look like that, and `table_in` says
+#: where the difference is: the copy carries the line ending too. Markup does
+#: not need the rule at all — `<table>` says outright what tabs only suggest.
 MIN_ROWS = 2
 
 
@@ -74,8 +80,19 @@ def _trimmed(rows: list[list[str]]) -> list[list[str]]:
     return rows[start:end]
 
 
+class _OpenTable:
+    """One table being read: the rows so far, and the row and cell still open."""
+
+    __slots__ = ("rows", "row", "cell")
+
+    def __init__(self) -> None:
+        self.rows: list[list[str]] = []
+        self.row: list[str] | None = None
+        self.cell: list[str] | None = None
+
+
 class _TableReader(HTMLParser):
-    """The first `<table>` in a fragment of HTML, as rows of cell text.
+    """Every table in a fragment of HTML, each as rows of cell text.
 
     Deliberately small: this is the compatibility path, reading markup that a
     browser or Excel just wrote, not the open web. Cell text is gathered as it
@@ -83,93 +100,133 @@ class _TableReader(HTMLParser):
     cell is the one tag that means something here, because it is a line break
     in a value.
 
-    Only the first table is read. Nested tables are a layout trick from the
-    web, and taking the outer one would produce a single cell holding the whole
-    inner table — so the first `<table>` this enters is the one it reads, and
-    a deeper one is left as part of its cell.
+    Two things it has to survive, both of them everyday and both of them
+    invisible from a fragment written out by hand:
+
+    - **A fragment that starts inside a table.** On Windows the clipboard's
+      HTML flavour is CF_HTML, which marks a *fragment* inside a larger
+      document, and Chrome hands over only that fragment. Excel puts the
+      marker after the `<table>` tag, and selecting part of a table on a web
+      page puts it after one too — so what arrives is a run of bare `<tr>`s
+      with no table around them. A row opening with no table open opens one.
+    - **A table nested in another.** Layout tables are a habit the web has not
+      lost, and the data is the inner one. Each `<table>` is read on its own,
+      innermost first, and `table_in` takes the first that is rectangular —
+      rather than the outer one, whose only row would be the whole inner table
+      squashed into a cell.
     """
 
     CELLS = frozenset({"td", "th"})
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
-        self.rows: list[list[str]] = []
-        self._done = False
-        self._depth = 0
-        self._row: list[str] | None = None
-        self._cell: list[str] | None = None
+        self.tables: list[list[list[str]]] = []
+        self._open: list[_OpenTable] = []
 
     def close(self) -> None:
         """Finish, taking whatever a truncated fragment left half-open."""
         super().close()
-        if not self._done:
-            self._close_row()
+        while self._open:
+            self._close_table()
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if self._done:
-            return
         if tag == "table":
-            self._depth += 1
-        elif self._depth == 0:
-            return
+            self._open.append(_OpenTable())
         elif tag == "tr":
-            self._row = []
+            table = self._open_table()
+            # A `</tr>` is allowed to be missing, and in generated markup
+            # sometimes is; the next `<tr>` ends the one before it.
+            self._close_row(table)
+            table.row = []
         elif tag in self.CELLS:
-            self._cell = []
-            self._row = [] if self._row is None else self._row
-        elif tag == "br" and self._cell is not None:
-            self._cell.append("\n")
+            table = self._open_table()
+            self._close_cell(table)
+            if table.row is None:
+                table.row = []
+            table.cell = []
+        elif tag == "br" and self._open:
+            cell = self._open[-1].cell
+            if cell is not None:
+                cell.append("\n")
 
     def handle_endtag(self, tag: str) -> None:
-        if self._done or self._depth == 0:
+        if not self._open:
             return
+        table = self._open[-1]
         if tag in self.CELLS:
-            self._close_cell()
+            self._close_cell(table)
         elif tag == "tr":
-            self._close_row()
+            self._close_row(table)
         elif tag == "table":
-            self._close_row()
-            self._depth -= 1
-            # The first table has closed; whatever follows it is not this one's.
-            self._done = self._depth == 0
+            self._close_table()
 
     def handle_data(self, data: str) -> None:
-        if self._cell is not None:
-            self._cell.append(data)
+        if self._open and self._open[-1].cell is not None:
+            self._open[-1].cell.append(data)
 
-    def _close_cell(self) -> None:
-        if self._cell is not None and self._row is not None:
-            self._row.append("".join(self._cell).strip())
-        self._cell = None
+    def _open_table(self) -> _OpenTable:
+        """The table these rows belong to, opening one if the markup did not."""
+        if not self._open:
+            self._open.append(_OpenTable())
+        return self._open[-1]
 
-    def _close_row(self) -> None:
-        self._close_cell()
-        if self._row:
-            self.rows.append(self._row)
-        self._row = None
+    def _close_cell(self, table: _OpenTable) -> None:
+        if table.cell is not None and table.row is not None:
+            table.row.append("".join(table.cell).strip())
+        table.cell = None
+
+    def _close_row(self, table: _OpenTable) -> None:
+        self._close_cell(table)
+        if table.row:
+            table.rows.append(table.row)
+        table.row = None
+
+    def _close_table(self) -> None:
+        table = self._open.pop()
+        self._close_row(table)
+        if table.rows:
+            self.tables.append(table.rows)
 
 
-def rows_of_html(html: str) -> list[list[str]]:
-    """The first `<table>` in this markup, or nothing at all."""
+def tables_of_html(html: str) -> list[list[list[str]]]:
+    """Every table in this markup, innermost and earliest first."""
     reader = _TableReader()
     reader.feed(html)
     reader.close()
-    return reader.rows
+    return reader.tables
 
 
-def is_a_table(rows: list[list[str]]) -> bool:
-    """Several rows, all the same width — 多行 and 各行列数一致 (design.md §6 F5).
+def is_a_table(rows: list[list[str]], min_rows: int = MIN_ROWS) -> bool:
+    """Enough rows, all the same width — 多行 and 各行列数一致 (design.md §6 F5).
 
     Half of the rule; the other half is 含制表符, which is asked of the text
-    rather than of these rows and so lives in `table_in`. Both together will
-    still get it wrong: an indented log has every one of the three (see the
-    tests), which is why what is built on top of this hangs a correction beside
-    the block it made rather than trusting the answer.
+    rather than of these rows and so lives in `table_in`. `min_rows` is how
+    much of the first half a given flavour has to earn — see `table_in`, which
+    is the only place that decides. Both together will still get it wrong: an
+    indented log has every one of the three (see the tests), which is why what
+    is built on top of this hangs a correction beside the block it made rather
+    than trusting the answer.
     """
-    if len(rows) < MIN_ROWS:
+    if len(rows) < min_rows:
         return False
     width = len(rows[0])
     return all(len(row) == width for row in rows)
+
+
+def _rows_needed_of(text: str) -> int:
+    """How many rows this paste has to have before it can be a table.
+
+    One, when the text ends the way a copied row ends. A grid hands over whole
+    lines, terminator included, so a single record copied out of one arrives as
+    `a\tb\tc\n` — a table of one row, and refusing it means the one-row
+    result set is the one case the whole feature does not cover.
+
+    Two otherwise, which is what keeps that from swallowing everything: text
+    dragged out of the middle of a line stops where the selection did. So a
+    tab-indented log line picked out by hand is still a line, and only a paste
+    that looks like it came off the end of a row gets the benefit.
+    """
+    return 1 if text.endswith(("\n", "\r")) else MIN_ROWS
 
 
 def table_in(text: str, html: str | None = None) -> list[list[str]] | None:
@@ -184,18 +241,22 @@ def table_in(text: str, html: str | None = None) -> list[list[str]] | None:
     on the clipboard, and when both flavours are there — a copy out of Excel —
     the tab-separated one is the one that came from a grid. HTML gets its turn
     only when the main path found nothing, which is what a copy from a web page
-    looks like: rendered text with no tabs in it, beside real markup. Markup
-    needs no such check: a `<table>` says outright what the tabs only suggest.
+    looks like: rendered text with no tabs in it, beside real markup.
+
+    Markup needs no row count at all: a `<table>` says outright what the tabs
+    only suggest, so one row of it is a table. It can hold more than one, and
+    the first rectangular one wins — innermost first, because when tables nest
+    the data is the inner one and the outer is a page's layout.
     """
     if "\t" in text:
         rows = rows_of_tsv(text)
-        if is_a_table(rows):
+        if is_a_table(rows, _rows_needed_of(text)):
             return rows
 
     if html:
-        rows = rows_of_html(html)
-        if is_a_table(rows):
-            return rows
+        for rows in tables_of_html(html):
+            if is_a_table(rows, min_rows=1):
+                return rows
 
     return None
 
