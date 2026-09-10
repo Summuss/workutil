@@ -5,9 +5,10 @@ Centralises layout parameters in `LayoutSettings` (design.md §6 F5).
 
 Hard format limits respected:
 - Excel row height caps at 409 pt (= 545 px at 96 DPI). Screenshots exceed this,
-  so we never resize row height for images. Instead, row height stays at the
-  default 15 pt = 20 px, and we reserve ceil(height / 20) rows so the next block
-  starts beneath the floating image.
+  so we never resize row height for images. Instead, each reserved row is
+  written at 15 pt = 20 px, and we reserve ceil(height / 20) of them so the next
+  block starts beneath the floating image. The height is written rather than
+  left to the default on purpose — see `_reserve_rows_for_image`.
 - Image width is scaled proportionally to at most 900 px without touching the
   original on disk.
 - All cells use the '@' text number format so 007, dates, and long IDs stay as
@@ -98,6 +99,15 @@ class LayoutSettings:
         default_factory=lambda: {"\u226a NULL \u226b": "808080"}
     )
 
+    @property
+    def row_height_pt(self) -> float:
+        """The reserved row height in the unit Excel stores it in.
+
+        A point is 1/72 inch and a pixel 1/96, which is where 0.75 comes from
+        and the only place the two units meet.
+        """
+        return self.row_height_px * 0.75
+
 
 DEFAULT_LAYOUT_SETTINGS = LayoutSettings()
 
@@ -122,9 +132,12 @@ def calculate_reserved_rows(height_px: int, row_height_px: int = 20) -> int:
     """How many Excel rows (at default row height) to reserve for an image.
 
     Excel row height caps at 409 pt = 545 px, which screenshots easily exceed.
-    Setting row height directly is a dead end. Instead, row height stays at the
-    default 15 pt = 20 px, and we reserve ceil(height / 20) rows so the next
-    block begins cleanly beneath the floating image.
+    Making one row as tall as the image is therefore a dead end. Instead each
+    row is a known 15 pt = 20 px and we reserve ceil(height / 20) of them, so
+    the next block begins cleanly beneath the floating image.
+
+    Known, and not merely assumed: `_reserve_rows_for_image` writes that height
+    onto every row it counts here.
 
     A degenerate height (<= 0) still reserves one row rather than zero: an
     image placed and then given no room at all is exactly the overlap this
@@ -136,6 +149,31 @@ def calculate_reserved_rows(height_px: int, row_height_px: int = 20) -> int:
     if height_px <= 0:
         return 1
     return math.ceil(height_px / row_height_px)
+
+
+def _reserve_rows_for_image(
+    ws: Worksheet,
+    first_row: int,
+    count: int,
+    settings: LayoutSettings,
+) -> None:
+    """Write the height of the rows an image is about to float over.
+
+    The reservation is exact — `ceil(height / 20)` rows of 20 px is the image's
+    own height, to the pixel, with nothing to spare — so it only holds while a
+    row really is 20 px. Left to the default, one is not always: Excel reads
+    `defaultRowHeight` as a suggestion when nothing marks it as custom and
+    recomputes the standard height from the Normal font's metrics at the
+    current display scaling. At 125% on Windows that comes out 14.4 pt rather
+    than 15, every reserved row loses 4% of its height, and the bottom of the
+    screenshot lands on top of whatever block came after it. macOS keeps 15 pt,
+    which is why this only ever showed up on the work machine.
+
+    Writing the height marks it `customHeight`, and Excel then honours it as
+    given on either platform.
+    """
+    for offset in range(count):
+        ws.row_dimensions[first_row + offset].height = settings.row_height_pt
 
 
 def sanitize_filename(title: str) -> str:
@@ -307,6 +345,7 @@ def build_evidence_workbook(
                 xl_img.width = scaled_w
                 xl_img.height = scaled_h
                 ws.add_image(xl_img, f"A{current_row}")
+                _reserve_rows_for_image(ws, current_row, reserved, settings)
                 current_row += reserved
 
             elif block.kind == BlockKind.TABLE:

@@ -333,6 +333,38 @@ def test_guardrail_1080p_image_block_reserves_rows_and_next_block_is_below(
     assert text_row >= image_anchor_row + 54
 
 
+def test_the_rows_an_image_reserves_carry_their_own_height(
+    client: TestClient,
+) -> None:
+    """The reservation counts rows; this is what makes a row worth counting.
+
+    `ceil(h / 20)` rows of 20 px is the image's height to the pixel, with
+    nothing to spare, so it holds only while a row really is 20 px. Excel reads
+    `defaultRowHeight` as a suggestion when nothing marks it custom and
+    recomputes the standard height from the Normal font at the current display
+    scaling — 14.4 pt at 125% on Windows, which is enough for the bottom of a
+    screenshot to sit on top of the block after it. macOS keeps 15 pt, so the
+    overlap was invisible here and on the Mac and showed up only at work.
+    """
+    evidence_id = create_evidence(client, "行高テスト")
+    case_id = add_case(client, evidence_id, "1")
+
+    add_image_block(client, evidence_id, case_id, make_png(800, 100))
+    add_text_block(client, evidence_id, case_id, "画像の下のテキスト")
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws = wb["1"]
+
+    # 100 px of image, anchored at row 1, is rows 1 through 5.
+    for row in range(1, 6):
+        dimension = ws.row_dimensions[row]
+        assert dimension.height == 15.0, f"row {row} left at the default height"
+        assert dimension.customHeight is True, f"row {row} is only a suggestion"
+
+
 def test_sheet_column_dimensions_are_set(client: TestClient) -> None:
     evidence_id = create_evidence(client, "列幅テスト")
     case_id = add_case(client, evidence_id, "1")
