@@ -40,6 +40,8 @@ workutil/
 - [x] `.command` 有可执行位(zip 里也要保住)
 
 > **Review 修复(commit `569d9ce`)**:`ZipFile(..., compression=ZIP_DEFLATED)` 没有生效 —— `writestr()` 只在传入普通文件名字符串时才套用 `ZipFile` 自己的 `compression=` 默认值,这里为了带上可执行位手动构造了 `ZipInfo` 传进去,那条路径完全不看 `compression=`,所有条目都按 `ZipInfo` 自己的默认值 `ZIP_STORED`(不压缩)写入。已发布的 v0.1.0 release 因此是 Windows 105MB、macOS 144MB,远超 spec 估的约 37MB。补上 `info.compress_type = zipfile.ZIP_DEFLATED` 后重新打包(Windows 38MB、macOS 53MB),并已重新上传替换了 release 资产。
+>
+> **Review 修复(v0.2.0 发布时发现,commit 待补)**:包里导航栏显示的版本号一直是 `0.1.0`,不管 `pyproject.toml` 里实际写的是什么。`app/core/version.py` 的 `get_version()` 两个候选路径之一是「`app/` 同级的 `pyproject.toml`」,但组装脚本**从来没把这个文件拷进包里** —— `importlib.metadata.version("workutil")` 那条退路也走不通(`app/` 是源码直接拷贝,不是 `pip install`,site-packages 里没有 workutil 自己的 dist-info),于是每次都落到函数末尾硬编码的 `"0.1.0"`。这在无桌面开发机上验不出来(§7「落差」那条早就说过便携包能不能跑只能上真机看),又恰好 v0.1.0 那次真实版本号就是 `"0.1.0"`,这个 bug 因此在整个 v0.1.0 生命周期里都不可见,直到 v0.2.0 发布后用户下载运行才发现导航栏还是显示 `v0.1.0`。修法:组装脚本把 `backend/pyproject.toml` 原样拷进包根目录;`verify_packages()` 与 `backend/tests/test_packaging.py` 都加了断言,解开 zip 读那份 `pyproject.toml` 核对版本号是否等于正在构建的版本 —— 不能再靠人眼在真机上偶然发现。
 - [x] 产物名带 `pyproject.toml` 里的版本号
 - [x] 构建产物目录进 `.gitignore`
 - [x] 在 Linux 上解开产出的 Windows 包,断言 `app/`、`ui/index.html`、`site-packages/fastapi/`、`python/python.exe` 都在 —— 这是能在服务器上做的最强验证

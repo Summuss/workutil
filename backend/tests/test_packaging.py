@@ -1,5 +1,6 @@
 """Tests verifying the contents and layout of built portable packages."""
 
+import tomllib
 import zipfile
 from pathlib import Path
 
@@ -38,6 +39,17 @@ def test_windows_portable_package_structure() -> None:
         ]
         assert len(migrations) > 0
 
+        # get_version()'s second candidate is exactly `workutil/pyproject.toml`
+        # (the app's parent dir) — without it, it falls through
+        # importlib.metadata (which also fails: app/ is raw-copied source,
+        # not a `pip install`, so no workutil dist-info exists either) all
+        # the way to its hardcoded "0.1.0" fallback. That shipped once
+        # already and went unnoticed for a whole release because 0.1.0
+        # happened to equal the fallback.
+        assert "workutil/pyproject.toml" in names
+        shipped = tomllib.loads(zf.read("workutil/pyproject.toml").decode("utf-8"))
+        assert shipped["project"]["version"] == version
+
 
 def test_macos_portable_package_structure() -> None:
     version = get_version()
@@ -59,3 +71,7 @@ def test_macos_portable_package_structure() -> None:
         info = zf.getinfo("workutil/workutil.command")
         mode = info.external_attr >> 16
         assert (mode & 0o111) != 0, "workutil.command must be executable"
+
+        assert "workutil/pyproject.toml" in names
+        shipped = tomllib.loads(zf.read("workutil/pyproject.toml").decode("utf-8"))
+        assert shipped["project"]["version"] == version

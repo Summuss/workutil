@@ -104,6 +104,7 @@ workutil/
 ├── site-packages/          ← 目标平台预编译 wheels 解开的依赖
 ├── app/                    ← 后端源码(migrations 在包内,随目录拷贝)
 ├── ui/                     ← 前端构建静态产物(frontend/dist 内容)
+├── pyproject.toml          ← 只为让 get_version() 找到版本号,见下
 └── README.txt              ← 快速使用说明
 ```
 
@@ -137,7 +138,7 @@ workutil/
 
 - 前端在 `frontend/public/` 提供 `favicon.svg`、`favicon.ico` 以及 192/512 尺寸的 PNG 图标,并配置 `manifest.webmanifest`(独立显示模式 `standalone`,主题色 `#4f679c`)。
 - 在 Edge / Chrome 中支持「安装此站点为应用」并可在 `edge://apps` 勾选开机自动启动。
-- 后端暴露 `GET /api/version` 返回 `pyproject.toml` 的版本号,顶部导航栏展示小字版本号,便于手动下载更新时核对版本。
+- 后端暴露 `GET /api/version` 返回 `pyproject.toml` 的版本号,顶部导航栏展示小字版本号,便于手动下载更新时核对版本。**`get_version()` 的查找路径假定 `app/` 同级有一份 `pyproject.toml`**(见 `core/version.py` 的两个候选路径);组装脚本因此把 `backend/pyproject.toml` 原样拷进包根目录。这份文件不是给运行时依赖解析用的(依赖已经解到 `site-packages/` 里),纯粹是为了让这一行代码有东西可读——曾经漏拷过一次:`app/` 是源码直接拷贝而不是 `pip install`,site-packages 里没有 workutil 自己的 dist-info,于是两条候选路径都找不到、`importlib.metadata` 也找不到,一路落回函数末尾硬编码的 `"0.1.0"`。这在无桌面开发机上验不出来(§7 的「落差」),又恰好 v0.1.0 那次真实版本号就是 "0.1.0",于是这个 bug 在整个上一个版本周期里都不可见,直到 v0.2.0 发布后才在工作机上现形。现在 `scripts/build_packages.py` 的 `verify_packages()` 和 `backend/tests/test_packaging.py` 都会解开 zip 里的 `pyproject.toml` 核对版本号,不能再悄悄漏掉。
 
 
 ## 4. 项目结构

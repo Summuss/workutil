@@ -234,6 +234,18 @@ def assemble_bundle(target: PackageTarget, version: str, python_tarball: Path) -
                 "Alembic migrations were not copied into app/migrations/versions"
             )
 
+        # 4b. Copy pyproject.toml so the packaged app can find its own version.
+        # `app/core/version.py` reads `<app's parent>/pyproject.toml` as its
+        # second candidate — that path is `bundle_root/pyproject.toml` here.
+        # Without it, get_version() falls through importlib.metadata (which
+        # also fails: `app/` was copied as raw source, not `pip install`ed,
+        # so there's no workutil dist-info in site-packages/ either) all the
+        # way to its hardcoded "0.1.0" fallback — silently, since nothing on
+        # this Linux build machine ever runs the packaged binary to notice
+        # (see docs/design.md §7's "落差" section). That bug shipped in
+        # v0.1.0 unnoticed only because 0.1.0 happened to equal the fallback.
+        shutil.copy2(BACKEND_DIR / "pyproject.toml", bundle_root / "pyproject.toml")
+
         # 5. Copy frontend dist/ to ui/
         print("Copying frontend dist/ to ui/...")
         frontend_dist = FRONTEND_DIR / "dist"
@@ -283,6 +295,31 @@ def assemble_bundle(target: PackageTarget, version: str, python_tarball: Path) -
     return output_zip
 
 
+def _verify_shipped_version(
+    zf: zipfile.ZipFile, expected_version: str, label: str
+) -> None:
+    """The packaged pyproject.toml must exist and report the version being built.
+
+    This is the regression test for the "downloaded v0.2.0, app still says
+    v0.1.0" class of bug: `app/core/version.py`'s second candidate path is
+    exactly `workutil/pyproject.toml`, and it silently falls back to a
+    hardcoded "0.1.0" if this file is missing or unreadable — a bug that
+    shipped once already and stayed invisible for a whole release because
+    0.1.0 happened to equal the fallback.
+    """
+    path = "workutil/pyproject.toml"
+    if path not in zf.namelist():
+        raise AssertionError(f"{label} zip missing {path}")
+    shipped = tomllib.loads(zf.read(path).decode("utf-8"))
+    shipped_version = shipped.get("project", {}).get("version")
+    if shipped_version != expected_version:
+        raise AssertionError(
+            f"{label} zip's {path} reports version {shipped_version!r}, "
+            f"expected {expected_version!r} — the packaged app's "
+            "/api/version would show the wrong number"
+        )
+
+
 def verify_packages(version: str) -> None:
     print("\n--- Verifying built packages ---")
     windows_zip = DIST_DIR / f"workutil-{version}-windows-x64.zip"
@@ -319,6 +356,8 @@ def verify_packages(version: str) -> None:
                 "workutil/app/migrations/versions/"
             )
 
+        _verify_shipped_version(zf, version, "Windows")
+
     print("Windows package contents verified successfully.")
 
     # Inspect macOS package
@@ -342,6 +381,8 @@ def verify_packages(version: str) -> None:
             raise AssertionError(
                 "workutil.command does not have executable bit set in zip"
             )
+
+        _verify_shipped_version(zf, version, "macOS")
 
     print("macOS package contents verified successfully.")
 
