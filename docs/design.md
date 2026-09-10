@@ -65,7 +65,9 @@
 | 操作 | Windows | macOS |
 | --- | --- | --- |
 | `open` | `os.startfile(path)` | `open <path>` |
-| `reveal` | `explorer /select,<path>` | `open -R <path>` |
+| `reveal` | `explorer /select,"<path>"`(整条命令行手工拼,引号只包路径,路径先过 `PureWindowsPath` 转成反斜杠) | `open -R <path>` |
+
+`reveal` 的 Windows 侧不能用参数列表:explorer 自己解析命令行,路径一带空格,`list2cmdline` 就会把整个 `/select,...` 包进引号,而 explorer 读不懂这种形式时**不报错,直接打开「文档」文件夹**。路径用正斜杠写的书签同理。
 
 **F4 的「执行脚本」不进这一层。** 那是 `subprocess` + 流式输出 + 进程句柄,和「交出去就不管」是两种东西,硬共用一个抽象只会让两边都别扭。
 

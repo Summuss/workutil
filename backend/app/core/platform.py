@@ -10,7 +10,7 @@ import os
 import subprocess
 import sys
 from collections.abc import Callable
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Any, Protocol, runtime_checkable
 
 
@@ -69,7 +69,23 @@ class WindowsPlatform:
             raise UnsupportedPlatformError("os.startfile 仅在 Windows 上可用")
 
     def reveal(self, path: str | Path) -> None:
-        subprocess.Popen(["explorer", f"/select,{path}"])
+        # explorer parses its own command line rather than taking argv as it
+        # was handed, and the one form it reliably understands is
+        # `/select,"<path>"` — the quotes around the path alone, backslashes
+        # throughout. A list is exactly what it cannot take: the moment the
+        # path holds a space, list2cmdline quotes the whole
+        # `"/select,C:\Some Folder\a.txt"` argument, explorer's own parser
+        # gives up on it — and it does not say so. It opens the user's
+        # Documents folder as if that were what was asked for, which is what
+        # this looked like from the outside.
+        #
+        # PureWindowsPath rather than the string as stored, for the second
+        # half of the same problem: a bookmark registered from a path written
+        # with forward slashes (copied out of a config file, say) exists as
+        # far as `Path.exists()` is concerned, and lands explorer in Documents
+        # just the same.
+        target = PureWindowsPath(path)
+        subprocess.Popen(f'explorer /select,"{target}"')
 
     def open_app_window(self, url: str, data_dir: Path | None = None) -> None:
         profile_path = _resolve_profile_dir(data_dir)

@@ -76,7 +76,39 @@ def test_windows_platform_calls() -> None:
     with patch("subprocess.Popen") as mock_popen:
         path = r"C:\Users\test\file.txt"
         win.reveal(path)
-        mock_popen.assert_called_once_with(["explorer", f"/select,{path}"])
+        mock_popen.assert_called_once_with(f'explorer /select,"{path}"')
+
+
+def test_windows_reveal_quotes_only_the_path() -> None:
+    """A path with a space is the one explorer silently gets wrong.
+
+    Handed a list, `list2cmdline` wraps the whole `/select,...` argument in
+    quotes; explorer's own parser cannot read that and opens the user's
+    Documents folder rather than reporting anything. The quotes go around the
+    path and nothing else.
+    """
+    win = WindowsPlatform()
+
+    with patch("subprocess.Popen") as mock_popen:
+        win.reveal(r"C:\Program Files\My Tool\notes.txt")
+
+    mock_popen.assert_called_once_with(
+        'explorer /select,"C:\\Program Files\\My Tool\\notes.txt"'
+    )
+
+
+def test_windows_reveal_hands_explorer_backslashes() -> None:
+    """A bookmark registered with forward slashes still opens on Windows.
+
+    `Path.exists()` accepts either separator, so such a path registers and
+    opens fine — and then explorer, which does not, lands in Documents.
+    """
+    win = WindowsPlatform()
+
+    with patch("subprocess.Popen") as mock_popen:
+        win.reveal("C:/Users/test/file.txt")
+
+    mock_popen.assert_called_once_with('explorer /select,"C:\\Users\\test\\file.txt"')
 
 
 def test_macos_platform_calls() -> None:
