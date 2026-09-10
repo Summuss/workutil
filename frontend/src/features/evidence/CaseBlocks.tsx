@@ -258,7 +258,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
         ref={scrollContainerRef}
         className="flex-1 min-h-0 overflow-y-auto"
       >
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-3.5 px-8 pt-1 pb-4 min-h-[300px]">
+        <div className="flex w-full flex-col gap-3.5 px-8 pt-1 pb-4 min-h-[300px]">
           {loading ? (
             <CaseBlocksSkeleton />
           ) : content === null ? (
@@ -318,7 +318,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
       </div>
 
       <div className="shrink-0 z-10" style={{ background: "var(--bg)" }}>
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-8 py-3.5">
+        <div className="flex w-full flex-col gap-2 px-8 py-3.5">
           <BlockTextArea
             initial=""
             busy={busy}

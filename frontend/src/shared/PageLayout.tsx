@@ -20,7 +20,10 @@ interface PageLayoutProps {
  * - Shell fills remaining height via flex-1 min-h-0 and never causes window-level scroll.
  * - fixedHeader stays pinned at the top.
  * - children scroll inside their own flex-1 min-h-0 overflow-y-auto container (or manage their own scroll when scrollable=false).
- * - Both areas share max-w-3xl and px-8 to guarantee strict horizontal alignment across pages.
+ * - Every area shares the same px-8 gutters so pages line up horizontally with each
+ *   other and with the nav bar. The content itself is not capped: it fills the window,
+ *   which is what a screenshot pasted into an evidence case and a wide query result
+ *   both need, and the gutters are the only margin.
  */
 export function PageLayout({
   fixedHeader,
@@ -37,7 +40,7 @@ export function PageLayout({
       {fixedHeader && (
         <div className="shrink-0 z-10" style={{ background: "var(--bg)" }}>
           <div
-            className={`mx-auto flex w-full max-w-3xl flex-col gap-3.5 px-8 pt-9 pb-3.5 ${headerClassName}`}
+            className={`flex w-full flex-col gap-3.5 px-8 pt-9 pb-3.5 ${headerClassName}`}
           >
             {fixedHeader}
           </div>
@@ -47,7 +50,7 @@ export function PageLayout({
       {scrollable ? (
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div
-            className={`mx-auto flex w-full max-w-3xl flex-col gap-3.5 px-8 ${
+            className={`flex w-full flex-col gap-3.5 px-8 ${
               fixedHeader ? "pt-1 pb-9" : "py-9"
             } ${contentClassName}`}
           >
@@ -63,7 +66,7 @@ export function PageLayout({
       {fixedFooter && (
         <div className="shrink-0 z-10" style={{ background: "var(--bg)" }}>
           <div
-            className={`mx-auto flex w-full max-w-3xl flex-col gap-3.5 px-8 py-3.5 ${footerClassName}`}
+            className={`flex w-full flex-col gap-3.5 px-8 py-3.5 ${footerClassName}`}
           >
             {fixedFooter}
           </div>
