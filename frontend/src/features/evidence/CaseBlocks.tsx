@@ -87,13 +87,55 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     setScrollToBlockId(null);
   }, [caseId]);
 
+  /**
+   * Bring the block that was just added into view, end first.
+   *
+   * `end` rather than `nearest`, because the thing being added is usually a
+   * screenshot and a screenshot is usually taller than the list: `nearest`
+   * counts a block as in view the moment its first pixel is, which parks the
+   * viewport on the top edge of the picture — the part you were already
+   * looking at. What you want to see is that the whole thing landed, which is
+   * its bottom.
+   *
+   * And it has to wait for the bytes. An `<img>` with nothing in it yet is a
+   * couple of pixels tall, so scrolling to the end of *that* is scrolling to
+   * the top of the picture that arrives a moment later — the same wrong place,
+   * arrived at a different way. `error` counts as arrived too: a broken image
+   * must not leave the list parked wherever it was.
+   */
   useEffect(() => {
     if (scrollToBlockId === null) return;
     const el = document.getElementById(`evidence-block-${scrollToBlockId}`);
-    if (el) {
-      el.scrollIntoView({ block: "nearest" });
+    if (el === null) return;
+
+    const reveal = () => {
+      el.scrollIntoView({ block: "end" });
       setScrollToBlockId(null);
+    };
+
+    const loading = Array.from(el.querySelectorAll("img")).filter(
+      (image) => !image.complete,
+    );
+    if (loading.length === 0) {
+      reveal();
+      return;
     }
+
+    let pending = loading.length;
+    const arrived = () => {
+      pending -= 1;
+      if (pending === 0) reveal();
+    };
+    for (const image of loading) {
+      image.addEventListener("load", arrived);
+      image.addEventListener("error", arrived);
+    }
+    return () => {
+      for (const image of loading) {
+        image.removeEventListener("load", arrived);
+        image.removeEventListener("error", arrived);
+      }
+    };
   }, [scrollToBlockId, blocks]);
 
   function setBlocks(next: Block[]) {
