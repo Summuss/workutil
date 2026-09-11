@@ -11,6 +11,8 @@ Hard format limits respected:
   left to the default on purpose — see `_reserve_rows_for_image`.
 - Image width is scaled proportionally to at most 900 px without touching the
   original on disk.
+- What is embedded is scaled down too, not just what is displayed — see
+  `_picture_for`. The stored screenshot stays the original either way.
 - All cells use the '@' text number format so 007, dates, and long IDs stay as
   typed without Excel reinterpreting them (ADR-0004). '@' alone does not stop
   openpyxl from reading a leading '=' as a formula, so every cell also has its
@@ -90,6 +92,13 @@ class LayoutSettings:
 
     column_width: float = 18.0
     max_image_width: int = 900
+    #: How much bigger than it is drawn a screenshot may travel, in pixels of
+    #: width per pixel displayed. 1.0 embeds exactly what is shown and holds
+    #: the least; above that is detail kept back for zooming into and for
+    #: screens that draw the 900 px at 125% or 150%. Turn it *down* if 「この
+    #: 画像は表示できません」 ever comes back — it is the only number in here
+    #: that decides how much bitmap Excel has to hold at once (`_picture_for`).
+    embedded_image_scale: float = 2.0
     row_height_px: int = 20
     header_fill_color: str = "87E7AD"
     border_style: BorderStyle = "thin"
@@ -149,6 +158,52 @@ def calculate_reserved_rows(height_px: int, row_height_px: int = 20) -> int:
     if height_px <= 0:
         return 1
     return math.ceil(height_px / row_height_px)
+
+
+#: The modes a screenshot can be resampled and then written back as a PNG in.
+#: Anything else — a palette, CMYK, 1-bit — is converted first: `resize` quietly
+#: drops to nearest-neighbour on a palette image, which on a screenshot full of
+#: text looks like damage.
+_RESAMPLED_MODES = frozenset({"RGB", "RGBA", "L", "LA"})
+
+
+def _picture_for(
+    path: Path, displayed_width: int, settings: LayoutSettings
+) -> OpenPyxlImage:
+    """The copy of a screenshot that actually travels inside the workbook.
+
+    openpyxl embeds the file as it found it and writes the display size beside
+    it, so a 3840 px screenshot drawn 900 px wide still ships all 8.3 million
+    of its pixels — and Excel decodes every one of them to draw those 900.
+    A case full of 4K screenshots is a gigabyte of bitmap, and Excel does not
+    say so: it draws 「この画像は表示できません」 over whichever pictures lost,
+    a different set on each open, which is exactly how this was reported.
+
+    So the copy that goes in is scaled to `embedded_image_scale` × the width it
+    is drawn at, which cuts the memory by the square of that ratio while
+    leaving something to zoom into. Nothing is written back to disk: the stored
+    screenshot is still the untouched original (design.md §5), and this copy
+    lives only as long as the save.
+
+    An image already inside that width is passed through as its own file.
+    Re-encoding it could only lose something.
+    """
+    limit = max(1, round(displayed_width * settings.embedded_image_scale))
+
+    with PILImage.open(path) as original:
+        if original.width <= limit:
+            return OpenPyxlImage(str(path))
+
+        width, height = scale_dimensions(original.width, original.height, limit)
+        source = (
+            original if original.mode in _RESAMPLED_MODES else original.convert("RGBA")
+        )
+        embedded = io.BytesIO()
+        resized = source.resize((width, height), PILImage.Resampling.LANCZOS)
+        resized.save(embedded, format="PNG")
+
+    embedded.seek(0)
+    return OpenPyxlImage(embedded)
 
 
 def _reserve_rows_for_image(
@@ -341,7 +396,7 @@ def build_evidence_workbook(
                 )
                 reserved = calculate_reserved_rows(scaled_h, settings.row_height_px)
 
-                xl_img = OpenPyxlImage(str(img_path))
+                xl_img = _picture_for(img_path, scaled_w, settings)
                 xl_img.width = scaled_w
                 xl_img.height = scaled_h
                 ws.add_image(xl_img, f"A{current_row}")

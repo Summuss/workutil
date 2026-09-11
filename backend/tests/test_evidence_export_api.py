@@ -18,6 +18,9 @@ from app.modules.evidence.layout import LayoutSettings
 
 from .conftest import data_url
 
+#: What a drawing's size is stored in: one pixel at 96 DPI, in EMU.
+EMU_PER_PIXEL = 9525
+
 
 def create_evidence(client: TestClient, title: str = "受注一覧の絞り込み修正") -> int:
     res = client.post("/api/evidence", json={"title": title})
@@ -331,6 +334,56 @@ def test_guardrail_1080p_image_block_reserves_rows_and_next_block_is_below(
     assert text_row is not None
     # Must be at or below row 56 (anchor row 2 + 54 rows reserved)
     assert text_row >= image_anchor_row + 54
+
+
+def test_a_high_resolution_screenshot_travels_smaller_than_it_was_taken(
+    client: TestClient,
+) -> None:
+    """Guardrail for 「この画像は表示できません」.
+
+    What Excel has to hold decoded is set by how big a picture is *drawn*, not
+    by the screen it came off. Before this, a 4K screenshot drawn 900 px wide
+    still shipped all 8.3 million of its pixels; a case full of them ran Excel
+    out of room, and it does not say so — it draws that placeholder over
+    whichever pictures lost, a different set on each open, which is what made
+    it look random (`layout._picture_for`).
+    """
+    evidence_id = create_evidence(client, "高解像度スクリーンショット")
+    case_id = add_case(client, evidence_id, "1")
+    add_image_block(client, evidence_id, case_id, make_png(3840, 2160))
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws_any: Any = wb["1"]
+    (img,) = ws_any._images
+
+    # Drawn exactly as before: 900 px wide, aspect ratio kept.
+    displayed = (img.anchor.ext.cx // EMU_PER_PIXEL, img.anchor.ext.cy // EMU_PER_PIXEL)
+    assert displayed == (900, 506)
+    # Carrying twice that and no more, rather than all 3840.
+    assert PILImage.open(img.ref).size == (1800, 1012)
+
+
+def test_a_screenshot_no_bigger_than_it_is_drawn_is_embedded_untouched(
+    client: TestClient,
+) -> None:
+    """Only a picture with more pixels than it will ever be drawn with is worth
+    re-encoding. Anything else would be losing something for nothing."""
+    original = make_png(800, 600)
+    evidence_id = create_evidence(client, "等倍のまま")
+    case_id = add_case(client, evidence_id, "1")
+    add_image_block(client, evidence_id, case_id, original)
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws_any: Any = wb["1"]
+    (img,) = ws_any._images
+
+    assert img.ref.getvalue() == original
 
 
 def test_the_rows_an_image_reserves_carry_their_own_height(

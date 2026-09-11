@@ -73,6 +73,7 @@ def test_layout_settings_has_expected_defaults() -> None:
     settings = LayoutSettings()
     assert settings.column_width == 18.0
     assert settings.max_image_width == 900
+    assert settings.embedded_image_scale == 2.0
     assert settings.row_height_px == 20
     assert settings.header_fill_color == "87E7AD"
     assert settings.border_style == "thin"
