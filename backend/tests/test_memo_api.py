@@ -6,6 +6,7 @@ organised inside.
 """
 
 import base64
+import re
 import shutil
 from datetime import UTC, datetime
 from pathlib import Path
@@ -20,6 +21,18 @@ from app.modules.memo.models import Memo
 from app.modules.memo.service import RECENT_MEMO_LIMIT
 
 from .conftest import SAMPLE_PNG, SAMPLE_PNG_2, workutil_at
+
+
+def image_urls(body: str) -> list[str]:
+    """Where a saved body points at its screenshots, in the order it names them.
+
+    Read out of the body rather than written down: the name a screenshot is
+    stored under carries a token so that no name is ever handed out twice
+    (`core/images.next_name`), and is therefore deliberately unpredictable. A
+    test that spelled the name out would be asserting the one thing about it
+    that is not promised.
+    """
+    return re.findall(r"/api/memos/\d+/images/[^)\s]+", body)
 
 
 def at(timestamp: str) -> datetime:
@@ -311,8 +324,8 @@ def test_a_memo_can_be_created_with_an_image(client: TestClient) -> None:
 
     memo_id = created["id"]
     assert created["image_count"] == 1
-    expected_image_url = f"/api/memos/{memo_id}/images/img_1.png"
-    assert expected_image_url in created["body"]
+    (expected_image_url,) = image_urls(created["body"])
+    assert expected_image_url.startswith(f"/api/memos/{memo_id}/images/")
     assert "temp:img_1" not in created["body"]
 
     # List endpoint returns image count, not image content
@@ -342,16 +355,15 @@ def test_a_memo_can_contain_multiple_images(client: TestClient) -> None:
         },
     ).json()
 
-    memo_id = created["id"]
     assert created["image_count"] == 2
-    assert f"/api/memos/{memo_id}/images/img_1.png" in created["body"]
-    assert f"/api/memos/{memo_id}/images/img_2.png" in created["body"]
+    one, two = image_urls(created["body"])
+    assert one != two
 
-    img1 = client.get(f"/api/memos/{memo_id}/images/img_1.png")
+    img1 = client.get(one)
     assert img1.status_code == 200
     assert img1.content == SAMPLE_PNG
 
-    img2 = client.get(f"/api/memos/{memo_id}/images/img_2.png")
+    img2 = client.get(two)
     assert img2.status_code == 200
     assert img2.content == SAMPLE_PNG_2
 
@@ -381,12 +393,12 @@ def test_an_existing_memo_can_have_new_images_appended(client: TestClient) -> No
     ).json()
 
     assert updated["image_count"] == 2
-    assert f"/api/memos/{memo_id}/images/img_1.png" in updated["body"]
-    assert f"/api/memos/{memo_id}/images/img_2.png" in updated["body"]
+    old_url, new_url = image_urls(updated["body"])
+    assert old_url != new_url
 
     # Both images are readable
-    assert client.get(f"/api/memos/{memo_id}/images/img_1.png").content == SAMPLE_PNG
-    assert client.get(f"/api/memos/{memo_id}/images/img_2.png").content == SAMPLE_PNG_2
+    assert client.get(old_url).content == SAMPLE_PNG
+    assert client.get(new_url).content == SAMPLE_PNG_2
 
 
 def test_images_are_stored_under_memo_id_directory(
@@ -402,7 +414,8 @@ def test_images_are_stored_under_memo_id_directory(
     ).json()
     memo_id = created["id"]
 
-    saved_file = data_dir / "images" / str(memo_id) / "img_1.png"
+    (saved_url,) = image_urls(created["body"])
+    saved_file = data_dir / "images" / str(memo_id) / saved_url.rsplit("/", 1)[-1]
     assert saved_file.is_file()
     assert saved_file.read_bytes() == SAMPLE_PNG
 
@@ -431,10 +444,10 @@ def test_images_survive_restart(data_dir: Path) -> None:
                 "images": [{"id": "temp:1", "data": b64, "filename": "shot.png"}],
             },
         ).json()
-        memo_id = created["id"]
+        (image_url,) = image_urls(created["body"])
 
     with workutil_at(data_dir) as after:
-        res = after.get(f"/api/memos/{memo_id}/images/img_1.png")
+        res = after.get(image_url)
         assert res.status_code == 200
         assert res.content == SAMPLE_PNG
 
@@ -451,9 +464,10 @@ def test_deleting_a_memo_cleans_up_its_images_directory(
         },
     ).json()
     memo_id = created["id"]
+    (image_url,) = image_urls(created["body"])
     memo_images_dir = data_dir / "images" / str(memo_id)
     assert memo_images_dir.is_dir()
-    assert (memo_images_dir / "img_1.png").is_file()
+    assert (memo_images_dir / image_url.rsplit("/", 1)[-1]).is_file()
 
     # Delete memo
     assert client.delete(f"/api/memos/{memo_id}").status_code == 204
@@ -462,7 +476,7 @@ def test_deleting_a_memo_cleans_up_its_images_directory(
     assert not memo_images_dir.exists()
 
     # Requesting the image now returns 404
-    assert client.get(f"/api/memos/{memo_id}/images/img_1.png").status_code == 404
+    assert client.get(image_url).status_code == 404
 
 
 def test_removing_image_reference_from_body_keeps_image_file_on_disk(
@@ -481,7 +495,8 @@ def test_removing_image_reference_from_body_keeps_image_file_on_disk(
         },
     ).json()
     memo_id = created["id"]
-    saved_file = data_dir / "images" / str(memo_id) / "img_1.png"
+    (image_url,) = image_urls(created["body"])
+    saved_file = data_dir / "images" / str(memo_id) / image_url.rsplit("/", 1)[-1]
     assert saved_file.is_file()
 
     # Remove the image reference from the body
@@ -491,7 +506,7 @@ def test_removing_image_reference_from_body_keeps_image_file_on_disk(
     assert saved_file.is_file()
 
     # The image endpoint still serves it
-    img_resp = client.get(f"/api/memos/{memo_id}/images/img_1.png")
+    img_resp = client.get(image_url)
     assert img_resp.status_code == 200
     assert img_resp.content == SAMPLE_PNG
 
@@ -623,8 +638,8 @@ def test_a_pasted_svg_is_never_served_as_a_document(client: TestClient) -> None:
 
     assert ".svg" not in created["body"]
 
-    url = f"/api/memos/{created['id']}/images/img_1.png"
-    assert url in created["body"]
+    (url,) = image_urls(created["body"])
+    assert url.endswith(".png")
     response = client.get(url)
     assert "svg" not in response.headers["content-type"]
     assert response.headers["x-content-type-options"] == "nosniff"

@@ -18,8 +18,10 @@ can reach a backend that opens local files (design.md §6 F1).
 import base64
 import binascii
 import contextlib
+import re
+import secrets
 import shutil
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from pathlib import Path
 
 from fastapi import HTTPException, status
@@ -35,6 +37,12 @@ IMAGE_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"})
 #: A screenshot is big; 25 MB of it is a mistake. The text and every image
 #: travel in one request, so this bounds that request too.
 MAX_IMAGE_BYTES = 25 * 1024 * 1024
+
+#: The readable half of a stored image's name, in both the shape `next_name`
+#: writes today and the plain `img_3.png` of the names written before it. Read
+#: only to carry the count forward, so both have to be recognised or the
+#: numbering would restart in every directory that predates the token.
+_IMAGE_INDEX = re.compile(r"img_(\d+)\b")
 
 
 class InvalidImage(ValueError):
@@ -105,6 +113,45 @@ def discard_file(path: Path) -> None:
         path.unlink(missing_ok=True)
 
 
+def next_name(taken: Collection[str], filename: str) -> str:
+    """What to call a new image in a directory that already holds `taken`.
+
+    Two halves, and the second is the one that matters.
+
+    The number is the readable half: it counts up, so a directory listing
+    reads in the order the screenshots arrived.
+
+    The token after it is what makes the name *new*. A name must never come
+    round again, because the name is the whole of the URL the browser fetches
+    the image at, and a URL that comes to mean different bytes is a URL the
+    browser is entitled to answer out of its own cache. That is not a
+    hypothetical: the lowest free index is freed the moment an image block is
+    deleted, and "paste a screenshot, see it was the wrong one, delete it,
+    paste the right one" hands the next image the name the wrong one had —
+    whereupon the page is liable to draw the wrong one again, out of memory,
+    without asking this server anything.
+
+    So the number is allowed to repeat (a directory emptied out starts over at
+    1) and the name is not.
+    """
+    suffix = Path(filename).suffix.lower()
+    if suffix not in IMAGE_EXTENSIONS:
+        suffix = ".png"
+
+    index = (
+        max(
+            (int(found[1]) for name in taken if (found := _IMAGE_INDEX.match(name))),
+            default=0,
+        )
+        + 1
+    )
+
+    name = f"img_{index}_{secrets.token_hex(3)}{suffix}"
+    while name in taken:
+        name = f"img_{index}_{secrets.token_hex(3)}{suffix}"
+    return name
+
+
 def _decode(upload: IncomingImage) -> bytes:
     """The bytes behind a data URL, or a refusal.
 
@@ -134,7 +181,8 @@ def save(directory: Path, images: Sequence[IncomingImage]) -> list[str]:
     paste on disk, and a write that fails part-way takes back what it wrote.
 
     Names are chosen against what the directory already holds, so a directory
-    shared by several things — an evidence's cases, say — never collides.
+    shared by several things — an evidence's cases, say — never collides, and
+    never repeats a name it has handed out before (`next_name`).
     """
     if not images:
         return []
@@ -148,14 +196,8 @@ def save(directory: Path, images: Sequence[IncomingImage]) -> list[str]:
     names: list[str] = []
     try:
         taken = {path.name for path in directory.iterdir() if path.is_file()}
-        index = 1
         for image, raw in decoded:
-            suffix = Path(image.filename).suffix.lower()
-            if suffix not in IMAGE_EXTENSIONS:
-                suffix = ".png"
-            while f"img_{index}{suffix}" in taken:
-                index += 1
-            name = f"img_{index}{suffix}"
+            name = next_name(taken, image.filename)
             taken.add(name)
 
             path = directory / name

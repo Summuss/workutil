@@ -51,6 +51,17 @@ def images_dir_of(data_dir: Path, evidence_id: int) -> Path:
     return data_dir / "images" / "evidence" / str(evidence_id)
 
 
+def file_of(block: dict[str, Any]) -> str:
+    """The name this block's screenshot was stored under.
+
+    Read off the URL rather than spelled out: a stored name carries a token so
+    that no name is ever handed out twice (`core/images.next_name`), which
+    makes it deliberately unpredictable. A test that wrote the name itself
+    would be asserting the one thing that is not promised.
+    """
+    return str(block["image_url"]).rsplit("/", 1)[-1]
+
+
 @pytest.fixture
 def case(client: TestClient) -> tuple[int, int]:
     """One evidence with one case in it — where a screenshot goes."""
@@ -83,9 +94,9 @@ def test_the_screenshot_is_kept_whole_under_the_evidence_directory(
     happens on the copy inside an exported workbook (ticket 07)."""
     evidence_id, case_id = case
 
-    add_image(client, evidence_id, case_id)
+    block = add_image(client, evidence_id, case_id)
 
-    saved = images_dir_of(data_dir, evidence_id) / "img_1.png"
+    saved = images_dir_of(data_dir, evidence_id) / file_of(block)
     assert saved.read_bytes() == SAMPLE_PNG
 
 
@@ -154,8 +165,8 @@ def test_a_screenshot_is_never_stored_as_a_scriptable_document(
 
     block = add_image(client, evidence_id, case_id, filename="diagram.svg")
 
-    assert block["image_url"].endswith("/img_1.png")
-    assert (images_dir_of(data_dir, evidence_id) / "img_1.png").is_file()
+    assert file_of(block).endswith(".png")
+    assert (images_dir_of(data_dir, evidence_id) / file_of(block)).is_file()
 
 
 def test_a_served_screenshot_is_not_sniffed(
@@ -173,10 +184,12 @@ def test_a_screenshot_is_not_reachable_through_another_evidence(
     client: TestClient, case: tuple[int, int]
 ) -> None:
     evidence_id, case_id = case
-    add_image(client, evidence_id, case_id)
+    block = add_image(client, evidence_id, case_id)
     other = new_evidence(client, "別件")
 
-    assert client.get(f"/api/evidence/{other}/images/img_1.png").status_code == 404
+    assert (
+        client.get(f"/api/evidence/{other}/images/{file_of(block)}").status_code == 404
+    )
 
 
 @pytest.mark.parametrize(
@@ -336,9 +349,33 @@ def test_deleting_an_image_block_deletes_its_file(
     )
 
     assert deleted.status_code == 204
-    assert not (images_dir_of(data_dir, evidence_id) / "img_1.png").exists()
+    assert not (images_dir_of(data_dir, evidence_id) / file_of(doomed)).exists()
     assert client.get(kept["image_url"]).content == SAMPLE_PNG_2
     assert blocks_of(client, evidence_id, case_id) == [{**kept, "order": 0}]
+
+
+def test_the_screenshot_after_a_deleted_one_does_not_inherit_its_name(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """A stored name is never handed out twice, and this is the flow that used
+    to hand one out twice.
+
+    "Pasted the wrong screenshot, delete it, paste the right one" freed the
+    lowest name and immediately gave it back, so the new block was served at
+    the very URL the browser was already holding the wrong picture under — and
+    drew the wrong one again, without asking (`core/images.next_name`).
+    """
+    evidence_id, case_id = case
+    wrong = add_image(client, evidence_id, case_id, SAMPLE_PNG, "wrong.png")
+    deleted = client.delete(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{wrong['id']}"
+    )
+    assert deleted.status_code == 204
+
+    right = add_image(client, evidence_id, case_id, SAMPLE_PNG_2, "right.png")
+
+    assert file_of(right) != file_of(wrong)
+    assert client.get(right["image_url"]).content == SAMPLE_PNG_2
 
 
 def test_deleting_a_case_deletes_the_screenshots_it_held(
@@ -358,7 +395,7 @@ def test_deleting_a_case_deletes_the_screenshots_it_held(
     )
 
     assert [path.name for path in images_dir_of(data_dir, evidence_id).iterdir()] == [
-        "img_3.png"
+        file_of(survivor)
     ]
     assert client.get(survivor["image_url"]).content == SAMPLE_PNG_2
 
@@ -429,20 +466,20 @@ def test_deleting_an_image_block_succeeds_even_if_the_file_will_not_go(
 
     assert deleted.status_code == 204
     assert blocks_of(client, evidence_id, case_id) == []
-    assert (images_dir_of(data_dir, evidence_id) / "img_1.png").is_file()
+    assert (images_dir_of(data_dir, evidence_id) / file_of(block)).is_file()
 
 
 def test_deleting_a_case_succeeds_even_if_its_screenshots_will_not_go(
     client: TestClient, case: tuple[int, int], data_dir: Path, unlinkable: None
 ) -> None:
     evidence_id, case_id = case
-    add_image(client, evidence_id, case_id)
+    block = add_image(client, evidence_id, case_id)
 
     deleted = client.delete(f"/api/evidence/{evidence_id}/cases/{case_id}")
 
     assert deleted.status_code == 204
     assert client.get(f"/api/evidence/{evidence_id}").json()["cases"] == []
-    assert (images_dir_of(data_dir, evidence_id) / "img_1.png").is_file()
+    assert (images_dir_of(data_dir, evidence_id) / file_of(block)).is_file()
 
 
 def test_deleting_an_evidence_succeeds_even_if_its_screenshots_will_not_go(
@@ -451,8 +488,8 @@ def test_deleting_an_evidence_succeeds_even_if_its_screenshots_will_not_go(
     """The directory goes by `shutil.rmtree`, which is asked to ignore what it
     cannot remove — this is what says it is still being asked."""
     evidence_id, case_id = case
-    add_image(client, evidence_id, case_id)
+    block = add_image(client, evidence_id, case_id)
 
     assert client.delete(f"/api/evidence/{evidence_id}").status_code == 204
     assert client.get("/api/evidence").json() == []
-    assert (images_dir_of(data_dir, evidence_id) / "img_1.png").is_file()
+    assert (images_dir_of(data_dir, evidence_id) / file_of(block)).is_file()

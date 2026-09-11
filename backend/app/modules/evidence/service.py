@@ -356,18 +356,19 @@ def rename_case(
 
 
 def _duplicate_image_file(directory: Path, original_name: str) -> str:
+    """The copy's own file, named the way a freshly pasted one would be.
+
+    Through `images.next_name` rather than working the name out here: the copy
+    lands in the same directory as the original and is fetched from the same
+    URL space, so it is under the same rule that no name is ever handed out
+    twice.
+    """
     original_path = directory / original_name
     if not original_path.is_file():
         return original_name
 
     taken = {path.name for path in directory.iterdir() if path.is_file()}
-    suffix = Path(original_name).suffix.lower()
-    if suffix not in images.IMAGE_EXTENSIONS:
-        suffix = ".png"
-    index = 1
-    while f"img_{index}{suffix}" in taken:
-        index += 1
-    new_name = f"img_{index}{suffix}"
+    new_name = images.next_name(taken, original_name)
     shutil.copy2(original_path, directory / new_name)
     return new_name
 
