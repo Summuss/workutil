@@ -22,7 +22,7 @@ interface StoredDraft<T> {
 }
 
 function readStorage<T>(key: string, saved: T): T | null {
-  if (typeof window === "undefined" || !window.localStorage) {
+  if (!key || typeof window === "undefined" || !window.localStorage) {
     return null;
   }
   try {
@@ -49,7 +49,7 @@ function readStorage<T>(key: string, saved: T): T | null {
 }
 
 function writeStorage<T>(key: string, draft: T, savedAt: T): void {
-  if (typeof window === "undefined" || !window.localStorage) {
+  if (!key || typeof window === "undefined" || !window.localStorage) {
     return;
   }
   try {
@@ -61,7 +61,7 @@ function writeStorage<T>(key: string, draft: T, savedAt: T): void {
 }
 
 function removeStorage(key: string): void {
-  if (typeof window === "undefined" || !window.localStorage) {
+  if (!key || typeof window === "undefined" || !window.localStorage) {
     return;
   }
   try {

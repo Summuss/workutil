@@ -6,6 +6,10 @@ import { carriesTable, pastedText, type PastedText } from "./clipboard";
 
 interface BlockTextAreaProps {
   initial: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  isDirty?: boolean;
+  onDiscard?: () => void;
   busy: boolean;
   hint: string;
   placeholder?: string;
@@ -41,6 +45,10 @@ interface BlockTextAreaProps {
  */
 export function BlockTextArea({
   initial,
+  value,
+  onChange,
+  isDirty = false,
+  onDiscard,
   busy,
   hint,
   placeholder,
@@ -51,7 +59,9 @@ export function BlockTextArea({
   onCancel,
 }: BlockTextAreaProps) {
   const { t } = useI18n();
-  const [draft, setDraft] = useState(initial);
+  const [internalDraft, setInternalDraft] = useState(initial);
+  const draft = value !== undefined ? value : internalDraft;
+  const setDraft = onChange ?? setInternalDraft;
   const images = imageDropHandlers<HTMLTextAreaElement>(onImages);
 
   /**
@@ -97,8 +107,20 @@ export function BlockTextArea({
       // composer thereby empties in place and keeps the cursor, which is what
       // makes "keep pasting" work; an editor is closed by whoever opened it
       // and never shows this.
-      setDraft(initial);
+      if (onChange === undefined) {
+        setInternalDraft(initial);
+      }
     }
+  }
+
+  function handleDiscard() {
+    if (isDirty) {
+      if (!window.confirm(t("common.discard_draft_confirm"))) {
+        return;
+      }
+    }
+    onDiscard?.();
+    onCancel?.();
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -129,9 +151,38 @@ export function BlockTextArea({
         className="field-input resize-y leading-relaxed"
         style={{ fontFamily: "var(--mono)", fontSize: "13px" }}
       />
-      <p className="text-right text-xs" style={{ color: "var(--text-faint)" }}>
-        {busy ? t("common.saving") : hint}
-      </p>
+      {onCancel !== undefined ? (
+        <div className="flex items-center justify-between">
+          <span className="text-xs" style={{ color: "var(--text-faint)" }}>
+            {busy ? t("common.saving") : hint}
+          </span>
+          <div className="flex items-center gap-2">
+            {onDiscard !== undefined && (
+              <button
+                type="button"
+                onClick={handleDiscard}
+                className="btn-ghost"
+                style={{ fontSize: "11.5px", padding: "4px 10px", borderRadius: "6px" }}
+              >
+                {t("common.discard")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => void commit()}
+              disabled={busy || draft.trim() === ""}
+              className="btn-primary"
+              style={{ fontSize: "11.5px", padding: "4px 10px", borderRadius: "6px" }}
+            >
+              {busy ? t("common.saving") : t("common.save")}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-right text-xs" style={{ color: "var(--text-faint)" }}>
+          {busy ? t("common.saving") : hint}
+        </p>
+      )}
     </div>
   );
 }

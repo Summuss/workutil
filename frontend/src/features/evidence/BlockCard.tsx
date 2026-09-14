@@ -9,6 +9,7 @@ import {
   TrashIcon,
 } from "../../shared/icons";
 import { DragHandle, useSortableItem } from "../../shared/sortable";
+import { useDraft } from "../../shared/useDraft";
 import { BlockTextArea } from "./BlockTextArea";
 import { hasTableMarkings } from "./clipboard";
 import { TableBlockView } from "./TableBlockView";
@@ -83,6 +84,18 @@ export function BlockCard({
   const [editingLabel, setEditingLabel] = useState(false);
   const [editingTable, setEditingTable] = useState(false);
 
+  const isTextBlock = block.kind === "text";
+  const {
+    draft: textDraft,
+    setDraft: setTextDraft,
+    isDirty: isTextDirty,
+    discard: discardTextDraft,
+    commit: commitTextDraft,
+  } = useDraft(
+    isTextBlock ? `draft:block:${block.id}` : "",
+    isTextBlock ? block.text : ""
+  );
+
   const canReorder = count > 1 && !busy;
   const { ref, style, handleProps } = useSortableItem(block.id, !canReorder);
 
@@ -94,6 +107,7 @@ export function BlockCard({
   async function commitText(text: string): Promise<boolean> {
     const accepted = await onEditText(text);
     if (accepted) {
+      commitTextDraft();
       setEditingText(false);
     }
     return accepted;
@@ -105,11 +119,21 @@ export function BlockCard({
     }
   }
 
+  async function handleAsTable(): Promise<void> {
+    if (isTextBlock) {
+      discardTextDraft();
+    }
+    await onAsTable?.();
+  }
+
   async function remove(): Promise<void> {
     // Deleting an image block deletes the screenshot itself, which nothing
     // undoes — hence the same confirmation as any other block, and no more.
     if (window.confirm(t("evidence.delete_block_confirm"))) {
       await onDelete();
+      if (isTextBlock) {
+        discardTextDraft();
+      }
     }
   }
 
@@ -144,6 +168,19 @@ export function BlockCard({
           >
             {block.label ?? t("evidence.add_label_button")}
           </button>
+        )}
+
+        {isTextDirty && (
+          <span
+            className="shrink-0 rounded px-1.5 py-0.5 text-[10.5px]"
+            style={{
+              fontFamily: "var(--mono)",
+              color: "var(--warn)",
+              background: "var(--warn-tint)",
+            }}
+          >
+            {t("evidence.unsaved")}
+          </span>
         )}
 
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
@@ -189,7 +226,7 @@ export function BlockCard({
                   type="button"
                   title={t("evidence.text_to_table_tooltip")}
                   disabled={busy}
-                  onClick={() => void onAsTable?.()}
+                  onClick={() => void handleAsTable()}
                   className={TOOL_BUTTON}
                 >
                   {t("evidence.text_to_table")}
@@ -284,6 +321,10 @@ export function BlockCard({
       ) : editingText ? (
         <BlockTextArea
           initial={block.text}
+          value={textDraft}
+          onChange={setTextDraft}
+          isDirty={isTextDirty}
+          onDiscard={discardTextDraft}
           busy={busy}
           autoFocus
           hint={t("evidence.edit_block_hint")}

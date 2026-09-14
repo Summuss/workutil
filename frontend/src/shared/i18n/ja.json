@@ -178,6 +178,7 @@
   "evidence.text_to_table": "テーブルに変換",
   "evidence.screenshot_alt": "スクリーンショット",
   "evidence.edit_block_hint": "Ctrl+Enter で保存 · Esc でキャンセル",
+  "evidence.unsaved": "未保存",
   "evidence.table_detected": "テーブルとして検出: {rows} 行 {cols} 列 · ",
   "evidence.convert_to_plain_text": "純粋なテキストに変更",
   "evidence.delete_column": "この列を削除",

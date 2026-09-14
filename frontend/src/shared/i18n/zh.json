@@ -178,6 +178,7 @@
   "evidence.text_to_table": "转为表格",
   "evidence.screenshot_alt": "截图",
   "evidence.edit_block_hint": "Ctrl+Enter 保存 · Esc 取消",
+  "evidence.unsaved": "未保存",
   "evidence.table_detected": "识别为表格, {rows} 行 {cols} 列 · ",
   "evidence.convert_to_plain_text": "改为纯文字",
   "evidence.delete_column": "删掉这一列",
