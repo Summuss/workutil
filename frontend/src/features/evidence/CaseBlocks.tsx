@@ -293,8 +293,8 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     });
   }
 
-  async function handleAsTable(blockId: number): Promise<void> {
-    await run(async () => {
+  function handleAsTable(blockId: number): Promise<boolean> {
+    return run(async () => {
       replace(await turnBlockIntoTable(evidenceId, caseId, blockId));
     });
   }

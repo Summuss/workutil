@@ -48,7 +48,7 @@ interface BlockCardProps {
   onMove: (to: Move) => Promise<void>;
   onDelete: () => Promise<void>;
   onSplitLines?: (splitLines: boolean) => Promise<void>;
-  onAsTable?: () => Promise<void>;
+  onAsTable?: () => Promise<boolean>;
   table: TableActions;
 }
 
@@ -123,10 +123,12 @@ export function BlockCard({
   }
 
   async function handleAsTable(): Promise<void> {
-    if (isTextBlock) {
+    // The draft goes only once the server has taken the text. A refusal
+    // ("这段文字切不出表格") leaves this a text block, and whatever was typed
+    // into it and not yet saved has to still be there when it does.
+    if (await onAsTable?.()) {
       discardTextDraft();
     }
-    await onAsTable?.();
   }
 
   async function remove(): Promise<void> {
