@@ -10,6 +10,7 @@ import {
 } from "../../shared/icons";
 import { DragHandle, useSortableItem } from "../../shared/sortable";
 import { BlockTextArea } from "./BlockTextArea";
+import { hasTableMarkings } from "./clipboard";
 import { TableBlockView } from "./TableBlockView";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
 import type { Block, Move } from "./types";
@@ -45,6 +46,7 @@ interface BlockCardProps {
   onMove: (to: Move) => Promise<void>;
   onDelete: () => Promise<void>;
   onSplitLines?: (splitLines: boolean) => Promise<void>;
+  onAsTable?: () => Promise<void>;
   table: TableActions;
 }
 
@@ -58,9 +60,9 @@ const LABEL_FIELD = "field-input min-w-0 flex-1";
  * a stack trace out of what you just pasted is an everyday move here too, and
  * drag-selecting text ends in a click that would throw the selection away.
  *
- * A block changes kind exactly once and in one direction: a table the server
- * read out of a paste can be told it was a log all along. Nothing else does —
- * an image is retaken and re-pasted, not edited.
+ * A block can be converted back and forth between table and text without limit
+ * (ADR-0004): a mistaken conversion or an unrecognized query result can be
+ * turned into a table, and a table can be returned to text.
  */
 export function BlockCard({
   block,
@@ -73,6 +75,7 @@ export function BlockCard({
   onMove,
   onDelete,
   onSplitLines,
+  onAsTable,
   table,
 }: BlockCardProps) {
   const { t } = useI18n();
@@ -179,6 +182,17 @@ export function BlockCard({
                   {block.split_lines
                     ? t("evidence.split_lines_merge")
                     : t("evidence.split_lines_split")}
+                </button>
+              )}
+              {hasTableMarkings(block.text) && (
+                <button
+                  type="button"
+                  title={t("evidence.text_to_table_tooltip")}
+                  disabled={busy}
+                  onClick={() => void onAsTable?.()}
+                  className={TOOL_BUTTON}
+                >
+                  {t("evidence.text_to_table")}
                 </button>
               )}
               <button

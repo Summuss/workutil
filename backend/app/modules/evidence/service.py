@@ -95,6 +95,12 @@ class EmptyTable(ValueError):
     code = "evidence.empty_table"
 
 
+class CannotParseAsTable(ValueError):
+    """The text could not be cut into a table."""
+
+    code = "evidence.cannot_turn_into_table"
+
+
 class WrongBlockKind(ValueError):
     """This block does not carry the payload the edit is for."""
 
@@ -938,6 +944,38 @@ def turn_block_into_text(
     block.table_source = ""
     block.has_header = False
     block.rows = []
+    block.split_lines = True
+    session.commit()
+    return block
+
+
+def turn_block_into_table(
+    session: Session, evidence_id: int, case_id: int, block_id: int
+) -> EvidenceBlock:
+    """Cut a text block's current text into cells, turning it into a table.
+
+    Overturns the one-way rule from ADR-0004: a mistaken conversion to text can
+    be taken back, and a query result that was never recognised as a table in
+    the first place can be turned into one without having to re-paste.
+
+    The cutting uses the block's current text rather than any historic copy, so
+    an edit made while it was text is what will become the table. If the text
+    cannot be cut into a rectangular table with matching columns, the block is
+    refused and left unchanged.
+    """
+    block = get_block(session, evidence_id, case_id, block_id)
+    if block.kind is not BlockKind.TEXT:
+        raise WrongBlockKind("这一段不是文字")
+
+    rows = tables.table_in(block.text, None)
+    if rows is None:
+        raise CannotParseAsTable("这段文字切不出表格")
+
+    block.kind = BlockKind.TABLE
+    block.rows = rows
+    block.has_header = len(rows) > 1
+    block.table_source = block.text
+    block.text = ""
     block.split_lines = True
     session.commit()
     return block

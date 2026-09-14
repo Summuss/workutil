@@ -20,6 +20,7 @@ import {
   setTableCell,
   setTableHeader,
   setTextBlockSplitLines,
+  turnBlockIntoTable,
   turnBlockIntoText,
 } from "./api";
 import { BlockCard } from "./BlockCard";
@@ -283,6 +284,12 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     });
   }
 
+  async function handleAsTable(blockId: number): Promise<void> {
+    await run(async () => {
+      replace(await turnBlockIntoTable(evidenceId, caseId, blockId));
+    });
+  }
+
   async function handleSplitLines(
     blockId: number,
     splitLines: boolean,
@@ -338,6 +345,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
                   onSplitLines={(splitLines) =>
                     handleSplitLines(block.id, splitLines)
                   }
+                  onAsTable={() => handleAsTable(block.id)}
                   table={{
                     onHeader: (hasHeader) => handleHeader(block.id, hasHeader),
                     onCell: (row, column, value) =>

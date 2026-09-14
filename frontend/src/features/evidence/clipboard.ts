@@ -36,6 +36,17 @@
  *   result set the one thing this could not see. Text pulled out of the middle
  *   of a line has no newline at all and still stays a paste.
  */
+/**
+ * Does this text carry the coarse markings of a table?
+ *
+ * Both tabs and newlines must be present: a tab alone without newlines is a
+ * fragment selected out of the middle of an indented log line, and newlines
+ * alone without tabs are regular paragraphs.
+ */
+export function hasTableMarkings(text: string): boolean {
+  return text.includes("\t") && text.includes("\n");
+}
+
 export function carriesTable(clipboard: DataTransfer | null): boolean {
   if (clipboard === null) {
     return false;
@@ -44,7 +55,7 @@ export function carriesTable(clipboard: DataTransfer | null): boolean {
     return true;
   }
   const text = clipboard.getData("text/plain");
-  return text.includes("\t") && text.includes("\n");
+  return hasTableMarkings(text);
 }
 
 /** The two flavours a pasted table can arrive in, as the server takes them. */

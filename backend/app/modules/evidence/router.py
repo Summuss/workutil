@@ -60,6 +60,7 @@ def _as_http_error() -> Iterator[None]:
         service.InvalidCaseName,
         service.EmptyBlockText,
         service.EmptyTable,
+        service.CannotParseAsTable,
         service.WrongBlockKind,
         service.EmptyEvidence,
         images.InvalidImage,
@@ -294,6 +295,19 @@ def turn_block_into_text(
     """
     with _as_http_error():
         block = service.turn_block_into_text(session, evidence_id, case_id, block_id)
+    return BlockRead.of(block, evidence_id)
+
+
+@router.post(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-table",
+    response_model=BlockRead,
+)
+def turn_block_into_table(
+    evidence_id: int, case_id: int, block_id: int, session: SessionDep
+) -> BlockRead:
+    """Turn a text block back into a table by cutting its text into cells."""
+    with _as_http_error():
+        block = service.turn_block_into_table(session, evidence_id, case_id, block_id)
     return BlockRead.of(block, evidence_id)
 
 

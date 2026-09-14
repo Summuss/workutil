@@ -21,6 +21,9 @@ from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
+
+from app.modules.evidence.models import EvidenceBlock
 
 from .conftest import workutil_at
 from .test_evidence_api import add_case, new_evidence
@@ -602,7 +605,7 @@ def test_a_corrected_table_keeps_no_rows(
 def test_only_a_table_can_be_corrected(
     client: TestClient, case: tuple[int, int]
 ) -> None:
-    """Text is already text, and the correction runs one way only."""
+    """Text is already text, and as-text requires a table."""
     evidence_id, case_id = case
     block = paste(client, evidence_id, case_id, "ただの文字")
 
@@ -611,6 +614,200 @@ def test_only_a_table_can_be_corrected(
     )
 
     assert refused.status_code == 422
+
+
+# --- Turning text into table (two-way) --------------------------------------
+
+
+def test_a_corrected_table_can_be_turned_back_into_a_table(
+    client: TestClient, table: tuple[int, int, int]
+) -> None:
+    """A table turned into text can be turned back into a table without loss."""
+    evidence_id, case_id, block_id = table
+    original_rows = rows_of(client, evidence_id, case_id, block_id)
+
+    # 1. Turn to text
+    text_res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-text"
+    )
+    assert text_res.status_code == 200
+    assert text_res.json()["kind"] == "text"
+
+    # 2. Turn back to table
+    table_res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-table"
+    )
+    assert table_res.status_code == 200
+    assert table_res.json()["kind"] == "table"
+    assert table_res.json()["rows"] == original_rows
+    assert table_res.json()["has_header"] is True
+
+
+def test_a_tsv_log_never_recognised_can_be_turned_into_a_table(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """A TSV text block created as text can be turned into a table."""
+    evidence_id, case_id = case
+    created = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks",
+        json={"kind": "text", "text": "col1\tcol2\nval1\tval2\n"},
+    )
+    assert created.status_code == 201
+    block_id = created.json()["id"]
+
+    res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-table"
+    )
+    assert res.status_code == 200
+    assert res.json()["kind"] == "table"
+    assert res.json()["rows"] == [["col1", "col2"], ["val1", "val2"]]
+    assert res.json()["has_header"] is True
+
+
+def test_turning_into_table_cuts_the_current_text_after_edit(
+    client: TestClient, table: tuple[int, int, int]
+) -> None:
+    """Editing the text block before turning back cuts the edited text."""
+    evidence_id, case_id, block_id = table
+    client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-text"
+    )
+    edited_text = "newA\tnewB\n100\t200\n"
+    client.patch(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}",
+        json={"text": edited_text},
+    )
+
+    res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-table"
+    )
+    assert res.status_code == 200
+    assert res.json()["kind"] == "table"
+    assert res.json()["rows"] == [["newA", "newB"], ["100", "200"]]
+
+
+def test_turning_into_table_keeps_label_and_order(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    evidence_id, case_id = case
+    first = paste(client, evidence_id, case_id, "先に書いた一段")
+    block = paste(client, evidence_id, case_id, QUERY_RESULT, label="ログ")
+    paste(client, evidence_id, case_id, "後に書いた一段")
+
+    client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block['id']}/as-text"
+    )
+    res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block['id']}/as-table"
+    )
+    assert res.status_code == 200
+    assert res.json()["id"] == block["id"]
+    assert res.json()["label"] == "ログ"
+
+    listed = blocks_of(client, evidence_id, case_id)
+    assert [one["id"] for one in listed[:2]] == [first["id"], block["id"]]
+    assert [one["order"] for one in listed] == [0, 1, 2]
+
+
+def test_single_row_table_has_header_false(
+    client: TestClient, case: tuple[int, int], session: Session
+) -> None:
+    evidence_id, case_id = case
+    created = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks",
+        json={"kind": "text", "text": "only_one\trow"},
+    )
+    block_id = created.json()["id"]
+
+    # Pre-condition: arrange the text with a trailing newline, which is the
+    # marker that tells table_in that a single row is a complete row (design.md §6 F5).
+    db_block = session.get(EvidenceBlock, block_id)
+    assert db_block is not None
+    db_block.text = "only_one\trow\n"
+    session.commit()
+
+    res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-table"
+    )
+    assert res.status_code == 200
+    assert res.json()["kind"] == "table"
+    assert res.json()["rows"] == [["only_one", "row"]]
+    assert res.json()["has_header"] is False
+
+
+def test_text_that_cannot_be_parsed_as_table_is_refused(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    evidence_id, case_id = case
+    created = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks",
+        json={"kind": "text", "text": "foo\tbar"},
+    )
+    block_id = created.json()["id"]
+
+    res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-table"
+    )
+    assert res.status_code == 422
+    assert res.json()["code"] == "evidence.cannot_turn_into_table"
+
+    block = block_at(client, evidence_id, case_id, block_id)
+    assert block["kind"] == "text"
+    assert block["text"] == "foo\tbar"
+
+
+def test_only_text_block_can_be_turned_into_table(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    evidence_id, case_id = case
+    table_block = paste(client, evidence_id, case_id, QUERY_RESULT)
+    res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{table_block['id']}/as-table"
+    )
+    assert res.status_code == 422
+    assert res.json()["code"] == "evidence.wrong_block_kind"
+
+
+def test_image_block_cannot_be_turned_into_table(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    from .conftest import SAMPLE_PNG, data_url
+
+    evidence_id, case_id = case
+    img_block = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks",
+        json={
+            "kind": "image",
+            "image": {"data": data_url(SAMPLE_PNG), "filename": "test.png"},
+        },
+    ).json()
+
+    res = client.post(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{img_block['id']}/as-table"
+    )
+    assert res.status_code == 422
+    assert res.json()["code"] == "evidence.wrong_block_kind"
+
+
+def test_turning_back_and_forth_five_times_does_not_degrade_content(
+    client: TestClient, table: tuple[int, int, int]
+) -> None:
+    evidence_id, case_id, block_id = table
+    original_rows = rows_of(client, evidence_id, case_id, block_id)
+
+    for _ in range(5):
+        to_text = client.post(
+            f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-text"
+        )
+        assert to_text.status_code == 200
+        assert to_text.json()["kind"] == "text"
+
+        to_table = client.post(
+            f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/as-table"
+        )
+        assert to_table.status_code == 200
+        assert to_table.json()["kind"] == "table"
+        assert to_table.json()["rows"] == original_rows
 
 
 # --- The header row ---------------------------------------------------------

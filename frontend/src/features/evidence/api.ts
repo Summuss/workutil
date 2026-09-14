@@ -121,6 +121,15 @@ export function turnBlockIntoText(
   return post<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/as-text`);
 }
 
+/** Cuts a text block's current text into cells, turning it into a table. */
+export function turnBlockIntoTable(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+): Promise<Block> {
+  return post<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/as-table`);
+}
+
 /** Says whether a table's first row is column names — stated, not toggled. */
 export function setTableHeader(
   evidenceId: number,
