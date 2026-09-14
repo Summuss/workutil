@@ -98,40 +98,60 @@ export function useDraft<T>(key: string, saved: T): DraftHandle<T> {
 
   const prevKeyRef = useRef(key);
   const prevSavedRef = useRef(saved);
+  // The draft as it stands right now, readable from the effect below without
+  // being one of its dependencies — that effect must not re-run on every
+  // keystroke.
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
 
   useEffect(() => {
-    const keyChanged = prevKeyRef.current !== key;
-    const savedChanged = !isEqual(prevSavedRef.current, saved);
-
+    const previousKey = prevKeyRef.current;
+    const previousSaved = prevSavedRef.current;
     prevKeyRef.current = key;
     prevSavedRef.current = saved;
 
-    if (keyChanged || savedChanged) {
+    if (previousKey !== key) {
       const stored = readStorage<T>(key, saved);
       setDraftState(stored !== null ? stored : saved);
+      return;
+    }
+
+    if (!isEqual(previousSaved, saved)) {
+      // The saved value moved underneath an open draft. Follow it only when
+      // there was nothing unsaved to lose — keystrokes that landed while a
+      // save was in flight are still worth keeping, and stomping them here is
+      // exactly what the effect this hook replaced used to get wrong. A draft
+      // that outlives the value it was written against is caught on the next
+      // load instead, where `savedAt` no longer matches and `readStorage`
+      // drops it.
+      if (isEqual(draftRef.current, previousSaved)) {
+        setDraftState(saved);
+      }
     }
   }, [key, saved]);
 
+  // Persistence is an effect rather than something the state updater does on
+  // the way past. An updater has to be pure — React may call it twice or throw
+  // its result away — and writing from inside one also races `commit()`: the
+  // removal runs first, then the queued updater puts the key straight back.
+  useEffect(() => {
+    if (!key) {
+      return;
+    }
+    if (isEqual(draft, saved)) {
+      removeStorage(key);
+    } else {
+      writeStorage(key, draft, saved);
+    }
+  }, [key, draft, saved]);
+
   const isDirty = !isEqual(draft, saved);
 
-  const setDraft = useCallback(
-    (next: T | ((current: T) => T)) => {
-      setDraftState((current) => {
-        const resolved =
-          typeof next === "function"
-            ? (next as (current: T) => T)(current)
-            : next;
-
-        if (isEqual(resolved, saved)) {
-          removeStorage(key);
-        } else {
-          writeStorage(key, resolved, saved);
-        }
-        return resolved;
-      });
-    },
-    [key, saved],
-  );
+  const setDraft = useCallback((next: T | ((current: T) => T)) => {
+    setDraftState((current) =>
+      typeof next === "function" ? (next as (current: T) => T)(current) : next,
+    );
+  }, []);
 
   const discard = useCallback(() => {
     removeStorage(key);
