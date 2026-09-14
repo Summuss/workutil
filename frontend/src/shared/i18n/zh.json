@@ -179,6 +179,7 @@
   "evidence.convert_to_plain_text": "改为纯文字",
   "evidence.delete_column": "删掉这一列",
   "evidence.delete_row": "删掉这一行",
+  "image.duplicate_paste_confirm": "这张图片和上一张一模一样，截图可能还没写进剪贴板。确定要继续添加吗？",
   "api.request_failed": "请求失败 ({status})",
   "api.network_error": "连接不上 workutil 服务",
   "error.unknown": "发生未知错误，请稍后重试",

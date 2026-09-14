@@ -179,6 +179,7 @@
   "evidence.convert_to_plain_text": "純粋なテキストに変更",
   "evidence.delete_column": "この列を削除",
   "evidence.delete_row": "この行を削除",
+  "image.duplicate_paste_confirm": "この画像は直前に貼り付けたものと同一です。スクリーンショットがまだクリップボードに反映されていない可能性があります。このまま追加しますか？",
   "api.request_failed": "リクエストに失敗しました ({status})",
   "api.network_error": "workutil サービスに接続できません",
   "error.unknown": "予期せぬエラーが発生しました。時間をおいて再試行してください",

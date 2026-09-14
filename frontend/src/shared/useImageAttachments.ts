@@ -1,6 +1,7 @@
 import { useCallback, useRef, type RefObject } from "react";
 
 import { imageDropHandlers, readImage, type ImageUpload } from "./images";
+import { guardDuplicateImagePaste } from "./pasteDuplicateImage";
 
 /**
  * Screenshots pasted or dragged into a textarea.
@@ -29,6 +30,11 @@ export function useImageAttachments(
         return;
       }
 
+      const recordSuccess = await guardDuplicateImagePaste(files);
+      if (!recordSuccess) {
+        return;
+      }
+
       // Read the files before looking at the textarea. A big screenshot takes
       // long enough to type into, and where the cursor was when the paste
       // landed is not where it is when the bytes arrive.
@@ -38,6 +44,8 @@ export function useImageAttachments(
           ...(await readImage(file)),
         })),
       );
+
+      await recordSuccess();
 
       const element = textareaRef.current;
       const text = element ? element.value : "";

@@ -25,6 +25,7 @@ import {
 } from "./api";
 import { BlockCard } from "./BlockCard";
 import { BlockTextArea } from "./BlockTextArea";
+import { guardDuplicateImagePaste } from "../../shared/pasteDuplicateImage";
 import { SortableList } from "../../shared/sortable";
 import type { PastedText } from "./clipboard";
 import type { Block, CaseDetail, Move } from "./types";
@@ -168,6 +169,13 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
   }
 
   async function handleImages(files: File[]): Promise<void> {
+    if (files.length === 0) {
+      return;
+    }
+    const recordSuccess = await guardDuplicateImagePaste(files);
+    if (!recordSuccess) {
+      return;
+    }
     await run(async () => {
       const added: Block[] = [];
       try {
@@ -176,6 +184,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
             await addImageBlock(evidenceId, caseId, await readImage(file)),
           );
         }
+        await recordSuccess();
       } finally {
         if (added.length > 0) {
           setBlocks([...blocks, ...added]);
