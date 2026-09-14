@@ -64,14 +64,15 @@ export async function guardDuplicateImagePaste(
     }
   }
 
-  return async () => {
-    // When successful, update the session fingerprint to the last file of the batch.
-    const lastFile = files[files.length - 1];
-    if (lastFile) {
-      const lastHash = await computeSha256(lastFile);
-      if (lastHash !== null) {
-        lastPastedFingerprint = lastHash;
-      }
+  return () => {
+    // What gets remembered is the same file the next paste will be compared
+    // against — the first of the batch. Remembering the last one instead would
+    // miss the very race this exists for: paste two images, take a screenshot
+    // that has not reached the clipboard yet, paste again, and the same two
+    // images come back with the first compared against the second.
+    if (firstHash !== null) {
+      lastPastedFingerprint = firstHash;
     }
+    return Promise.resolve();
   };
 }
