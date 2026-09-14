@@ -6,7 +6,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { messageOf } from "../../shared/api";
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
-import { ArrowLeftIcon } from "../../shared/icons";
+import { ArrowLeftIcon, SidebarIcon } from "../../shared/icons";
 import { PageLayout } from "../../shared/PageLayout";
 import { useEditRunner } from "../../shared/useEditRunner";
 import { useLoad } from "../../shared/useLoad";
@@ -22,9 +22,32 @@ import {
 } from "./api";
 import { CaseBlocks } from "./CaseBlocks";
 import { CaseTabs } from "./CaseTabs";
+import { EvidenceMemoPanel } from "./EvidenceMemoPanel";
 import type { Case, EvidenceDetail, Move } from "./types";
 
 const TITLE_FIELD = "field-input min-w-0 flex-1";
+const MEMO_PANEL_STORAGE_KEY = "workutil_evidence_memo_panel_open";
+
+function loadMemoPanelOpen(): boolean {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      return localStorage.getItem(MEMO_PANEL_STORAGE_KEY) === "true";
+    } catch {
+      // localStorage may be unavailable or blocked
+    }
+  }
+  return false;
+}
+
+function saveMemoPanelOpen(open: boolean): void {
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      localStorage.setItem(MEMO_PANEL_STORAGE_KEY, open ? "true" : "false");
+    } catch {
+      // ignore storage failures
+    }
+  }
+}
 
 /**
  * One evidence: its title, its cases, and the case you are working in.
@@ -55,6 +78,30 @@ export function EvidenceDetailPage() {
   const caseEdit = useEditRunner(t("common.action_failed"));
 
   const [editingTitle, setEditingTitle] = useState(false);
+  const [memoPanelOpen, setMemoPanelOpen] = useState(loadMemoPanelOpen);
+
+  function toggleMemoPanel() {
+    setMemoPanelOpen((prev) => {
+      const next = !prev;
+      saveMemoPanelOpen(next);
+      return next;
+    });
+  }
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      // Intentionally checks ONLY event.ctrlKey (and strictly not event.metaKey)
+      // because on macOS Cmd+M is the system-wide shortcut to minimize the window.
+      if (event.ctrlKey && !event.metaKey && (event.key === "m" || event.key === "M")) {
+        event.preventDefault();
+        toggleMemoPanel();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   const cases = evidence?.cases ?? [];
   const selectedId =
@@ -209,94 +256,116 @@ export function EvidenceDetailPage() {
   }
 
   return (
-    <PageLayout
-      scrollable={selectedId === null}
-      fixedHeader={
-        <>
-          <div className="flex items-center gap-2.5">
-            <Link
-              to="/evidence"
-              className="inline-flex shrink-0 items-center gap-1 text-xs"
-              style={{ color: "var(--text-faint)" }}
-            >
-              <ArrowLeftIcon size={12} />
-              {t("evidence.back_to_list_short")}
-            </Link>
-            {editingTitle ? (
-              <InlineEdit
-                initial={evidence.title}
-                busy={titleEdit.busy}
-                className={TITLE_FIELD}
-                onCommit={commitTitle}
-                onCancel={() => setEditingTitle(false)}
-              />
-            ) : (
+    <div className="flex flex-1 min-h-0 flex-row overflow-hidden">
+      <PageLayout
+        className="min-w-0"
+        scrollable={selectedId === null}
+        fixedHeader={
+          <>
+            <div className="flex items-center gap-2.5">
+              <Link
+                to="/evidence"
+                className="inline-flex shrink-0 items-center gap-1 text-xs"
+                style={{ color: "var(--text-faint)" }}
+              >
+                <ArrowLeftIcon size={12} />
+                {t("evidence.back_to_list_short")}
+              </Link>
+              {editingTitle ? (
+                <InlineEdit
+                  initial={evidence.title}
+                  busy={titleEdit.busy}
+                  className={TITLE_FIELD}
+                  onCommit={commitTitle}
+                  onCancel={() => setEditingTitle(false)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  title={t("evidence.click_to_rename")}
+                  onClick={() => setEditingTitle(true)}
+                  className="min-w-0 flex-1 cursor-pointer truncate text-left text-base font-semibold"
+                >
+                  {evidence.title}
+                </button>
+              )}
+              <a
+                href={exportEvidenceUrl(id)}
+                download
+                aria-disabled={cases.length === 0}
+                tabIndex={cases.length === 0 ? -1 : undefined}
+                onClick={(event) => {
+                  // pointer-events-none stops a click but not a keyboard Enter, and
+                  // tabIndex=-1 alone leaves a keyboard-then-mouse activation path
+                  // open — either would otherwise download the 422 refusal body as
+                  // an .xlsx file.
+                  if (cases.length === 0) {
+                    event.preventDefault();
+                  }
+                }}
+                className="btn-ghost shrink-0"
+                style={cases.length === 0 ? { pointerEvents: "none", opacity: 0.4 } : undefined}
+                title={cases.length === 0 ? t("evidence.export_no_cases") : t("evidence.export_excel")}
+              >
+                {t("evidence.export_excel")}
+              </a>
               <button
                 type="button"
-                title={t("evidence.click_to_rename")}
-                onClick={() => setEditingTitle(true)}
-                className="min-w-0 flex-1 cursor-pointer truncate text-left text-base font-semibold"
+                onClick={toggleMemoPanel}
+                className="btn-ghost shrink-0 inline-flex items-center gap-1.5"
+                style={memoPanelOpen ? { color: "var(--accent)" } : undefined}
+                title={t("evidence.toggle_memo_panel")}
               >
-                {evidence.title}
+                <SidebarIcon size={13} />
+                <span>{t("evidence.memo_panel_button")}</span>
               </button>
+            </div>
+
+            {(error ?? titleEdit.error) !== null && (
+              <p className="text-xs" style={{ color: "var(--danger)" }}>
+                {error ?? titleEdit.error}
+              </p>
             )}
-            <a
-              href={exportEvidenceUrl(id)}
-              download
-              aria-disabled={cases.length === 0}
-              tabIndex={cases.length === 0 ? -1 : undefined}
-              onClick={(event) => {
-                // pointer-events-none stops a click but not a keyboard Enter, and
-                // tabIndex=-1 alone leaves a keyboard-then-mouse activation path
-                // open — either would otherwise download the 422 refusal body as
-                // an .xlsx file.
-                if (cases.length === 0) {
-                  event.preventDefault();
-                }
-              }}
-              className="btn-ghost shrink-0"
-              style={cases.length === 0 ? { pointerEvents: "none", opacity: 0.4 } : undefined}
-              title={cases.length === 0 ? t("evidence.export_no_cases") : t("evidence.export_excel")}
-            >
-              {t("evidence.export_excel")}
-            </a>
+
+            <CaseTabs
+              cases={cases}
+              selectedId={selectedId}
+              busy={caseEdit.busy}
+              error={caseEdit.error}
+              onSelect={handleSelectCase}
+              onAdd={handleAdd}
+              onRename={handleRename}
+              onDelete={handleDelete}
+              onDuplicate={handleDuplicate}
+              onMove={handleMove}
+              onReorder={handleReorderCase}
+            />
+          </>
+        }
+      >
+        {selectedId === null ? (
+          <div
+            className="rounded-lg px-4 py-10 text-center text-xs"
+            style={{ border: "1px dashed var(--border-strong)", color: "var(--text-faint)" }}
+          >
+            {t("evidence.no_cases_hint")}
           </div>
+        ) : (
+          // Keyed by the case, so switching tabs starts the content area over
+          // rather than showing the previous case's blocks while the next load
+          // is in flight.
+          <CaseBlocks key={selectedId} evidenceId={id} caseId={selectedId} />
+        )}
+      </PageLayout>
 
-          {(error ?? titleEdit.error) !== null && (
-            <p className="text-xs" style={{ color: "var(--danger)" }}>
-              {error ?? titleEdit.error}
-            </p>
-          )}
-
-          <CaseTabs
-            cases={cases}
-            selectedId={selectedId}
-            busy={caseEdit.busy}
-            error={caseEdit.error}
-            onSelect={handleSelectCase}
-            onAdd={handleAdd}
-            onRename={handleRename}
-            onDelete={handleDelete}
-            onDuplicate={handleDuplicate}
-            onMove={handleMove}
-            onReorder={handleReorderCase}
-          />
-        </>
-      }
-    >
-      {selectedId === null ? (
-        <div
-          className="rounded-lg px-4 py-10 text-center text-xs"
-          style={{ border: "1px dashed var(--border-strong)", color: "var(--text-faint)" }}
-        >
-          {t("evidence.no_cases_hint")}
-        </div>
-      ) : (
-        // Keyed by the case, so switching tabs starts the content area over
-        // rather than showing the previous case's blocks while the next load
-        // is in flight.
-        <CaseBlocks key={selectedId} evidenceId={id} caseId={selectedId} />
+      {memoPanelOpen && (
+        <EvidenceMemoPanel
+          onClose={() => {
+            saveMemoPanelOpen(false);
+            setMemoPanelOpen(false);
+          }}
+        />
       )}
-    </PageLayout>
+    </div>
   );
 }
