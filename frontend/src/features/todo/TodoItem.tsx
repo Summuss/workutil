@@ -33,6 +33,7 @@ interface TodoItemProps {
 interface TodoDraft {
   title: string;
   description: string;
+  dueDate: string;
 }
 
 const MOVES: {
@@ -61,11 +62,17 @@ export function TodoItem({
   const canReorder = !isCompleted && !editing && onMove !== undefined && count !== undefined && count > 1;
   const { ref, style, handleProps } = useSortableItem(todo.id, !canReorder);
 
-  // Title and description form a single atomic draft unit. If either differs from
-  // the saved record, isDirty marks the whole form as unsaved.
+  // Every field this form opens is one draft unit — the due date included.
+  // Leaving it out is the same "半新半旧" failure the whole rule exists to
+  // prevent, just moved to a third field: after a refresh the title and the
+  // description would come back edited while the date silently reverted.
   const savedDraft = useMemo(
-    () => ({ title: todo.title, description: todo.description ?? "" }),
-    [todo.title, todo.description]
+    () => ({
+      title: todo.title,
+      description: todo.description ?? "",
+      dueDate: todo.due_date ?? "",
+    }),
+    [todo.title, todo.description, todo.due_date]
   );
   const { draft, setDraft, isDirty, discard, commit } = useDraft<TodoDraft>(
     `draft:todo:${todo.id}`,
@@ -73,17 +80,12 @@ export function TodoItem({
   );
   const isUnsaved = !isCompleted && isDirty;
 
-  const [dueDate, setDueDate] = useState(todo.due_date ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [moving, setMoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    setDueDate(todo.due_date ?? "");
-  }, [todo.due_date]);
 
   useEffect(() => {
     if (editing) {
@@ -119,7 +121,7 @@ export function TodoItem({
       setError(t("todo.title_empty"));
       return;
     }
-    const cleanDate = dueDate ? dueDate : null;
+    const cleanDate = draft.dueDate ? draft.dueDate : null;
     if (
       cleanTitle === todo.title &&
       cleanDate === todo.due_date &&
@@ -154,7 +156,6 @@ export function TodoItem({
       }
       discard();
     }
-    setDueDate(todo.due_date ?? "");
     setEditing(false);
     setError(null);
   }
@@ -229,13 +230,20 @@ export function TodoItem({
             <span>{t("todo.due_date_label")}</span>
             <input
               type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
+              value={draft.dueDate}
+              onChange={(e) => {
+                const next = e.target.value;
+                setDraft((curr) => ({ ...curr, dueDate: next }));
+              }}
               className="field-input"
               style={{ width: "auto", padding: "4px 8px" }}
             />
-            {dueDate && (
-              <button type="button" onClick={() => setDueDate("")} className="text-btn">
+            {draft.dueDate && (
+              <button
+                type="button"
+                onClick={() => setDraft((curr) => ({ ...curr, dueDate: "" }))}
+                className="text-btn"
+              >
                 {t("todo.clear_date")}
               </button>
             )}
