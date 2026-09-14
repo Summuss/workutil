@@ -1,6 +1,6 @@
 # 02: evidence 的截图能点开看原图
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **Blocked by:** 无
 
@@ -13,9 +13,9 @@
 - alt 维持现在的 `block.label ?? t("evidence.screenshot_alt")`。
 - **不要**给 evidence 的图加高度上限缩略图 —— 那是 memo 为了解决「列表里一条撑掉一屏」做的,evidence 一屏就是一个用例,不是同一个问题。
 
-- [ ] 点一张截图开灯箱,看到的是原图
-- [ ] `Esc` 关掉;点遮罩也关掉
-- [ ] 一个用例里有好几张图,点哪张开哪张
-- [ ] 图片加载失败时点它不会开一个空灯箱
-- [ ] memo 那边的灯箱行为一点没变
-- [ ] `pnpm build` / `tsc` 通过
+- [x] 点一张截图开灯箱,看到的是原图
+- [x] `Esc` 关掉;点遮罩也关掉
+- [x] 一个用例里有好几张图,点哪张开哪张
+- [x] 图片加载失败时点它不会开一个空灯箱
+- [x] memo 那边的灯箱行为一点没变
+- [x] `pnpm build` / `tsc` 通过

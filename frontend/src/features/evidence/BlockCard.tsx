@@ -9,6 +9,7 @@ import {
   TrashIcon,
 } from "../../shared/icons";
 import { DragHandle, useSortableItem } from "../../shared/sortable";
+import { Lightbox } from "../../shared/Lightbox";
 import { useDraft } from "../../shared/useDraft";
 import { BlockTextArea } from "./BlockTextArea";
 import { hasTableMarkings } from "./clipboard";
@@ -83,6 +84,8 @@ export function BlockCard({
   const [editingText, setEditingText] = useState(false);
   const [editingLabel, setEditingLabel] = useState(false);
   const [editingTable, setEditingTable] = useState(false);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const isTextBlock = block.kind === "text";
   const {
@@ -311,12 +314,27 @@ export function BlockCard({
            No `src` fallback: an empty one asks the server for this page again
            and draws the answer as a broken image. */
         block.image_url !== null && (
-          <img
-            src={block.image_url}
-            alt={block.label ?? t("evidence.screenshot_alt")}
-            className="max-w-full self-start rounded-md"
-            style={{ border: "1px solid var(--border)" }}
-          />
+          <>
+            <img
+              src={block.image_url}
+              alt={block.label ?? t("evidence.screenshot_alt")}
+              onClick={() => {
+                if (!imageError) {
+                  setLightboxOpen(true);
+                }
+              }}
+              onError={() => setImageError(true)}
+              className={`max-w-full self-start rounded-md${imageError ? "" : " cursor-pointer"}`}
+              style={{ border: "1px solid var(--border)" }}
+            />
+            {lightboxOpen && !imageError && (
+              <Lightbox
+                src={block.image_url}
+                alt={block.label ?? t("evidence.screenshot_alt")}
+                onClose={() => setLightboxOpen(false)}
+              />
+            )}
+          </>
         )
       ) : editingText ? (
         <BlockTextArea
