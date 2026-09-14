@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useParams } from "react-router";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { arrayMove } from "@dnd-kit/sortable";
 
@@ -29,15 +29,18 @@ const TITLE_FIELD = "field-input min-w-0 flex-1";
 /**
  * One evidence: its title, its cases, and the case you are working in.
  *
- * Which case is open is component state rather than part of the URL. Back and
- * forward step between the list and a workbook, which is the navigation spec
- * User Stories 25 asks for; making every tab click a history entry would turn
- * Back into "undo my last eight clicks" instead.
+ * Which case is open is reflected in the URL (/evidence/:evidenceId/cases/:caseId)
+ * but tab switches use replace rather than push. Back and forward step between
+ * the list and an evidence workbook, which is the navigation spec User
+ * Stories 25 asks for; making every tab click a history entry would turn Back
+ * into "undo my last eight clicks" instead.
  */
 export function EvidenceDetailPage() {
   const { t } = useI18n();
-  const { evidenceId } = useParams();
+  const navigate = useNavigate();
+  const { evidenceId, caseId } = useParams();
   const id = Number(evidenceId);
+  const urlCaseId = caseId !== undefined ? Number(caseId) : null;
 
   const {
     value: evidence,
@@ -51,15 +54,26 @@ export function EvidenceDetailPage() {
   const titleEdit = useEditRunner(t("evidence.rename_failed"));
   const caseEdit = useEditRunner(t("common.action_failed"));
 
-  // Which case the author last picked. The case actually shown is worked out
-  // below, so a case that has been deleted — or one picked in a different
-  // evidence — falls back to the first rather than showing nothing.
-  const [pickedId, setPickedId] = useState<number | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
 
   const cases = evidence?.cases ?? [];
   const selectedId =
-    cases.find((one) => one.id === pickedId)?.id ?? cases[0]?.id ?? null;
+    cases.find((one) => one.id === urlCaseId)?.id ?? cases[0]?.id ?? null;
+
+  // Keep URL in sync: if visiting without a caseId or with a stale/invalid
+  // caseId, replace with the canonical case path once evidence loads.
+  useEffect(() => {
+    if (evidence === null) {
+      return;
+    }
+    if (selectedId !== null) {
+      if (urlCaseId !== selectedId) {
+        navigate(`/evidence/${id}/cases/${selectedId}`, { replace: true });
+      }
+    } else if (urlCaseId !== null) {
+      navigate(`/evidence/${id}`, { replace: true });
+    }
+  }, [evidence, id, selectedId, urlCaseId, navigate]);
 
   function setCases(next: Case[]) {
     setEvidence((current) =>
@@ -69,42 +83,51 @@ export function EvidenceDetailPage() {
     );
   }
 
+  function handleSelectCase(targetCaseId: number) {
+    navigate(`/evidence/${id}/cases/${targetCaseId}`, { replace: true });
+  }
+
   function handleAdd(name: string): Promise<boolean> {
     return caseEdit.run(async () => {
       const created = await addCase(id, name);
       setCases([...cases, created]);
-      setPickedId(created.id);
+      navigate(`/evidence/${id}/cases/${created.id}`, { replace: true });
     });
   }
 
-  function handleRename(caseId: number, name: string): Promise<boolean> {
+  function handleRename(targetCaseId: number, name: string): Promise<boolean> {
     return caseEdit.run(async () => {
-      const renamed = await renameCase(id, caseId, name);
-      setCases(cases.map((one) => (one.id === caseId ? renamed : one)));
+      const renamed = await renameCase(id, targetCaseId, name);
+      setCases(cases.map((one) => (one.id === targetCaseId ? renamed : one)));
     });
   }
 
-  async function handleDelete(caseId: number): Promise<void> {
+  async function handleDelete(targetCaseId: number): Promise<void> {
     await caseEdit.run(async () => {
-      await deleteCase(id, caseId);
+      await deleteCase(id, targetCaseId);
 
-      const wasAt = cases.findIndex((one) => one.id === caseId);
-      const left = cases.filter((one) => one.id !== caseId);
+      const wasAt = cases.findIndex((one) => one.id === targetCaseId);
+      const left = cases.filter((one) => one.id !== targetCaseId);
       setCases(left);
       // Land on whatever took its place, so the content area is never blank
       // just because the case you were in is gone.
-      setPickedId(left[Math.min(wasAt, left.length - 1)]?.id ?? null);
+      const nextId = left[Math.min(wasAt, left.length - 1)]?.id ?? null;
+      if (nextId !== null) {
+        navigate(`/evidence/${id}/cases/${nextId}`, { replace: true });
+      } else {
+        navigate(`/evidence/${id}`, { replace: true });
+      }
     });
   }
 
-  async function handleDuplicate(caseId: number): Promise<number | null> {
+  async function handleDuplicate(targetCaseId: number): Promise<number | null> {
     let newCaseId: number | null = null;
     await caseEdit.run(async () => {
       try {
-        const res = await duplicateCase(id, caseId);
+        const res = await duplicateCase(id, targetCaseId);
         setCases(res.cases);
-        setPickedId(res.new_case_id);
         newCaseId = res.new_case_id;
+        navigate(`/evidence/${id}/cases/${res.new_case_id}`, { replace: true });
       } catch (cause) {
         throw new Error(messageOf(cause, t("evidence.duplicate_case_failed")));
       }
@@ -250,7 +273,7 @@ export function EvidenceDetailPage() {
             selectedId={selectedId}
             busy={caseEdit.busy}
             error={caseEdit.error}
-            onSelect={setPickedId}
+            onSelect={handleSelectCase}
             onAdd={handleAdd}
             onRename={handleRename}
             onDelete={handleDelete}

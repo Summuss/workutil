@@ -32,6 +32,7 @@ export function App() {
             <Route path="/memo/:id" element={<SingleMemoPage />} />
             <Route path="/evidence" element={<EvidenceListPage />} />
             <Route path="/evidence/:evidenceId" element={<EvidenceDetailPage />} />
+            <Route path="/evidence/:evidenceId/cases/:caseId" element={<EvidenceDetailPage />} />
             <Route path="/bookmarks" element={<BookmarkPage />} />
             <Route path="/todos" element={<TodoPage />} />
             <Route path="/settings" element={<SettingsPage />} />
