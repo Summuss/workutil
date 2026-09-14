@@ -9,6 +9,8 @@
   "common.saving": "保存中…",
   "common.save_failed": "保存失败",
   "common.cancel": "取消",
+  "common.discard": "放弃",
+  "common.discard_draft_confirm": "未保存的内容将被丢弃，确定要放弃吗？",
   "common.creating": "创建中…",
   "common.add": "添加",
   "common.edit": "编辑",

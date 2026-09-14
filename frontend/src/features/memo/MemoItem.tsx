@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useRef,
   useState,
   type KeyboardEvent,
@@ -16,6 +15,7 @@ import {
   TrashIcon,
 } from "../../shared/icons";
 import { formatTime } from "../../shared/time";
+import { useDraft } from "../../shared/useDraft";
 import { useImageAttachments } from "../../shared/useImageAttachments";
 import { deleteMemo, pinMemo, unpinMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
@@ -54,7 +54,13 @@ export function MemoItem({
   onUpdate,
   onDelete,
 }: MemoItemProps) {
-  const [draft, setDraft] = useState(memo.body);
+  const {
+    draft,
+    setDraft,
+    isDirty,
+    discard,
+    commit,
+  } = useDraft(`draft:memo:${memo.id}`, memo.body);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -63,17 +69,10 @@ export function MemoItem({
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // The draft survives server updates if the user is currently editing:
-  // background polling or another tab's update must not stomp on keystrokes.
-  useEffect(() => {
-    if (!editing) {
-      changeDraft(memo.body);
-    }
-  }, [memo.body, editing]);
-
   // What the textarea holds right now, readable from inside an await. State
   // alone would be the value captured when the request went out.
-  const latestDraft = useRef(memo.body);
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
 
   function changeDraft(next: string) {
     latestDraft.current = next;
@@ -91,7 +90,7 @@ export function MemoItem({
   // Both stamps come from one clock reading when a memo is written, so they
   // are equal until an edit lands.
   const isModified = memo.updated_at !== memo.created_at;
-  const isUnsaved = draft !== memo.body;
+  const isUnsaved = isDirty;
 
   // Memoized: this is a ref callback (`ref={focusEnd}` below), and React
   // re-fires a ref callback whenever its identity changes between renders —
@@ -139,6 +138,7 @@ export function MemoItem({
       // saving, so leave them — and stay in the editor with them.
       if (latestDraft.current === pending) {
         changeDraft(updated.body);
+        commit();
         setEditing(false);
       }
     } catch (cause) {
@@ -146,6 +146,16 @@ export function MemoItem({
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleDiscard() {
+    if (isDirty) {
+      if (!window.confirm(t("common.discard_draft_confirm"))) {
+        return;
+      }
+      discard();
+    }
+    setEditing(false);
   }
 
   async function handleDelete() {
@@ -160,6 +170,7 @@ export function MemoItem({
     setError(null);
     try {
       await deleteMemo(memo.id);
+      discard();
       onDelete(memo.id);
     } catch (cause) {
       setError(messageOf(cause, t("memo.delete_failed")));
@@ -360,11 +371,11 @@ export function MemoItem({
               </span>
               <button
                 type="button"
-                onClick={() => setEditing(false)}
+                onClick={handleDiscard}
                 className="btn-ghost"
                 style={{ fontSize: "11.5px", padding: "5px 12px", borderRadius: "6px" }}
               >
-                {t("common.cancel")}
+                {t("common.discard")}
               </button>
               <button
                 type="button"

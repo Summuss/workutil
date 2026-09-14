@@ -9,6 +9,8 @@
   "common.saving": "保存中…",
   "common.save_failed": "保存に失敗しました",
   "common.cancel": "キャンセル",
+  "common.discard": "破棄",
+  "common.discard_draft_confirm": "未保存の変更内容は破棄されます。よろしいですか？",
   "common.creating": "作成中…",
   "common.add": "追加",
   "common.edit": "編集",
