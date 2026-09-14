@@ -77,6 +77,22 @@ export function EvidenceMemoPanel({ onClose }: EvidenceMemoPanelProps) {
     };
   }, [debouncedQuery, t]);
 
+  /**
+   * Open or close one memo — unless the click was the end of a drag.
+   *
+   * A snippet is the line you came here to copy, and the panel exists to be
+   * copied out of, so the "press, drag, release" of selecting text must not
+   * be read as a click. Memo's own list settled this once already
+   * (design.md §6 F1); the same rule has to hold here.
+   */
+  function toggleOnClick(id: number) {
+    const selection = window.getSelection();
+    if (selection && !selection.isCollapsed) {
+      return;
+    }
+    toggleExpand(id);
+  }
+
   function toggleExpand(id: number) {
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -105,7 +121,7 @@ export function EvidenceMemoPanel({ onClose }: EvidenceMemoPanelProps) {
 
   return (
     <aside
-      aria-label="Memo side panel"
+      aria-label={t("evidence.memo_panel_title")}
       className="flex w-[360px] shrink-0 flex-col h-full min-h-0 border-l"
       style={{ borderColor: "var(--border)", background: "var(--bg)" }}
     >
@@ -182,8 +198,8 @@ export function EvidenceMemoPanel({ onClose }: EvidenceMemoPanelProps) {
               return (
                 <div
                   key={memo.id}
-                  className="card px-3 py-2.5 cursor-pointer select-none transition-colors hover:border-[var(--border-strong)]"
-                  onClick={() => toggleExpand(memo.id)}
+                  className="card px-3 py-2.5 cursor-pointer transition-colors hover:border-[var(--border-strong)]"
+                  onClick={() => toggleOnClick(memo.id)}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-1.5 flex-1">
