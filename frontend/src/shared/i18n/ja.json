@@ -72,6 +72,7 @@
   "todo.active_header": "ToDo ({count})",
   "todo.completed_header": "完了済み ({count})",
   "todo.empty_state": "未完了の ToDo はありません。上に入力して Enter を押すと追加できます。",
+  "todo.unsaved": "未保存",
   "bookmark.create_failed": "登録に失敗しました",
   "bookmark.path_label": "パス",
   "bookmark.path_placeholder": "ファイルまたはフォルダのパスを貼り付け (Windows のパスのコピー、macOS の絶対パスなど)",

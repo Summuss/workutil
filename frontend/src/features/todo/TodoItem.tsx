@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { t } from "../../shared/i18n";
 import {
@@ -13,6 +13,7 @@ import {
 } from "../../shared/icons";
 import { Markdown } from "../../shared/Markdown";
 import { DragHandle, useSortableItem } from "../../shared/sortable";
+import { useDraft } from "../../shared/useDraft";
 import { getDueDateStatus } from "./dueDateUtil";
 import type { MoveDirection, Todo, TodoUpdatePayload } from "./types";
 
@@ -27,6 +28,11 @@ interface TodoItemProps {
   onUpdate: (id: number, payload: TodoUpdatePayload) => Promise<void>;
   onDelete: (id: number) => Promise<void>;
   onMove?: (id: number, to: MoveDirection) => Promise<void>;
+}
+
+interface TodoDraft {
+  title: string;
+  description: string;
 }
 
 const MOVES: {
@@ -54,8 +60,19 @@ export function TodoItem({
   const [editing, setEditing] = useState(false);
   const canReorder = !isCompleted && !editing && onMove !== undefined && count !== undefined && count > 1;
   const { ref, style, handleProps } = useSortableItem(todo.id, !canReorder);
-  const [title, setTitle] = useState(todo.title);
-  const [description, setDescription] = useState(todo.description ?? "");
+
+  // Title and description form a single atomic draft unit. If either differs from
+  // the saved record, isDirty marks the whole form as unsaved.
+  const savedDraft = useMemo(
+    () => ({ title: todo.title, description: todo.description ?? "" }),
+    [todo.title, todo.description]
+  );
+  const { draft, setDraft, isDirty, discard, commit } = useDraft<TodoDraft>(
+    `draft:todo:${todo.id}`,
+    savedDraft
+  );
+  const isUnsaved = !isCompleted && isDirty;
+
   const [dueDate, setDueDate] = useState(todo.due_date ?? "");
   const [submitting, setSubmitting] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -65,10 +82,8 @@ export function TodoItem({
   const editInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setTitle(todo.title);
-    setDescription(todo.description ?? "");
     setDueDate(todo.due_date ?? "");
-  }, [todo.title, todo.description, todo.due_date]);
+  }, [todo.due_date]);
 
   useEffect(() => {
     if (editing) {
@@ -99,17 +114,18 @@ export function TodoItem({
 
   async function handleSave(e?: FormEvent) {
     if (e) e.preventDefault();
-    const clean = title.trim();
-    if (!clean) {
+    const cleanTitle = draft.title.trim();
+    if (!cleanTitle) {
       setError(t("todo.title_empty"));
       return;
     }
     const cleanDate = dueDate ? dueDate : null;
     if (
-      clean === todo.title &&
+      cleanTitle === todo.title &&
       cleanDate === todo.due_date &&
-      description === (todo.description ?? "")
+      draft.description === (todo.description ?? "")
     ) {
+      commit();
       setEditing(false);
       setError(null);
       return;
@@ -118,10 +134,11 @@ export function TodoItem({
     setError(null);
     try {
       await onUpdate(todo.id, {
-        title: clean,
-        description: description,
+        title: cleanTitle,
+        description: draft.description,
         due_date: cleanDate,
       });
+      commit();
       setEditing(false);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("common.save_failed"));
@@ -130,9 +147,13 @@ export function TodoItem({
     }
   }
 
-  function handleCancel() {
-    setTitle(todo.title);
-    setDescription(todo.description ?? "");
+  function handleDiscard() {
+    if (isDirty) {
+      if (!window.confirm(t("common.discard_draft_confirm"))) {
+        return;
+      }
+      discard();
+    }
     setDueDate(todo.due_date ?? "");
     setEditing(false);
     setError(null);
@@ -143,6 +164,7 @@ export function TodoItem({
     setDeleting(true);
     try {
       await onDelete(todo.id);
+      discard();
     } finally {
       setDeleting(false);
     }
@@ -165,11 +187,14 @@ export function TodoItem({
           <input
             ref={editInputRef}
             type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            value={draft.title}
+            onChange={(e) => {
+              const next = e.target.value;
+              setDraft((curr) => ({ ...curr, title: next }));
+            }}
             onKeyDown={(e) => {
               if (e.key === "Escape") {
-                handleCancel();
+                setEditing(false);
               }
             }}
             placeholder={t("todo.title_placeholder")}
@@ -180,17 +205,20 @@ export function TodoItem({
           <div className="flex flex-col gap-1 text-xs" style={{ color: "var(--text-muted)" }}>
             <span>{t("todo.description_label")}</span>
             <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={draft.description}
+              onChange={(e) => {
+                const next = e.target.value;
+                setDraft((curr) => ({ ...curr, description: next }));
+              }}
               onKeyDown={(e) => {
                 if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                   void handleSave(e);
                 } else if (e.key === "Escape") {
-                  handleCancel();
+                  setEditing(false);
                 }
               }}
               placeholder={t("todo.description_placeholder")}
-              rows={Math.min(10, Math.max(3, description.split("\n").length))}
+              rows={Math.min(10, Math.max(3, draft.description.split("\n").length))}
               className="field-input resize-y leading-relaxed"
               style={{ fontFamily: "var(--mono)", fontSize: "13px" }}
               spellCheck={false}
@@ -222,15 +250,15 @@ export function TodoItem({
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
-              onClick={handleCancel}
+              onClick={handleDiscard}
               className="btn-ghost"
               style={{ fontSize: "11.5px", padding: "5px 12px", borderRadius: "6px" }}
             >
-              {t("common.cancel")}
+              {t("common.discard")}
             </button>
             <button
               type="submit"
-              disabled={submitting || title.trim() === ""}
+              disabled={submitting || draft.title.trim() === ""}
               className="btn-primary"
               style={{ fontSize: "11.5px", padding: "5px 12px", borderRadius: "6px" }}
             >
@@ -282,6 +310,19 @@ export function TodoItem({
         >
           {todo.title}
         </span>
+
+        {isUnsaved && (
+          <span
+            className="inline-flex shrink-0 items-center rounded px-1.5 py-0.5 text-[10.5px]"
+            style={{
+              fontFamily: "var(--mono)",
+              color: "var(--warn)",
+              background: "var(--warn-tint)",
+            }}
+          >
+            {t("todo.unsaved")}
+          </span>
+        )}
 
         {hasDescription && (
           <button

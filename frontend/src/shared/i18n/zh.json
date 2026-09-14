@@ -72,6 +72,7 @@
   "todo.active_header": "待办 ({count})",
   "todo.completed_header": "已完成 ({count})",
   "todo.empty_state": "暂无未完成待办，在上方输入并按 Enter 即可记下一条。",
+  "todo.unsaved": "未保存",
   "bookmark.create_failed": "登记失败",
   "bookmark.path_label": "路径",
   "bookmark.path_placeholder": "粘贴文件或文件夹路径 (如 Windows 复制路径、macOS 绝对路径)",
