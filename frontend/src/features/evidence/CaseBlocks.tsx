@@ -4,6 +4,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 
 import { readImage } from "../../shared/images";
 import { useI18n } from "../../shared/i18n";
+import { useDraft } from "../../shared/useDraft";
 import { useEditRunner } from "../../shared/useEditRunner";
 import { useLoad } from "../../shared/useLoad";
 import {
@@ -29,6 +30,11 @@ import { guardDuplicateImagePaste } from "../../shared/pasteDuplicateImage";
 import { SortableList } from "../../shared/sortable";
 import type { PastedText } from "./clipboard";
 import type { Block, CaseDetail, Move } from "./types";
+
+/** Where the bottom composer of one case keeps what has been typed into it. */
+export function caseComposerDraftKey(caseId: number): string {
+  return `draft:case:${caseId}:new`;
+}
 
 interface CaseBlocksProps {
   evidenceId: number;
@@ -83,6 +89,15 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
   const blocks = content?.blocks ?? [];
 
   const [scrollToBlockId, setScrollToBlockId] = useState<number | null>(null);
+
+  // The box at the bottom is a draft too, and per case: a paragraph typed
+  // against case 3 belongs to case 3, not to whichever one is open when you
+  // come back. Its saved side is the empty string, so committing — or simply
+  // clearing the box — is what drops the key.
+  const { draft: composerDraft, setDraft: setComposerDraft } = useDraft(
+    caseComposerDraftKey(caseId),
+    "",
+  );
 
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0 });
@@ -146,12 +161,19 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     );
   }
 
-  function handleAdd(text: string): Promise<boolean> {
-    return run(async () => {
+  async function handleAdd(text: string): Promise<boolean> {
+    const accepted = await run(async () => {
       const added = await addTextBlock(evidenceId, caseId, text);
       setBlocks([...blocks, added]);
       setScrollToBlockId(added.id);
     });
+    if (accepted) {
+      // The composer empties in place and keeps the cursor, which is what makes
+      // "keep pasting" work. It is done here rather than inside `BlockTextArea`
+      // because the box is controlled from out here now.
+      setComposerDraft("");
+    }
+    return accepted;
   }
 
   async function handleTable(paste: PastedText): Promise<void> {
@@ -380,6 +402,8 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
         <div className="flex w-full flex-col gap-2 px-8 py-3.5">
           <BlockTextArea
             initial=""
+            value={composerDraft}
+            onChange={setComposerDraft}
             busy={busy}
             hint={t("evidence.block_add_hint")}
             placeholder={t("evidence.block_add_placeholder")}

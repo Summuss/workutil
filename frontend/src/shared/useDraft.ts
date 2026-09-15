@@ -71,6 +71,21 @@ function removeStorage(key: string): void {
   }
 }
 
+/** Fixes up a draft on its way back out of storage. See `useDraft`. */
+export type RestoreDraft<T> = (stored: T) => T;
+
+/**
+ * Drop a draft whose owner has just gone.
+ *
+ * The `savedAt` rule cleans up after itself for drafts of something that still
+ * exists — but a composer drafts against the empty string, which never stops
+ * matching, so the key for a deleted case would sit there for good. Deleting
+ * the thing is the moment to say so, the same way a deleted block drops its.
+ */
+export function forgetDraft(key: string): void {
+  removeStorage(key);
+}
+
 export interface DraftHandle<T> {
   draft: T;
   setDraft: (next: T | ((current: T) => T)) => void;
@@ -89,10 +104,31 @@ export interface DraftHandle<T> {
  * Stale drafts self-clean: the draft is saved alongside `savedAt` (the saved
  * content when the draft was written). If the saved content no longer matches
  * `savedAt` (e.g. edited in another tab), the draft is silently dropped.
+ *
+ * `restore` runs on what comes back out of storage and nothing else. Some of a
+ * draft may not survive the trip — a memo body can name screenshots that were
+ * only ever in memory — and dropping those is a question about the thing being
+ * drafted, not about drafting, so the answer belongs at the call site.
  */
-export function useDraft<T>(key: string, saved: T): DraftHandle<T> {
+export function useDraft<T>(
+  key: string,
+  saved: T,
+  restore?: RestoreDraft<T>,
+): DraftHandle<T> {
+  const restoreRef = useRef(restore);
+  restoreRef.current = restore;
+
+  const takeStored = useCallback((forKey: string, against: T): T | null => {
+    const stored = readStorage<T>(forKey, against);
+    if (stored === null) {
+      return null;
+    }
+    const fixUp = restoreRef.current;
+    return fixUp ? fixUp(stored) : stored;
+  }, []);
+
   const [draft, setDraftState] = useState<T>(() => {
-    const stored = readStorage<T>(key, saved);
+    const stored = takeStored(key, saved);
     return stored !== null ? stored : saved;
   });
 
@@ -111,7 +147,7 @@ export function useDraft<T>(key: string, saved: T): DraftHandle<T> {
     prevSavedRef.current = saved;
 
     if (previousKey !== key) {
-      const stored = readStorage<T>(key, saved);
+      const stored = takeStored(key, saved);
       setDraftState(stored !== null ? stored : saved);
       return;
     }
@@ -128,7 +164,7 @@ export function useDraft<T>(key: string, saved: T): DraftHandle<T> {
         setDraftState(saved);
       }
     }
-  }, [key, saved]);
+  }, [key, saved, takeStored]);
 
   // Persistence is an effect rather than something the state updater does on
   // the way past. An updater has to be pure — React may call it twice or throw

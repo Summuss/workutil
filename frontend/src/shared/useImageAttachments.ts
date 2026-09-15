@@ -18,6 +18,22 @@ import { guardDuplicateImagePaste } from "./pasteDuplicateImage";
  * These images are never rendered from here, so they live in a ref: they are
  * cargo for the next save, not state the screen is showing.
  */
+/**
+ * A body with the screenshots it names taken out of it.
+ *
+ * For text coming back from storage. A pasted screenshot lives as a data URL
+ * in memory behind a `temp:` placeholder and never reaches the disk until the
+ * body is saved, so a draft that outlived the page names bytes that no longer
+ * exist. Left in, the placeholder would be saved as literal text and the memo
+ * would carry a broken image forever: `save_and_link` only rewrites the
+ * placeholders an upload actually came with.
+ *
+ * What was typed is what survives; the pictures have to be pasted again.
+ */
+export function stripPendingImages(body: string): string {
+  return body.replace(/!\[[^\]]*\]\(temp:[^)]*\)\n?/g, "");
+}
+
 export function useImageAttachments(
   textareaRef: RefObject<HTMLTextAreaElement | null>,
   onChangeText: (next: string) => void,

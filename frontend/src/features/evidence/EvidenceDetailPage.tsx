@@ -8,6 +8,7 @@ import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
 import { ArrowLeftIcon, SidebarIcon } from "../../shared/icons";
 import { PageLayout } from "../../shared/PageLayout";
+import { forgetDraft } from "../../shared/useDraft";
 import { useEditRunner } from "../../shared/useEditRunner";
 import { useLoad } from "../../shared/useLoad";
 import {
@@ -20,9 +21,10 @@ import {
   renameCase,
   renameEvidence,
 } from "./api";
-import { CaseBlocks } from "./CaseBlocks";
+import { CaseBlocks, caseComposerDraftKey } from "./CaseBlocks";
 import { CaseTabs } from "./CaseTabs";
 import { EvidenceMemoPanel } from "./EvidenceMemoPanel";
+import { forgetEvidencePath, rememberEvidencePath } from "./lastVisited";
 import type { Case, EvidenceDetail, Move } from "./types";
 
 const TITLE_FIELD = "field-input min-w-0 flex-1";
@@ -122,6 +124,26 @@ export function EvidenceDetailPage() {
     }
   }, [evidence, id, selectedId, urlCaseId, navigate]);
 
+  // What the nav bar's Evidence link comes back to. Written from the case that
+  // is actually open rather than from the URL, so the moment before the effect
+  // above has canonicalised `/evidence/7` into `/evidence/7/cases/12` is not
+  // the moment that gets remembered.
+  useEffect(() => {
+    if (evidence === null || selectedId === null) {
+      return;
+    }
+    rememberEvidencePath(`/evidence/${id}/cases/${selectedId}`);
+  }, [evidence, id, selectedId]);
+
+  // Landing here and finding nothing means the remembered path outlived its
+  // evidence — most likely deleted from the list. Drop it, so the next click on
+  // the nav bar goes to the list rather than back to this same dead end.
+  useEffect(() => {
+    if (!loading && evidence === null) {
+      forgetEvidencePath();
+    }
+  }, [loading, evidence]);
+
   function setCases(next: Case[]) {
     setEvidence((current) =>
       current === null
@@ -152,6 +174,10 @@ export function EvidenceDetailPage() {
   async function handleDelete(targetCaseId: number): Promise<void> {
     await caseEdit.run(async () => {
       await deleteCase(id, targetCaseId);
+      // A composer drafts against the empty string, so its key never stops
+      // matching and would outlive the case. Deleting is the one moment that
+      // can say so — the same as a deleted block dropping its own.
+      forgetDraft(caseComposerDraftKey(targetCaseId));
 
       const wasAt = cases.findIndex((one) => one.id === targetCaseId);
       const left = cases.filter((one) => one.id !== targetCaseId);

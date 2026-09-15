@@ -16,7 +16,10 @@ import {
 } from "../../shared/icons";
 import { formatTime } from "../../shared/time";
 import { useDraft } from "../../shared/useDraft";
-import { useImageAttachments } from "../../shared/useImageAttachments";
+import {
+  stripPendingImages,
+  useImageAttachments,
+} from "../../shared/useImageAttachments";
 import { deleteMemo, pinMemo, unpinMemo, updateMemo } from "./api";
 import { firstLine } from "./firstLine";
 import { HighlightText } from "./HighlightText";
@@ -60,7 +63,7 @@ export function MemoItem({
     isDirty,
     discard,
     commit,
-  } = useDraft(`draft:memo:${memo.id}`, memo.body);
+  } = useDraft(`draft:memo:${memo.id}`, memo.body, stripPendingImages);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);

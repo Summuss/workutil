@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { NavLink } from "react-router";
+import { Link, NavLink, useLocation } from "react-router";
 
+import { lastEvidencePath } from "./features/evidence/lastVisited";
 import { get } from "./shared/api";
 import { useI18n, type Language } from "./shared/i18n";
 import { SettingsIcon } from "./shared/icons";
@@ -20,7 +21,15 @@ const LANGUAGES: { id: Language; label: string }[] = [
  */
 export function AppNav() {
   const { language, setLanguage, t } = useI18n();
+  const location = useLocation();
   const [version, setVersion] = useState<string | null>(null);
+
+  // Read on every render, and `useLocation` above is what guarantees there is
+  // one after each navigation: leaving an evidence is exactly when this
+  // changes, and the link has to carry the new value by the time you come back
+  // to press it.
+  const evidenceTarget = lastEvidencePath() ?? "/evidence";
+  const onEvidence = location.pathname.startsWith("/evidence");
 
   useEffect(() => {
     get<{ version: string }>("/version")
@@ -67,17 +76,22 @@ export function AppNav() {
           >
             {t("nav.memo")}
           </NavLink>
-          <NavLink
-            to="/evidence"
-            style={({ isActive }) => ({
-              background: isActive ? "var(--accent-tint)" : "transparent",
-              color: isActive ? "var(--accent-strong)" : "var(--text-muted)",
-              fontWeight: isActive ? 600 : 400,
-            })}
+          {/* A plain Link, unlike its four neighbours: its target moves (the
+              last case you had open, see `lastVisited`), so `NavLink`'s own
+              idea of "active" — does the location match `to` — would go out
+              whenever the target and the page you are on are two different
+              cases. Being on Evidence at all is what should light it up. */}
+          <Link
+            to={evidenceTarget}
+            style={{
+              background: onEvidence ? "var(--accent-tint)" : "transparent",
+              color: onEvidence ? "var(--accent-strong)" : "var(--text-muted)",
+              fontWeight: onEvidence ? 600 : 400,
+            }}
             className={LINK_CLASS}
           >
             {t("nav.evidence")}
-          </NavLink>
+          </Link>
           <NavLink
             to="/bookmarks"
             style={({ isActive }) => ({

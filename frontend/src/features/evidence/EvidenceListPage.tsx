@@ -8,6 +8,7 @@ import { formatTime } from "../../shared/time";
 import { useLoad } from "../../shared/useLoad";
 import { PageLayout } from "../../shared/PageLayout";
 import { createEvidence, deleteEvidence, listEvidence } from "./api";
+import { forgetEvidence } from "./lastVisited";
 import type { Evidence } from "./types";
 
 /**
@@ -64,6 +65,7 @@ export function EvidenceListPage() {
     setError(null);
     try {
       await deleteEvidence(one.id);
+      forgetEvidence(one.id);
       setEvidence((current) =>
         (current ?? []).filter((each) => each.id !== one.id),
       );

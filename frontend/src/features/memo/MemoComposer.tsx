@@ -3,7 +3,11 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { messageOf } from "../../shared/api";
 import { t } from "../../shared/i18n";
 import type { ImageUpload } from "../../shared/images";
-import { useImageAttachments } from "../../shared/useImageAttachments";
+import { useDraft } from "../../shared/useDraft";
+import {
+  stripPendingImages,
+  useImageAttachments,
+} from "../../shared/useImageAttachments";
 import { insertTab } from "./insertTab";
 
 interface MemoComposerProps {
@@ -15,9 +19,22 @@ interface MemoComposerProps {
  *
  * Everything here serves one number: zero navigation clicks between opening
  * workutil and having written something down.
+ *
+ * What is half-written here is a draft like any other, and it is the one with
+ * the least to fall back on: an unsaved edit to an existing memo still has the
+ * memo under it, while this box is the only place the words exist. Its saved
+ * side is the empty string — anything in the box at all is unsaved — so the
+ * key clears itself the moment the box empties, whether that was a save or a
+ * change of mind.
  */
 export function MemoComposer({ onSave }: MemoComposerProps) {
-  const [body, setBody] = useState("");
+  // No "未保存" badge here, unlike the memo cards: this box is on screen
+  // whenever the page is, so what is in it is its own notice.
+  const { draft: body, setDraft: setBody } = useDraft(
+    "draft:memo:new",
+    "",
+    stripPendingImages,
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const textarea = useRef<HTMLTextAreaElement>(null);
