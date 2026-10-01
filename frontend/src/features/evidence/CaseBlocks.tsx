@@ -25,6 +25,7 @@ import {
   turnBlockIntoText,
 } from "./api";
 import { BlockCard } from "./BlockCard";
+import { BlockOutlineRow } from "./BlockOutlineRow";
 import { BlockTextArea } from "./BlockTextArea";
 import { Lightbox } from "../../shared/Lightbox";
 import { guardDuplicateImagePaste } from "../../shared/pasteDuplicateImage";
@@ -40,6 +41,8 @@ export function caseComposerDraftKey(caseId: number): string {
 interface CaseBlocksProps {
   evidenceId: number;
   caseId: number;
+  outline: boolean;
+  onToggleOutline: (open: boolean) => void;
 }
 
 function CaseBlocksSkeleton() {
@@ -69,7 +72,12 @@ function CaseBlocksSkeleton() {
  * - Composer is fixed at the bottom so it stays pinned while pasting screenshots.
  * - Loading uses an equal-height skeleton placeholder to prevent layout collapse.
  */
-export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
+export function CaseBlocks({
+  evidenceId,
+  caseId,
+  outline,
+  onToggleOutline,
+}: CaseBlocksProps) {
   const { t } = useI18n();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
@@ -90,6 +98,7 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
   const blocks = content?.blocks ?? [];
 
   const [scrollToBlockId, setScrollToBlockId] = useState<number | null>(null);
+  const [jumpToBlockId, setJumpToBlockId] = useState<number | null>(null);
   const [failedImageIds, setFailedImageIds] = useState<ReadonlySet<number>>(new Set());
   const [activeImageBlockId, setActiveImageBlockId] = useState<number | null>(null);
   const hasPagedRef = useRef(false);
@@ -148,6 +157,11 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
     }
   }
 
+  function handleJump(blockId: number) {
+    setJumpToBlockId(blockId);
+    onToggleOutline(false);
+  }
+
   // The box at the bottom is a draft too, and per case: a paragraph typed
   // against case 3 belongs to case 3, not to whichever one is open when you
   // come back. Its saved side is the empty string, so committing — or simply
@@ -160,9 +174,17 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0 });
     setScrollToBlockId(null);
+    setJumpToBlockId(null);
     setActiveImageBlockId(null);
     hasPagedRef.current = false;
   }, [caseId]);
+
+  useEffect(() => {
+    if (outline) {
+      setActiveImageBlockId(null);
+      hasPagedRef.current = false;
+    }
+  }, [outline]);
 
   /**
    * Bring the block that was just added into view, end first.
@@ -214,6 +236,85 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
       }
     };
   }, [scrollToBlockId, blocks]);
+
+  /**
+   * Jump from outline back to normal view and scroll the target block to the top.
+   *
+   * Must wait until the target AND all image blocks preceding it have loaded
+   * (or errored), because when switching back from outline mode all cards are
+   * newly mounted. Before images have bytes they are only a few pixels tall, so
+   * scrolling prematurely will cause the target's position to drift down as
+   * preceding images load (design.md §6 F5).
+   */
+  useEffect(() => {
+    if (jumpToBlockId === null) return;
+    const targetIndex = blocks.findIndex((b) => b.id === jumpToBlockId);
+    if (targetIndex === -1) {
+      setJumpToBlockId(null);
+      return;
+    }
+
+    const targetEl = document.getElementById(`evidence-block-${jumpToBlockId}`);
+    if (targetEl === null) return;
+
+    const reveal = () => {
+      targetEl.scrollIntoView({ block: "start" });
+      setJumpToBlockId(null);
+    };
+
+    const precedingBlocks = blocks.slice(0, targetIndex + 1);
+    const precedingImageBlocks = precedingBlocks.filter(
+      (b) => b.kind === "image" && b.image_url !== null,
+    );
+
+    if (precedingImageBlocks.length === 0) {
+      reveal();
+      return;
+    }
+
+    const precedingEls = precedingBlocks
+      .map((b) => document.getElementById(`evidence-block-${b.id}`))
+      .filter((el): el is HTMLElement => el !== null);
+
+    const allImages = precedingEls.flatMap((el) =>
+      Array.from(el.querySelectorAll("img")),
+    );
+    const loading = allImages.filter((image) => !image.complete);
+
+    if (loading.length === 0) {
+      reveal();
+      return;
+    }
+
+    let pending = loading.length;
+    const arrived = () => {
+      pending -= 1;
+      if (pending === 0) {
+        reveal();
+      }
+    };
+
+    for (const image of loading) {
+      if (image.complete) {
+        pending -= 1;
+      } else {
+        image.addEventListener("load", arrived);
+        image.addEventListener("error", arrived);
+      }
+    }
+
+    if (pending === 0) {
+      reveal();
+      return;
+    }
+
+    return () => {
+      for (const image of loading) {
+        image.removeEventListener("load", arrived);
+        image.removeEventListener("error", arrived);
+      }
+    };
+  }, [jumpToBlockId, blocks, outline]);
 
   function setBlocks(next: Block[]) {
     setContent((current) =>
@@ -424,36 +525,51 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
             <SortableList
               items={blocks}
               onReorder={handleReorderBlock}
-              className="flex flex-col gap-3.5"
+              className={outline ? "flex flex-col gap-1.5" : "flex flex-col gap-3.5"}
             >
-              {blocks.map((block, at) => (
-                <BlockCard
-                  key={block.id}
-                  block={block}
-                  at={at}
-                  count={blocks.length}
-                  busy={busy}
-                  guessed={guessed.has(block.id)}
-                  onEditText={(text) => handleEditText(block.id, text)}
-                  onLabel={(label) => handleLabel(block.id, label)}
-                  onMove={(to) => handleMove(block.id, to)}
-                  onDelete={() => handleDelete(block.id)}
-                  onSplitLines={(splitLines) =>
-                    handleSplitLines(block.id, splitLines)
-                  }
-                  onAsTable={() => handleAsTable(block.id)}
-                  table={{
-                    onHeader: (hasHeader) => handleHeader(block.id, hasHeader),
-                    onCell: (row, column, value) =>
-                      handleCell(block.id, row, column, value),
-                    onDeleteRow: (row) => handleDeleteRow(block.id, row),
-                    onDeleteColumn: (column) => handleDeleteColumn(block.id, column),
-                    onAsText: () => handleAsText(block.id),
-                  }}
-                  onOpenLightbox={() => handleOpenLightbox(block.id)}
-                  onImageError={() => handleImageError(block.id)}
-                />
-              ))}
+              {blocks.map((block, at) =>
+                outline ? (
+                  <BlockOutlineRow
+                    key={block.id}
+                    block={block}
+                    at={at}
+                    count={blocks.length}
+                    busy={busy}
+                    onLabel={(label) => handleLabel(block.id, label)}
+                    onMove={(to) => handleMove(block.id, to)}
+                    onDelete={() => handleDelete(block.id)}
+                    onJump={handleJump}
+                    onImageError={() => handleImageError(block.id)}
+                  />
+                ) : (
+                  <BlockCard
+                    key={block.id}
+                    block={block}
+                    at={at}
+                    count={blocks.length}
+                    busy={busy}
+                    guessed={guessed.has(block.id)}
+                    onEditText={(text) => handleEditText(block.id, text)}
+                    onLabel={(label) => handleLabel(block.id, label)}
+                    onMove={(to) => handleMove(block.id, to)}
+                    onDelete={() => handleDelete(block.id)}
+                    onSplitLines={(splitLines) =>
+                      handleSplitLines(block.id, splitLines)
+                    }
+                    onAsTable={() => handleAsTable(block.id)}
+                    table={{
+                      onHeader: (hasHeader) => handleHeader(block.id, hasHeader),
+                      onCell: (row, column, value) =>
+                        handleCell(block.id, row, column, value),
+                      onDeleteRow: (row) => handleDeleteRow(block.id, row),
+                      onDeleteColumn: (column) => handleDeleteColumn(block.id, column),
+                      onAsText: () => handleAsText(block.id),
+                    }}
+                    onOpenLightbox={() => handleOpenLightbox(block.id)}
+                    onImageError={() => handleImageError(block.id)}
+                  />
+                ),
+              )}
             </SortableList>
           )}
 

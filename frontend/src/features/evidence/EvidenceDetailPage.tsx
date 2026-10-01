@@ -6,7 +6,7 @@ import { arrayMove } from "@dnd-kit/sortable";
 import { messageOf } from "../../shared/api";
 import { InlineEdit } from "../../shared/InlineEdit";
 import { useI18n } from "../../shared/i18n";
-import { ArrowLeftIcon, SidebarIcon } from "../../shared/icons";
+import { AlignLeftIcon, ArrowLeftIcon, SidebarIcon } from "../../shared/icons";
 import { PageLayout } from "../../shared/PageLayout";
 import { forgetDraft } from "../../shared/useDraft";
 import { useEditRunner } from "../../shared/useEditRunner";
@@ -80,6 +80,7 @@ export function EvidenceDetailPage() {
   const caseEdit = useEditRunner(t("common.action_failed"));
 
   const [editingTitle, setEditingTitle] = useState(false);
+  const [outlineMode, setOutlineMode] = useState(false);
   const [memoPanelOpen, setMemoPanelOpen] = useState(loadMemoPanelOpen);
 
   function toggleMemoPanel() {
@@ -337,6 +338,16 @@ export function EvidenceDetailPage() {
               </a>
               <button
                 type="button"
+                onClick={() => setOutlineMode((prev) => !prev)}
+                className="btn-ghost shrink-0 inline-flex items-center gap-1.5"
+                style={outlineMode ? { color: "var(--accent)" } : undefined}
+                title={t("evidence.toggle_outline")}
+              >
+                <AlignLeftIcon size={13} />
+                <span>{t("evidence.outline_button")}</span>
+              </button>
+              <button
+                type="button"
                 onClick={toggleMemoPanel}
                 className="btn-ghost shrink-0 inline-flex items-center gap-1.5"
                 style={memoPanelOpen ? { color: "var(--accent)" } : undefined}
@@ -380,7 +391,13 @@ export function EvidenceDetailPage() {
           // Keyed by the case, so switching tabs starts the content area over
           // rather than showing the previous case's blocks while the next load
           // is in flight.
-          <CaseBlocks key={selectedId} evidenceId={id} caseId={selectedId} />
+          <CaseBlocks
+            key={selectedId}
+            evidenceId={id}
+            caseId={selectedId}
+            outline={outlineMode}
+            onToggleOutline={setOutlineMode}
+          />
         )}
       </PageLayout>
 
