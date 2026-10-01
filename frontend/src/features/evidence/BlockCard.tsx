@@ -9,6 +9,7 @@ import {
   TrashIcon,
 } from "../../shared/icons";
 import { DragHandle, useSortableItem } from "../../shared/sortable";
+import { BoxOverlay, useNaturalSize } from "../../shared/BoxOverlay";
 import { useDraft } from "../../shared/useDraft";
 import { BlockTextArea } from "./BlockTextArea";
 import { hasTableMarkings } from "./clipboard";
@@ -50,6 +51,7 @@ interface BlockCardProps {
   onAsTable?: () => Promise<boolean>;
   table: TableActions;
   onOpenLightbox?: () => void;
+  onOpenBoxSelect?: () => void;
   onImageError?: () => void;
 }
 
@@ -81,6 +83,7 @@ export function BlockCard({
   onAsTable,
   table,
   onOpenLightbox,
+  onOpenBoxSelect,
   onImageError,
 }: BlockCardProps) {
   const { t } = useI18n();
@@ -88,6 +91,7 @@ export function BlockCard({
   const [editingLabel, setEditingLabel] = useState(false);
   const [editingTable, setEditingTable] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const { naturalSize, onLoad } = useNaturalSize(block.image_url);
 
   const isTextBlock = block.kind === "text";
   const {
@@ -287,6 +291,17 @@ export function BlockCard({
               </button>
             </>
           )}
+          {block.kind === "image" && (
+            <button
+              type="button"
+              title={t("evidence.box_select")}
+              disabled={busy || imageError}
+              onClick={() => onOpenBoxSelect?.()}
+              className={TOOL_BUTTON}
+            >
+              {t("evidence.box_select")}
+            </button>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -327,24 +342,30 @@ export function BlockCard({
            No `src` fallback: an empty one asks the server for this page again
            and draws the answer as a broken image. */
         block.image_url !== null && (
-          <img
-            src={block.image_url}
-            alt={block.label ?? t("evidence.screenshot_alt")}
-            onClick={() => {
-              if (!imageError) {
-                onOpenLightbox?.();
-              }
-            }}
-            onError={() => {
-              setImageError(true);
-              onImageError?.();
-            }}
-            className={`max-w-full self-start rounded-md${imageError ? "" : " cursor-pointer"}`}
-            style={{
-              maxHeight: "calc(100cqh - 5.5rem)",
-              border: "1px solid var(--border)",
-            }}
-          />
+          /* The border sits on the wrapper, not the image, so the overlay
+             inside it covers exactly the picture and nothing of the frame. */
+          <div
+            className="relative max-w-full self-start overflow-hidden rounded-md"
+            style={{ border: "1px solid var(--border)" }}
+          >
+            <img
+              src={block.image_url}
+              alt={block.label ?? t("evidence.screenshot_alt")}
+              onClick={() => {
+                if (!imageError) {
+                  onOpenLightbox?.();
+                }
+              }}
+              onError={() => {
+                setImageError(true);
+                onImageError?.();
+              }}
+              onLoad={onLoad}
+              className={`block max-w-full${imageError ? "" : " cursor-pointer"}`}
+              style={{ maxHeight: "calc(100cqh - 5.5rem - 2px)" }}
+            />
+            <BoxOverlay boxes={block.boxes} naturalSize={naturalSize} strokeWidth={2} />
+          </div>
         )
       ) : editingText ? (
         <BlockTextArea

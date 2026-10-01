@@ -14,12 +14,14 @@ tolerate a file which will not go are the other half of it: the row is already
 gone, and an error would claim otherwise.
 """
 
+import io
 import os
 from pathlib import Path
 from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image as PILImage
 
 from .conftest import SAMPLE_PNG, SAMPLE_PNG_2, data_url, workutil_at
 from .test_evidence_api import add_case, new_evidence
@@ -493,3 +495,119 @@ def test_deleting_an_evidence_succeeds_even_if_its_screenshots_will_not_go(
     assert client.delete(f"/api/evidence/{evidence_id}").status_code == 204
     assert client.get("/api/evidence").json() == []
     assert (images_dir_of(data_dir, evidence_id) / file_of(block)).is_file()
+
+
+# --- Red boxes -------------------------------------------------------------
+
+
+def _png_bytes(width: int, height: int) -> bytes:
+    im = PILImage.new("RGB", (width, height), color="blue")
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def boxes_at(evidence_id: int, case_id: int, block_id: int) -> str:
+    return f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/boxes"
+
+
+def test_a_screenshot_keeps_the_red_boxes_drawn_on_it(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    evidence_id, case_id = case
+    block = add_image(client, evidence_id, case_id, raw=_png_bytes(100, 80))
+    assert block["boxes"] == []
+
+    boxes = [
+        {"x": 10, "y": 15, "w": 30, "h": 20},
+        {"x": 50, "y": 40, "w": 25, "h": 35},
+    ]
+    res = client.put(boxes_at(evidence_id, case_id, block["id"]), json={"boxes": boxes})
+    assert res.status_code == 200
+    assert res.json()["boxes"] == boxes
+
+    detail = client.get(f"/api/evidence/{evidence_id}/cases/{case_id}").json()
+    assert detail["blocks"][0]["boxes"] == boxes
+
+
+@pytest.mark.parametrize(
+    "box",
+    [
+        pytest.param({"x": 80, "y": 10, "w": 25, "h": 10}, id="past the right edge"),
+        pytest.param({"x": 10, "y": 75, "w": 10, "h": 10}, id="past the bottom"),
+        pytest.param({"x": 0, "y": 0, "w": 0, "h": 10}, id="no width"),
+        pytest.param({"x": -1, "y": 0, "w": 10, "h": 10}, id="left of the image"),
+    ],
+)
+def test_a_red_box_off_the_screenshot_is_refused(
+    client: TestClient, case: tuple[int, int], box: dict[str, int]
+) -> None:
+    evidence_id, case_id = case
+    block = add_image(client, evidence_id, case_id, raw=_png_bytes(100, 80))
+
+    res = client.put(boxes_at(evidence_id, case_id, block["id"]), json={"boxes": [box]})
+
+    assert res.status_code == 422
+    detail = client.get(f"/api/evidence/{evidence_id}/cases/{case_id}").json()
+    assert detail["blocks"][0]["boxes"] == []
+
+
+def test_only_a_screenshot_takes_red_boxes(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    evidence_id, case_id = case
+    text_block_id = add_text(client, evidence_id, case_id, "普通文字段落")
+
+    res = client.put(
+        boxes_at(evidence_id, case_id, text_block_id),
+        json={"boxes": [{"x": 0, "y": 0, "w": 10, "h": 10}]},
+    )
+
+    assert res.status_code == 422
+    detail = client.get(f"/api/evidence/{evidence_id}/cases/{case_id}").json()
+    assert detail["blocks"][0]["boxes"] == []
+
+
+def test_sending_no_boxes_takes_every_red_box_off(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    evidence_id, case_id = case
+    block = add_image(client, evidence_id, case_id, raw=_png_bytes(100, 80))
+    url = boxes_at(evidence_id, case_id, block["id"])
+    client.put(url, json={"boxes": [{"x": 10, "y": 10, "w": 20, "h": 20}]})
+
+    cleared = client.put(url, json={"boxes": []})
+
+    assert cleared.status_code == 200
+    assert cleared.json()["boxes"] == []
+    detail = client.get(f"/api/evidence/{evidence_id}/cases/{case_id}").json()
+    assert detail["blocks"][0]["boxes"] == []
+
+
+def test_a_duplicated_case_has_its_own_copy_of_the_red_boxes(
+    client: TestClient, case: tuple[int, int]
+) -> None:
+    """`duplicate_case` copies a block field by field; one it misses is lost."""
+    evidence_id, case_id = case
+    block = add_image(client, evidence_id, case_id, raw=_png_bytes(100, 80))
+    boxes = [{"x": 5, "y": 5, "w": 30, "h": 20}]
+    client.put(boxes_at(evidence_id, case_id, block["id"]), json={"boxes": boxes})
+
+    dup_res = client.post(f"/api/evidence/{evidence_id}/cases/{case_id}/duplicate")
+    assert dup_res.status_code == 200
+    new_case_id = dup_res.json()["new_case_id"]
+    dup_block = client.get(f"/api/evidence/{evidence_id}/cases/{new_case_id}").json()[
+        "blocks"
+    ][0]
+    assert dup_block["boxes"] == boxes
+
+    new_boxes = [{"x": 40, "y": 40, "w": 10, "h": 10}]
+    client.put(
+        boxes_at(evidence_id, new_case_id, dup_block["id"]), json={"boxes": new_boxes}
+    )
+    orig = client.get(f"/api/evidence/{evidence_id}/cases/{case_id}").json()
+    assert orig["blocks"][0]["boxes"] == boxes
+
+    client.delete(f"/api/evidence/{evidence_id}/cases/{new_case_id}")
+    after_del = client.get(f"/api/evidence/{evidence_id}/cases/{case_id}").json()
+    assert after_del["blocks"][0]["boxes"] == boxes

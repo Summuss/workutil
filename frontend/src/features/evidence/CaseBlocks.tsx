@@ -17,6 +17,7 @@ import {
   editBlockText,
   getCase,
   moveBlock,
+  setBlockBoxes,
   setBlockLabel,
   setTableCell,
   setTableHeader,
@@ -27,6 +28,7 @@ import {
 import { BlockCard } from "./BlockCard";
 import { BlockOutlineRow } from "./BlockOutlineRow";
 import { BlockTextArea } from "./BlockTextArea";
+import type { Box } from "../../shared/BoxOverlay";
 import { Lightbox } from "../../shared/Lightbox";
 import { guardDuplicateImagePaste } from "../../shared/pasteDuplicateImage";
 import { SortableList } from "../../shared/sortable";
@@ -101,6 +103,7 @@ export function CaseBlocks({
   const [jumpToBlockId, setJumpToBlockId] = useState<number | null>(null);
   const [failedImageIds, setFailedImageIds] = useState<ReadonlySet<number>>(new Set());
   const [activeImageBlockId, setActiveImageBlockId] = useState<number | null>(null);
+  const [boxSelectActive, setBoxSelectActive] = useState(false);
   const hasPagedRef = useRef(false);
 
   const imageBlocks = blocks.filter(
@@ -123,9 +126,10 @@ export function CaseBlocks({
     });
   }
 
-  function handleOpenLightbox(blockId: number) {
+  function handleOpenLightbox(blockId: number, boxSelect: boolean = false) {
     hasPagedRef.current = false;
     setActiveImageBlockId(blockId);
+    setBoxSelectActive(boxSelect);
   }
 
   function handleCloseLightbox() {
@@ -134,6 +138,7 @@ export function CaseBlocks({
       el?.scrollIntoView({ block: "nearest" });
     }
     setActiveImageBlockId(null);
+    setBoxSelectActive(false);
     hasPagedRef.current = false;
   }
 
@@ -157,6 +162,23 @@ export function CaseBlocks({
     }
   }
 
+  async function handleAddBox(blockId: number, box: Box) {
+    const block = blocks.find((one) => one.id === blockId);
+    if (!block) return;
+
+    // Drawn first and saved after, so the box stays where the drag left it
+    // instead of vanishing for the round trip. A refusal puts back what the
+    // server still holds (design.md §6 F5 截图上的红框).
+    replace({ ...block, boxes: [...block.boxes, box] });
+    const saved = await run(async () => {
+      replace(await setBlockBoxes(evidenceId, caseId, blockId, [...block.boxes, box]));
+    });
+    if (!saved) {
+      replace(block);
+    }
+  }
+
+
   function handleJump(blockId: number) {
     setJumpToBlockId(blockId);
     onToggleOutline(false);
@@ -176,12 +198,14 @@ export function CaseBlocks({
     setScrollToBlockId(null);
     setJumpToBlockId(null);
     setActiveImageBlockId(null);
+    setBoxSelectActive(false);
     hasPagedRef.current = false;
   }, [caseId]);
 
   useEffect(() => {
     if (outline) {
       setActiveImageBlockId(null);
+      setBoxSelectActive(false);
       hasPagedRef.current = false;
     }
   }, [outline]);
@@ -567,6 +591,7 @@ export function CaseBlocks({
                       onAsText: () => handleAsText(block.id),
                     }}
                     onOpenLightbox={() => handleOpenLightbox(block.id)}
+                    onOpenBoxSelect={() => handleOpenLightbox(block.id, true)}
                     onImageError={() => handleImageError(block.id)}
                   />
                 ),
@@ -609,6 +634,11 @@ export function CaseBlocks({
           onNext={handleNextImage}
           hasPrev={activeImageIndex > 0}
           hasNext={activeImageIndex < imageBlocks.length - 1}
+          boxes={activeImageBlock.boxes}
+          boxSelectActive={boxSelectActive}
+          onToggleBoxSelect={setBoxSelectActive}
+          onAddBox={(box) => void handleAddBox(activeImageBlock.id, box)}
+          error={blockError}
         />
       )}
     </div>

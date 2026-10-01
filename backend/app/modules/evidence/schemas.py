@@ -123,6 +123,25 @@ class TextBlockSplitLinesEdit(BaseModel):
     split_lines: bool
 
 
+class EvidenceBox(BaseModel):
+    """A red box on a screenshot, in pixels of the stored file (CONTEXT.md)."""
+
+    x: int = Field(ge=0)
+    y: int = Field(ge=0)
+    w: int = Field(ge=1)
+    h: int = Field(ge=1)
+
+
+class BlockBoxesEdit(BaseModel):
+    """Every red box an image block is to have, replacing what it had.
+
+    The whole set travels each time, the way `/label` carries the whole label:
+    the lightbox saves after every stroke and there is no partial edit to send.
+    """
+
+    boxes: list[EvidenceBox]
+
+
 class BlockRead(BaseModel):
     """A block as the case shows it.
 
@@ -151,6 +170,7 @@ class BlockRead(BaseModel):
     rows: list[list[str]] = []
     has_header: bool = False
     split_lines: bool = True
+    boxes: list[EvidenceBox] = []
 
     @classmethod
     def of(cls, block: EvidenceBlock, evidence_id: int) -> "BlockRead":
@@ -168,6 +188,11 @@ class BlockRead(BaseModel):
             rows=block.rows,
             has_header=block.has_header,
             split_lines=block.split_lines,
+            boxes=(
+                [EvidenceBox.model_validate(b) for b in block.boxes]
+                if block.kind is BlockKind.IMAGE
+                else []
+            ),
         )
 
 

@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
+from typing import TypedDict
 
 from sqlalchemy import JSON, Boolean, Enum, ForeignKey, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,6 +21,15 @@ class BlockKind(StrEnum):
     TEXT = "text"
     IMAGE = "image"
     TABLE = "table"
+
+
+class Box(TypedDict):
+    """A red box on a screenshot (CONTEXT.md), in pixels of the stored file."""
+
+    x: int
+    y: int
+    w: int
+    h: int
 
 
 class Evidence(Base):
@@ -119,6 +129,13 @@ class EvidenceBlock(Ordered, Base):
     #: functions in `tables.py` return one, which is what makes that the easy
     #: way round rather than a rule to remember.
     rows: Mapped[list[list[str]]] = mapped_column(JSON, default=list)
+    #: The red boxes on an image block (CONTEXT.md), each `{x, y, w, h}` in
+    #: pixels of the stored screenshot. They are data drawn over the picture,
+    #: never burnt into it: the file stays the untouched original (design.md
+    #: §5), which is what lets a box be removed again, and the rectangles in
+    #: the exported workbook are only what a box becomes there. Assigned
+    #: whole on every write, for the reason `rows` gives.
+    boxes: Mapped[list[Box]] = mapped_column(JSON, default=list)
     #: Whether the first row is column names. Never inferred: whether a DB
     #: client copies the header depends on a setting inside that client, and
     #: nothing in the paste says which way it was set. A new table is given

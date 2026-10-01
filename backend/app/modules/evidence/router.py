@@ -11,7 +11,9 @@ from app.core import images
 from app.core.deps import SessionDep, SettingsDep
 from app.core.errors import http_error
 from app.modules.evidence import layout, service
+from app.modules.evidence.models import Box
 from app.modules.evidence.schemas import (
+    BlockBoxesEdit,
     BlockCreate,
     BlockLabelEdit,
     BlockRead,
@@ -63,6 +65,7 @@ def _as_http_error() -> Iterator[None]:
         service.CannotParseAsTable,
         service.WrongBlockKind,
         service.EmptyEvidence,
+        service.InvalidBox,
         images.InvalidImage,
         layout.MissingImageFile,
     ) as invalid:
@@ -325,6 +328,30 @@ def set_text_block_split_lines(
     with _as_http_error():
         block = service.set_text_block_split_lines(
             session, evidence_id, case_id, block_id, payload.split_lines
+        )
+    return BlockRead.of(block, evidence_id)
+
+
+@router.put(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/boxes",
+    response_model=BlockRead,
+)
+def set_block_boxes(
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    payload: BlockBoxesEdit,
+    session: SessionDep,
+    settings: SettingsDep,
+) -> BlockRead:
+    with _as_http_error():
+        block = service.set_block_boxes(
+            session,
+            evidence_id,
+            case_id,
+            block_id,
+            [Box(x=box.x, y=box.y, w=box.w, h=box.h) for box in payload.boxes],
+            settings.images_dir,
         )
     return BlockRead.of(block, evidence_id)
 

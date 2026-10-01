@@ -27,6 +27,10 @@ _Avoid_: Sheet, Test, Scenario, 用例集
 Case 里的一段内容,在 Case 内有序。三种:文字、图片、表格。可以带一个 label 作为小标题(如「事前準備の DB データ」)。一个图片 Block 装一张图。
 _Avoid_: Entry, 条目, 步骤, Step, Section
 
+**红框**:
+image Block 上的一组矩形,标出这张截图要看哪里;**Excel 里的四边形是它导出后的形态,不是它本身**。
+_Avoid_: Annotation / 标注(太宽,暗示箭头、文字也算), 批注 / Comment(Excel 里另有其物), Shape(那是导出后的形态), Highlight
+
 **Bookmark**:
 一个指向本机文件或文件夹的**入口**,不是那个文件本身。同一个路径可以登记多条 Bookmark,各有自己的名字和位置 —— 那不是重复,是两个不同的入口。
 _Avoid_: Shortcut, 快捷方式(Windows 上 `.lnk` 是另一个真实存在的东西), Link, 收藏夹

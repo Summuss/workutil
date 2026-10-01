@@ -10,6 +10,7 @@ import {
 } from "../../shared/icons";
 import { InlineEdit } from "../../shared/InlineEdit";
 import { DragHandle, useSortableItem } from "../../shared/sortable";
+import { BoxOverlay, useNaturalSize } from "../../shared/BoxOverlay";
 import { forgetDraft } from "../../shared/useDraft";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
 import type { Block, Move } from "./types";
@@ -58,6 +59,7 @@ export function BlockOutlineRow({
   const { t } = useI18n();
   const [editingLabel, setEditingLabel] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const { naturalSize, onLoad } = useNaturalSize(block.image_url);
 
   const canReorder = count > 1 && !busy;
   const { ref, style, handleProps } = useSortableItem(block.id, !canReorder);
@@ -207,20 +209,26 @@ export function BlockOutlineRow({
             <ImageIcon size={16} />
           </div>
         ) : (
-          <img
-            src={block.image_url}
-            alt={block.label ?? t("evidence.screenshot_alt")}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenLightbox();
-            }}
-            onError={() => {
-              setImageError(true);
-              onImageError?.();
-            }}
-            className="h-10 w-auto max-w-[120px] shrink-0 cursor-zoom-in rounded object-contain"
+          <div
+            className="relative shrink-0 overflow-hidden rounded"
             style={{ border: "1px solid var(--border)" }}
-          />
+          >
+            <img
+              src={block.image_url}
+              alt={block.label ?? t("evidence.screenshot_alt")}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenLightbox();
+              }}
+              onError={() => {
+                setImageError(true);
+                onImageError?.();
+              }}
+              onLoad={onLoad}
+              className="block h-10 w-auto max-w-[120px] cursor-zoom-in object-contain"
+            />
+            <BoxOverlay boxes={block.boxes} naturalSize={naturalSize} strokeWidth={1} />
+          </div>
         )}
 
         {/* Small entry to add a label when block has none */}

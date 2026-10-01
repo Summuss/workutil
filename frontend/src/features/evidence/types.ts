@@ -1,3 +1,5 @@
+import type { Box } from "../../shared/BoxOverlay";
+
 /**
  * An evidence as the list sends it: no cases, only how many.
  *
@@ -53,6 +55,8 @@ export interface Block {
   has_header: boolean;
   /** Whether lines are split row-by-row on export. */
   split_lines: boolean;
+  /** The red boxes on a screenshot; always empty for the other kinds. */
+  boxes: Box[];
 }
 
 /** One case with what is in it — a case at a time, not the whole workbook. */

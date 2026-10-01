@@ -9,6 +9,7 @@ import type {
   EvidenceDetail,
   Move,
 } from "./types";
+import type { Box } from "../../shared/BoxOverlay";
 
 export function listEvidence(): Promise<Evidence[]> {
   return get<Evidence[]>("/evidence");
@@ -151,6 +152,18 @@ export function setTextBlockSplitLines(
 ): Promise<Block> {
   return put<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/split-lines`, {
     split_lines: splitLines,
+  });
+}
+
+/** Replaces every red box on an image block with `boxes`. */
+export function setBlockBoxes(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  boxes: Box[],
+): Promise<Block> {
+  return put<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/boxes`, {
+    boxes,
   });
 }
 

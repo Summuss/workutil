@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import NamedTuple
 
+from PIL import Image as PILImage
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -18,11 +19,13 @@ from app.modules.evidence import tables
 from app.modules.evidence.layout import (
     DEFAULT_LAYOUT_SETTINGS,
     LayoutSettings,
+    MissingImageFile,
     build_evidence_workbook,
     sanitize_filename,
 )
 from app.modules.evidence.models import (
     BlockKind,
+    Box,
     Evidence,
     EvidenceBlock,
     EvidenceCase,
@@ -111,6 +114,12 @@ class EmptyEvidence(ValueError):
     """An evidence with no cases cannot be exported."""
 
     code = "evidence.empty_evidence"
+
+
+class InvalidBox(ValueError):
+    """A red box that runs off the screenshot it is drawn on."""
+
+    code = "evidence.invalid_box"
 
 
 class EvidenceListing(NamedTuple):
@@ -449,6 +458,7 @@ def duplicate_case(
             )
 
         new_rows = [list(row) for row in block.rows] if block.rows else []
+        new_boxes = [Box(**box) for box in block.boxes]
 
         new_block = EvidenceBlock(
             case_id=new_case.id,
@@ -457,6 +467,7 @@ def duplicate_case(
             text=block.text,
             image_name=new_image_name,
             rows=new_rows,
+            boxes=new_boxes,
             has_header=block.has_header,
             table_source=block.table_source,
             order=block.order,
@@ -766,6 +777,43 @@ def set_text_block_split_lines(
         raise WrongBlockKind("这一段不是文字")
 
     block.split_lines = split_lines
+    session.commit()
+    return block
+
+
+def set_block_boxes(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    boxes: Sequence[Box],
+    images_dir: Path,
+) -> EvidenceBlock:
+    """Replace every red box on an image block with `boxes`.
+
+    The whole set goes at once, the way the lightbox saves after every stroke
+    (design.md §6 F5 截图上的红框). A box is `{x, y, w, h}` in pixels of the
+    screenshot as stored; that file never changes, so neither does what a box
+    points at. A box that runs off the screenshot is refused rather than
+    clipped: keeping the pointer inside the image is the lightbox's job, and
+    one that arrives outside means something upstream is wrong.
+    """
+    block = get_block(session, evidence_id, case_id, block_id)
+    if block.kind is not BlockKind.IMAGE:
+        raise WrongBlockKind("这一段不是图片")
+
+    img_path = evidence_images_dir(images_dir, evidence_id) / block.image_name
+    if not img_path.is_file():
+        raise MissingImageFile(f"用例缺少图片文件：{block.image_name}")
+
+    with PILImage.open(img_path) as pil_img:
+        img_w, img_h = pil_img.size
+
+    for box in boxes:
+        if box["x"] + box["w"] > img_w or box["y"] + box["h"] > img_h:
+            raise InvalidBox(f"红框超出图片边界（图片 {img_w}×{img_h}）")
+
+    block.boxes = [Box(**box) for box in boxes]
     session.commit()
     return block
 
