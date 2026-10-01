@@ -340,7 +340,7 @@ TDD 只打在事先约定的接缝上,不追求覆盖率。
 image Block 带一组红框 `boxes: [{x, y, w, h}]`,单位是**原图像素** —— 原图永远不变(§5),卡片、灯箱、Excel 各自缩成多大都不影响它。来龙去脉见 `.scratch/evidence-box/spec.md`。
 
 - **框是数据,不烧进图片。** 磁盘原图一个字节不动,框叠在图上画、导出时变成 Excel 的四边形,所以随时能删能改。接口 `PUT .../blocks/<id>/boxes` 整组替换,和 `/label` `/header` `/split-lines` 同形;越界 422(服务端读原图尺寸)。`duplicate_case` 显式复制它
-- **在灯箱里画,不在卡片上画。** 卡片上的图缩进了一屏,长图是一条窄带,画不准。框选是 evidence 灯箱上的可选 props,memo 不接。`←` `→` 照常翻、模式保持,一个用例的几张图一口气框完
+- **在灯箱里画,不在卡片上画。** 卡片上的图缩进了一屏,长图是一条窄带,画不准。框选是 evidence 灯箱上的可选 props,memo 不接。`←` `→` 照常翻、模式保持,一个用例的几张图一口气框完。**`S` 键开关框选**,和按钮是同一个开关(`onToggleBoxSelect`),所以 memo 的灯箱同样没有;带着 `Ctrl` / `Cmd` / `Alt` 时不响应(`Ctrl+S` 是浏览器的「保存网页」),按住不放产生的重复事件也不响应,否则模式会来回翻。按钮的 tooltip 写明 `(S)`,和 `切换 Memo 侧栏 (Ctrl+M)` 一个写法
 - **每一步立刻保存,不是草稿。** 草稿防「写到一半」,而一个框画完就是完整的。失败退回服务器上的样子
 - 屏幕上用一层 SVG(`viewBox` = 原图尺寸)叠在 `<img>` 上,线宽 `non-scaling-stroke` —— 否则长图缩成窄条时框细到看不见
 - **导出成 Excel 原生四边形**(无填充、`FF0000`、2.25pt,在 `LayoutSettings` 里),因为交付后要能在 Excel 里拖。**openpyxl 写不出形状**(`SpreadsheetDrawing._write` 只遍历 charts + images),所以 `wb.save` 之后改写 `xl/drawings/drawingN.xml` 补进去。这和 [ADR-0004](./adr/0004-table-is-a-first-class-block.md)「压掉绿色三角要拆 zip 手改 XML,不值得」不矛盾:那里是代价对不上收益,这里是交付形态本身的要求。详见 [ADR-0014](./adr/0014-export-boxes-as-grouped-shapes.md)

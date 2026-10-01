@@ -197,6 +197,7 @@
   "evidence.delete_column": "この列を削除",
   "evidence.delete_row": "この行を削除",
   "evidence.box_select": "枠選択",
+  "evidence.box_select_title": "枠選択 (S)",
   "image.duplicate_paste_confirm": "この画像は直前に貼り付けたものと同一です。スクリーンショットがまだクリップボードに反映されていない可能性があります。このまま追加しますか？",
   "lightbox.close": "閉じる",
   "lightbox.prev": "前の画像",

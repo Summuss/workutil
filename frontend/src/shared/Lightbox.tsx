@@ -117,7 +117,8 @@ function isEventOnScrollbar(e: React.MouseEvent<HTMLElement>, el: HTMLElement): 
  * - ArrowLeft / ArrowRight step through images when onPrev/onNext are provided.
  * - Backdrop click and top-right X button close; dragging/clicking scrollbar does not close.
  * - A note (evidence only) sits along the bottom and lets the pointer through.
- * - Box mode (evidence only, when onToggleBoxSelect is given): dragging on the image draws a red box,
+ * - Box mode (evidence only, when onToggleBoxSelect is given): the S key or the button toggles it;
+ *   dragging on the image draws a red box,
  *   in pixels of the image file. Backdrop click does not close while it is on, so a drag released
  *   off the picture cannot close the lightbox. A click (no drag) on a box selects it, Delete or
  *   Backspace removes it, Ctrl/Cmd+Z undoes the last stroke or delete on this image.
@@ -184,6 +185,22 @@ export function Lightbox({
     function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
         onClose();
+        return;
+      }
+      // The button's keyboard twin, so the mode is one keypress away from the
+      // hand that is not on the mouse. Left alone with Ctrl / Cmd / Alt held
+      // (Ctrl+S is the browser's "save page"), and on key repeat, which would
+      // flip the mode back and forth for as long as the key stays down.
+      if (
+        onToggleBoxSelect &&
+        event.key.toLowerCase() === "s" &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey &&
+        !event.repeat
+      ) {
+        event.preventDefault();
+        onToggleBoxSelect(!boxSelectActive);
         return;
       }
       if (boxSelectActive) {
@@ -418,7 +435,7 @@ export function Lightbox({
             style={{
               background: boxSelectActive ? "var(--danger)" : "rgba(0, 0, 0, 0.5)",
             }}
-            title={t("evidence.box_select")}
+            title={t("evidence.box_select_title")}
           >
             {t("evidence.box_select")}
           </button>
