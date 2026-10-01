@@ -6,20 +6,24 @@ to assert sheet names, cell values, formatting, image count and anchor rows
 """
 
 import io
+import zipfile
 from pathlib import Path
 from typing import Any
 from urllib.parse import unquote
+from xml.etree import ElementTree as ET
 
 import openpyxl
 from fastapi.testclient import TestClient
 from PIL import Image as PILImage
 
-from app.modules.evidence.layout import LayoutSettings
+from app.modules.evidence.layout import LayoutSettings, scale_dimensions
 
 from .conftest import data_url
 
 #: What a drawing's size is stored in: one pixel at 96 DPI, in EMU.
 EMU_PER_PIXEL = 9525
+XDR_NS = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 
 def create_evidence(client: TestClient, title: str = "受注一覧の絞り込み修正") -> int:
@@ -737,3 +741,235 @@ def test_text_block_split_lines_with_empty_lines_and_subsequent_block(
     assert ws.cell(row=4, column=1).value is None
     # Row 5: "next"
     assert ws.cell(row=5, column=1).value == "next"
+
+
+def set_boxes(
+    client: TestClient,
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    boxes: list[dict[str, int]],
+) -> None:
+    res = client.put(
+        f"/api/evidence/{evidence_id}/cases/{case_id}/blocks/{block_id}/boxes",
+        json={"boxes": boxes},
+    )
+    assert res.status_code == 200, res.text
+
+
+def _xfrm_of(element: ET.Element) -> tuple[int, int, int, int]:
+    """`off` and `ext` of the `a:xfrm` under `element`, as x, y, cx, cy."""
+    xfrm = element.find(f".//{{{A_NS}}}xfrm")
+    assert xfrm is not None
+    off, ext = xfrm.find(f"{{{A_NS}}}off"), xfrm.find(f"{{{A_NS}}}ext")
+    assert off is not None and ext is not None
+    return (
+        int(off.attrib["x"]),
+        int(off.attrib["y"]),
+        int(ext.attrib["cx"]),
+        int(ext.attrib["cy"]),
+    )
+
+
+def test_a_red_box_lands_on_the_same_spot_of_the_exported_screenshot(
+    client: TestClient,
+) -> None:
+    """Each box becomes a red, unfilled rectangle grouped with its screenshot.
+
+    Where it should land is worked out here from the displayed size alone —
+    `scale_dimensions` at 9525 EMU to the pixel, the size the picture is drawn
+    at — not read back from the group, which would check the code against
+    itself. Wide, long and small cover a scale-down, a long one where a single
+    shared ratio would drift at the bottom, and a 1:1.
+    """
+    evidence_id = create_evidence(client, "红框导出テスト")
+    case_id = add_case(client, evidence_id, "1")
+    specs = [
+        (
+            (1920, 1080),
+            [
+                {"x": 100, "y": 100, "w": 300, "h": 150},
+                {"x": 1200, "y": 800, "w": 400, "h": 200},
+            ],
+        ),
+        (
+            (1280, 3600),
+            [
+                {"x": 100, "y": 100, "w": 300, "h": 80},
+                {"x": 900, "y": 1800, "w": 300, "h": 80},
+                {"x": 1000, "y": 3450, "w": 240, "h": 100},
+            ],
+        ),
+        (
+            (600, 400),
+            [
+                {"x": 450, "y": 300, "w": 120, "h": 60},
+                {"x": 20, "y": 20, "w": 100, "h": 40},
+            ],
+        ),
+    ]
+    for (w, h), boxes in specs:
+        block_id = add_image_block(client, evidence_id, case_id, make_png(w, h))
+        set_boxes(client, evidence_id, case_id, block_id, boxes)
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+    root = ET.fromstring(
+        zipfile.ZipFile(io.BytesIO(res.content)).read("xl/drawings/drawing1.xml")
+    )
+
+    ids = [el.get("id") for el in root.iter(f"{{{XDR_NS}}}cNvPr")]
+    assert len(ids) == len(set(ids))
+
+    anchors = list(root)
+    assert len(anchors) == len(specs)
+    for anchor, ((src_w, src_h), boxes) in zip(anchors, specs, strict=True):
+        shown_w, shown_h = scale_dimensions(src_w, src_h, 900)
+        size = (shown_w * EMU_PER_PIXEL, shown_h * EMU_PER_PIXEL)
+
+        group = anchor.find(f"{{{XDR_NS}}}grpSp")
+        assert group is not None
+        group_props = group.find(f"{{{XDR_NS}}}grpSpPr")
+        pic = group.find(f"{{{XDR_NS}}}pic")
+        assert group_props is not None and pic is not None
+        assert _xfrm_of(group_props) == (0, 0, *size)
+        assert _xfrm_of(pic) == (0, 0, *size)
+
+        shapes = group.findall(f"{{{XDR_NS}}}sp")
+        assert len(shapes) == len(boxes)
+        for shape, box in zip(shapes, boxes, strict=True):
+            props = shape.find(f"{{{XDR_NS}}}spPr")
+            assert props is not None
+            assert props.find(f"{{{A_NS}}}noFill") is not None
+            line = props.find(f"{{{A_NS}}}ln")
+            assert line is not None and line.attrib["w"] == "28575"
+            color = line.find(f".//{{{A_NS}}}srgbClr")
+            assert color is not None and color.attrib["val"] == "FF0000"
+
+            expected = (
+                box["x"] * shown_w / src_w * EMU_PER_PIXEL,
+                box["y"] * shown_h / src_h * EMU_PER_PIXEL,
+                box["w"] * shown_w / src_w * EMU_PER_PIXEL,
+                box["h"] * shown_h / src_h * EMU_PER_PIXEL,
+            )
+            for actual, wanted in zip(_xfrm_of(props), expected, strict=True):
+                assert abs(actual - wanted) <= 1
+
+    ws_any: Any = openpyxl.load_workbook(io.BytesIO(res.content))["1"]
+    assert len(ws_any._images) == len(specs)
+
+
+def test_red_boxes_land_on_their_own_sheet_when_an_earlier_sheet_has_no_picture(
+    client: TestClient,
+) -> None:
+
+    evidence_id = create_evidence(client, "多Sheet红框对应テスト")
+    # Sheet 1 has only text, NO images
+    case1_id = add_case(client, evidence_id, "NoImageCase")
+    add_text_block(client, evidence_id, case1_id, "ただのテキスト")
+
+    # Sheet 2 has an image with boxes
+    case2_id = add_case(client, evidence_id, "WithImageCase")
+    img_id = add_image_block(client, evidence_id, case2_id, make_png(400, 300))
+    set_boxes(
+        client,
+        evidence_id,
+        case2_id,
+        img_id,
+        [{"x": 10, "y": 10, "w": 50, "h": 50}],
+    )
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    zf = zipfile.ZipFile(io.BytesIO(res.content))
+    # Sheet 1 has no drawing rels
+    assert "xl/worksheets/_rels/sheet1.xml.rels" not in zf.namelist()
+    # Sheet 2 has rels pointing to drawing1.xml
+    assert "xl/worksheets/_rels/sheet2.xml.rels" in zf.namelist()
+    rels_content = zf.read("xl/worksheets/_rels/sheet2.xml.rels").decode()
+    assert "drawing1.xml" in rels_content
+
+    # The box is on sheet 2 (drawing1.xml)
+    drawing_xml = zf.read("xl/drawings/drawing1.xml")
+    root = ET.fromstring(drawing_xml)
+    groups = root.findall(f".//{{{XDR_NS}}}grpSp")
+    assert len(groups) == 1
+    assert len(groups[0].findall(f"{{{XDR_NS}}}sp")) == 1
+
+    # openpyxl can open it, sheet 1 has 0 images, sheet 2 has 1 image
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws_no_img: Any = wb["NoImageCase"]
+    ws_with_img: Any = wb["WithImageCase"]
+    assert len(ws_no_img._images) == 0
+    assert len(ws_with_img._images) == 1
+
+
+def test_a_workbook_without_red_boxes_exports_as_before(client: TestClient) -> None:
+
+    evidence_id = create_evidence(client, "无框导出テスト")
+    case_id = add_case(client, evidence_id, "1")
+    add_image_block(client, evidence_id, case_id, make_png(200, 200))
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    zf = zipfile.ZipFile(io.BytesIO(res.content))
+    drawing_xml = zf.read("xl/drawings/drawing1.xml")
+    root = ET.fromstring(drawing_xml)
+
+    # No group shapes, no injected rectangles
+    assert len(root.findall(f".//{{{XDR_NS}}}grpSp")) == 0
+    assert len(root.findall(f".//{{{XDR_NS}}}sp")) == 0
+    # Original pic is present
+    assert len(root.findall(f".//{{{XDR_NS}}}pic")) == 1
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws_any: Any = wb["1"]
+    assert len(ws_any._images) == 1
+
+
+def test_only_the_screenshots_with_red_boxes_are_grouped(
+    client: TestClient,
+) -> None:
+
+    evidence_id = create_evidence(client, "混在红框导出テスト")
+    case_id = add_case(client, evidence_id, "1")
+
+    img1_id = add_image_block(client, evidence_id, case_id, make_png(400, 300))
+    set_boxes(
+        client,
+        evidence_id,
+        case_id,
+        img1_id,
+        [{"x": 10, "y": 10, "w": 40, "h": 40}],
+    )
+
+    # img2 has no boxes
+    add_image_block(client, evidence_id, case_id, make_png(500, 300))
+
+    res = client.get(f"/api/evidence/{evidence_id}/export")
+    assert res.status_code == 200
+
+    zf = zipfile.ZipFile(io.BytesIO(res.content))
+    drawing_xml = zf.read("xl/drawings/drawing1.xml")
+    root = ET.fromstring(drawing_xml)
+
+    # Only img1 is grouped
+    groups = root.findall(f".//{{{XDR_NS}}}grpSp")
+    assert len(groups) == 1
+    assert len(groups[0].findall(f"{{{XDR_NS}}}sp")) == 1
+
+    # Total pictures is 2: 1 inside grpSp, 1 directly under anchor
+    all_pics = root.findall(f".//{{{XDR_NS}}}pic")
+    assert len(all_pics) == 2
+
+    # img2 anchor has pic directly under it, not grpSp
+    anchors = list(root)
+    assert len(anchors) == 2
+    assert anchors[0].find(f"{{{XDR_NS}}}grpSp") is not None
+    assert anchors[1].find(f"{{{XDR_NS}}}pic") is not None
+
+    wb = openpyxl.load_workbook(io.BytesIO(res.content))
+    ws_any: Any = wb["1"]
+    assert len(ws_any._images) == 2

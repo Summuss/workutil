@@ -337,8 +337,9 @@ image Block 带一组红框 `boxes: [{x, y, w, h}]`,单位是**原图像素** �
 - **在灯箱里画,不在卡片上画。** 卡片上的图缩进了一屏,长图是一条窄带,画不准。框选是 evidence 灯箱上的可选 props,memo 不接。`←` `→` 照常翻、模式保持,一个用例的几张图一口气框完
 - **每一步立刻保存,不是草稿。** 草稿防「写到一半」,而一个框画完就是完整的。失败退回服务器上的样子
 - 屏幕上用一层 SVG(`viewBox` = 原图尺寸)叠在 `<img>` 上,线宽 `non-scaling-stroke` —— 否则长图缩成窄条时框细到看不见
-- **导出成 Excel 原生四边形**(无填充、`FF0000`、2.25pt,在 `LayoutSettings` 里),因为交付后要能在 Excel 里拖。**openpyxl 写不出形状**(`SpreadsheetDrawing._write` 只遍历 charts + images),所以 `wb.save` 之后改写 `xl/drawings/drawingN.xml` 补进去。这和 [ADR-0004](./adr/0004-table-is-a-first-class-block.md)「压掉绿色三角要拆 zip 手改 XML,不值得」不矛盾:那里是代价对不上收益,这里是交付形态本身的要求。sheet → drawing 的对应从 sheet 的 rels 里读,不按序号猜
+- **导出成 Excel 原生四边形**(无填充、`FF0000`、2.25pt,在 `LayoutSettings` 里),因为交付后要能在 Excel 里拖。**openpyxl 写不出形状**(`SpreadsheetDrawing._write` 只遍历 charts + images),所以 `wb.save` 之后改写 `xl/drawings/drawingN.xml` 补进去。这和 [ADR-0004](./adr/0004-table-is-a-first-class-block.md)「压掉绿色三角要拆 zip 手改 XML,不值得」不矛盾:那里是代价对不上收益,这里是交付形态本身的要求。详见 [ADR-0014](./adr/0014-export-boxes-as-grouped-shapes.md)
 - **框和截图编成一组**(`xdr:grpSp`):框用组内坐标,也就是截图自己的坐标系,不经过行高和列宽,对齐由格式保证;在 Excel 里挪截图,框跟着走。代价是要多点一下才能选中单个框。考虑过每个框单独摆(`colOff` 超出 `A` 列宽,macOS 和网页版 Excel 实测也能对齐),但它的对齐要看 Excel 怎么解读超出单元格的偏移,而 Windows 桌面版没验证过。也不按列宽拆成「第几列 + 偏移」:列宽换算成像素会随显示缩放变,和预留行在 125% 下变矮是同一类坑
+- 改 XML 的那一步在 `box_export.py`,`layout.py` 只交给它每个 sheet 的截图与框。**sheet → drawing 从 sheet 的 rels 里读**:没图的 sheet 没有 drawing,按序号猜第一个没图就全错位。drawing 里带 `pic` 的 anchor 按 `add_image` 的顺序和 image Block 一一对上,数量不符就抛异常,不让框落到别的图上。原图像素换算到 EMU **横纵各用各的比例**(`ext.cx ÷ 原图宽`、`ext.cy ÷ 原图高`):缩放时宽高分别取整,共用一个比例,长图底部的框会偏出去。一个框都没有的工作簿原样返回
 
 #### 表格
 
@@ -388,7 +389,7 @@ image Block 带一组红框 `boxes: [{x, y, w, h}]`,单位是**原图像素** �
 - **所有单元格统一写 `@` 文本格式**。`007`、`2024-01-01`、18 位 ID 交给 Excel 自动识别会分别变成 `7` / 日期序列号 / 科学计数法,而 evidence 的全部意义就是「我看到的就是这个值」。代价是 Excel 会挂「以文本形式存储的数字」绿色三角,接受它(理由见 [ADR-0004](./adr/0004-table-is-a-first-class-block.md))
 - **同一个 Case 里的多个表格共用列宽** —— 一个 sheet 只有一套列宽。这是 Excel 的形状,不是实现偷懒,不要试图修
 - 文字 Block 按它的 `split_lines` 走两条路:**逐行**(默认)时每行写一个单元格、占 `len(lines)` 行、**不设 `wrap_text`** —— 一行 log 就该是一行,超长时向右溢出(文字 Block 右边本来就是空列)比折成 20 行高的一格好读,而且这正好和上面「数据行不 wrap」一致;**合并**时仍是一格 + `wrap_text`,和现在一样。空行原样成为一个空 Excel 行(`"a\n\nb"` → 3 行)—— 空行是内容的一部分。Block 之间空一行的规则不变
-- 排版参数(列宽、最大图片宽度、底色、边框、字体、NULL 的字面量与颜色)集中在一个 `LayoutSettings` dataclass,值写在代码里。**第一版不做配置文件** —— 「做成配置」要的是参数集中而非散落在导出代码各处;真到了要套公司模板那天,换个数据来源即可,不必重写。**但这些值从此有了外部依据**(见 ADR-0011),改之前要能说出「a5m2 粘出来就是这样」
+- 排版参数(列宽、最大图片宽度、底色、边框、字体、NULL 的字面量与颜色、红框的颜色与线宽)集中在一个 `LayoutSettings` dataclass,值写在代码里。**第一版不做配置文件** —— 「做成配置」要的是参数集中而非散落在导出代码各处;真到了要套公司模板那天,换个数据来源即可,不必重写。**但这些值从此有了外部依据**(见 ADR-0011),改之前要能说出「a5m2 粘出来就是这样」
 - 文件名 `エビデンス_<title>.xlsx`,title 里的文件名非法字符(`\ / : * ? " < > |`)替换为 `_`。和 sheet 名的处理不同是有理由的:文件名不是交付内容,对方拿到就会按自己的规矩改。**它是非 ASCII,`Content-Disposition` 必须用 RFC 5987 的 `filename*=UTF-8''...` 形式**,只给 `filename=` 在部分环境会拿到乱码
 - 零个 Case 的 Evidence **拒绝导出**(工作簿必须至少有一个 sheet,生成一个只有空 sheet 的文件是在交付一个错误);零个 Block 的 Case **允许**,出一个只有名字的空 sheet ——「这个用例我确认过,没有要贴的东西」是真实存在的情况
 
@@ -403,6 +404,7 @@ image Block 带一组红框 `boxes: [{x, y, w, h}]`,单位是**原图像素** �
 | HTTP API | ✅ **主接缝** | Evidence / Case / Block 的增删改与排序、TSV 解析、图片落盘与级联删除 |
 | 导出的 xlsx | ✅ **走主接缝** | 调导出接口拿 bytes,再用 openpyxl 读回来断言 sheet 名、单元格值、图片数量与锚定行。**这是唯一能自动守住「不重叠不溢出」的手段**;人眼验收留给 macOS 上真开一次 |
 | 像素 → 预留行数 / 缩放 | ✅ 下沉纯函数 | 无 I/O,边界清楚(超高、超宽、极小图),走 HTTP 断言这些数字会很难读 |
+| 红框进 drawing | ✅ 走导出主接缝 + 下沉两条拒绝 | 位置、样式、sheet 与 drawing 的对应都从导出的 bytes 里读回断言,期望值从显示尺寸独立算出;「清单与工作簿对不上就拒绝」正常导出触发不到,直接调 `inject_boxes` |
 | 前端 | ❌ | 解析放后端之后,前端剩下的逻辑薄到不值得测 |
 
 ### F6 多语言

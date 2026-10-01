@@ -80,3 +80,5 @@ def test_layout_settings_has_expected_defaults() -> None:
     assert settings.font_name == "游ゴシック"
     assert settings.font_size == 11
     assert settings.literal_colors == {"\u226a NULL \u226b": "808080"}
+    assert settings.box_color == "FF0000"
+    assert settings.box_style.line_emu == 28575

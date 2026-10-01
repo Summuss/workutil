@@ -39,6 +39,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 from PIL import Image as PILImage
 
+from app.modules.evidence.box_export import BoxStyle, ImageBoxes, inject_boxes
 from app.modules.evidence.models import (
     BlockKind,
     Evidence,
@@ -107,6 +108,10 @@ class LayoutSettings:
     literal_colors: dict[str, str] = field(
         default_factory=lambda: {"\u226a NULL \u226b": "808080"}
     )
+    #: A red box in the workbook (ADR-0014). Not from a5m2, which has none:
+    #: the red and the 2.25 pt are what the hand-made rectangles were given.
+    box_color: str = "FF0000"
+    box_line_pt: float = 2.25
 
     @property
     def row_height_pt(self) -> float:
@@ -116,6 +121,11 @@ class LayoutSettings:
         and the only place the two units meet.
         """
         return self.row_height_px * 0.75
+
+    @property
+    def box_style(self) -> BoxStyle:
+        """The red box as DrawingML wants it: a line width in EMU, 12700 to the pt."""
+        return BoxStyle(color=self.box_color, line_emu=round(self.box_line_pt * 12700))
 
 
 DEFAULT_LAYOUT_SETTINGS = LayoutSettings()
@@ -317,7 +327,10 @@ def build_evidence_workbook(
         fill_type="solid",
     )
 
+    sheets_images: list[list[ImageBoxes]] = []
+
     for case_index, (case, blocks) in enumerate(cases_with_blocks):
+        sheet_images: list[ImageBoxes] = []
         if case_index == 0:
             ws = wb.active
             assert ws is not None
@@ -342,6 +355,7 @@ def build_evidence_workbook(
 
         # A case with 0 blocks produces an empty sheet with its name.
         if not blocks:
+            sheets_images.append(sheet_images)
             continue
 
         current_row = 1
@@ -391,6 +405,14 @@ def build_evidence_workbook(
                 with PILImage.open(img_path) as pil_img:
                     orig_w, orig_h = pil_img.size
 
+                sheet_images.append(
+                    ImageBoxes(
+                        src_width=orig_w,
+                        src_height=orig_h,
+                        boxes=block.boxes,
+                    )
+                )
+
                 scaled_w, scaled_h = scale_dimensions(
                     orig_w, orig_h, settings.max_image_width
                 )
@@ -433,6 +455,9 @@ def build_evidence_workbook(
 
                 current_row += len(block.rows)
 
+        sheets_images.append(sheet_images)
+
     out = io.BytesIO()
     wb.save(out)
-    return out.getvalue()
+    # openpyxl cannot write a shape, so the boxes go in after it is done.
+    return inject_boxes(out.getvalue(), sheets_images, settings.box_style)
