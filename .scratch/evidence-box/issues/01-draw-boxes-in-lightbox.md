@@ -59,4 +59,4 @@
 - 大纲缩略图的叠加、memo 灯箱不出现开关:代码确认(`Markdown.tsx` 不传 `onToggleBoxSelect`),未在浏览器里单独点。
 - 已知边界:连着两笔在同一个 PUT 往返之内画完、且前一笔失败时,回退会连后一笔一起撤掉。本机后端往返以毫秒计,不处理。
 
-**后续(用后反馈,已做):** 灯箱里按 `S` 进入框选(再按一次退出),省得每次伸手去点按钮。和按钮共用 `onToggleBoxSelect`,所以 memo 的灯箱也没有;带 `Ctrl` / `Cmd` / `Alt` 或按键重复时不响应。按钮的 tooltip 加上 `(S)`(新 key `evidence.box_select_title`,中日各一份)。无头 Chrome 实测:`s` / `Shift+S` 切换,`Ctrl+S` / `Alt+S` / 重复事件不变,按 `S` 后拖一下存下一个框,`→` 翻页后模式保持,`Esc` 关闭。
+**后续(用后反馈,已做):** 灯箱里按 `R` 进入框选(再按一次退出;最初用的是 `S`,发布一版后改成 `R`),省得每次伸手去点按钮。和按钮共用 `onToggleBoxSelect`,所以 memo 的灯箱也没有;带 `Ctrl` / `Cmd` / `Alt` 或按键重复时不响应。按钮的 tooltip 加上 `(R)`(新 key `evidence.box_select_title`,中日各一份)。无头 Chrome 实测:`r` / `Shift+R` 切换,`Ctrl+R` / `Alt+R` / 重复事件不变,按 `R` 后拖一下存下一个框,`→` 翻页后模式保持,`Esc` 关闭。

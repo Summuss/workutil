@@ -117,7 +117,7 @@ function isEventOnScrollbar(e: React.MouseEvent<HTMLElement>, el: HTMLElement): 
  * - ArrowLeft / ArrowRight step through images when onPrev/onNext are provided.
  * - Backdrop click and top-right X button close; dragging/clicking scrollbar does not close.
  * - A note (evidence only) sits along the bottom and lets the pointer through.
- * - Box mode (evidence only, when onToggleBoxSelect is given): the S key or the button toggles it;
+ * - Box mode (evidence only, when onToggleBoxSelect is given): the R key or the button toggles it;
  *   dragging on the image draws a red box,
  *   in pixels of the image file. Backdrop click does not close while it is on, so a drag released
  *   off the picture cannot close the lightbox. A click (no drag) on a box selects it, Delete or
@@ -189,11 +189,11 @@ export function Lightbox({
       }
       // The button's keyboard twin, so the mode is one keypress away from the
       // hand that is not on the mouse. Left alone with Ctrl / Cmd / Alt held
-      // (Ctrl+S is the browser's "save page"), and on key repeat, which would
+      // (Ctrl+R is the browser's "reload"), and on key repeat, which would
       // flip the mode back and forth for as long as the key stays down.
       if (
         onToggleBoxSelect &&
-        event.key.toLowerCase() === "s" &&
+        event.key.toLowerCase() === "r" &&
         !event.ctrlKey &&
         !event.metaKey &&
         !event.altKey &&
