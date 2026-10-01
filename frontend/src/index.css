@@ -226,6 +226,11 @@ a:hover {
   margin: 0.4rem 0;
 }
 
+/* A single newline in a memo is a line break, not a space. */
+.markdown-body p {
+  white-space: pre-line;
+}
+
 .markdown-body p:first-child {
   margin-top: 0;
 }
