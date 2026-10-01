@@ -162,22 +162,22 @@ export function CaseBlocks({
     }
   }
 
-  async function handleAddBox(blockId: number, box: Box) {
+  async function handleChangeBoxes(blockId: number, boxes: Box[]): Promise<boolean> {
     const block = blocks.find((one) => one.id === blockId);
-    if (!block) return;
+    if (!block) return false;
 
-    // Drawn first and saved after, so the box stays where the drag left it
+    // Shown first and saved after, so a stroke stays where the drag left it
     // instead of vanishing for the round trip. A refusal puts back what the
     // server still holds (design.md §6 F5 截图上的红框).
-    replace({ ...block, boxes: [...block.boxes, box] });
+    replace({ ...block, boxes });
     const saved = await run(async () => {
-      replace(await setBlockBoxes(evidenceId, caseId, blockId, [...block.boxes, box]));
+      replace(await setBlockBoxes(evidenceId, caseId, blockId, boxes));
     });
     if (!saved) {
       replace(block);
     }
+    return saved;
   }
-
 
   function handleJump(blockId: number) {
     setJumpToBlockId(blockId);
@@ -637,7 +637,7 @@ export function CaseBlocks({
           boxes={activeImageBlock.boxes}
           boxSelectActive={boxSelectActive}
           onToggleBoxSelect={setBoxSelectActive}
-          onAddBox={(box) => void handleAddBox(activeImageBlock.id, box)}
+          onChangeBoxes={(boxes) => handleChangeBoxes(activeImageBlock.id, boxes)}
           error={blockError}
         />
       )}

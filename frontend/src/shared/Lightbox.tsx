@@ -17,13 +17,21 @@ interface LightboxProps {
   boxes?: Box[];
   boxSelectActive?: boolean;
   onToggleBoxSelect?: (active: boolean) => void;
-  onAddBox?: (box: Box) => void;
+  /**
+   * Box mode saves through this: the whole set after a stroke, a delete or an
+   * undo. Answers whether it was kept, so a refused change is not left as a
+   * step to undo.
+   */
+  onChangeBoxes?: (boxes: Box[]) => Promise<boolean>;
   /** Why the last change to the boxes was refused, shown over the image. */
   error?: string | null;
 }
 
 /** Below this many screen pixels on either side, a drag is taken as a click. */
 const MIN_DRAG_PX = 5;
+
+/** How far outside a box's line, in screen pixels, a click still picks it. */
+const HIT_SLACK_PX = 4;
 
 /**
  * Where a pointer falls on an image, in pixels of the image file and clamped
@@ -47,6 +55,26 @@ function spanned(a: { x: number; y: number }, b: { x: number; y: number }): Box 
   const x = Math.min(a.x, b.x);
   const y = Math.min(a.y, b.y);
   return { x, y, w: Math.max(a.x, b.x) - x, h: Math.max(a.y, b.y) - y };
+}
+
+/**
+ * The box a click at `at` picks: the newest one where boxes overlap, since it
+ * is drawn on top. `slack` widens each box so a click on its line counts.
+ */
+function boxAt(at: { x: number; y: number }, boxes: Box[], slack: number): number | null {
+  for (let index = boxes.length - 1; index >= 0; index--) {
+    const one = boxes[index];
+    if (
+      one &&
+      at.x >= one.x - slack &&
+      at.x <= one.x + one.w + slack &&
+      at.y >= one.y - slack &&
+      at.y <= one.y + one.h + slack
+    ) {
+      return index;
+    }
+  }
+  return null;
 }
 
 function isEventOnScrollbar(e: React.MouseEvent<HTMLElement>, el: HTMLElement): boolean {
@@ -83,7 +111,8 @@ function isEventOnScrollbar(e: React.MouseEvent<HTMLElement>, el: HTMLElement): 
  * - Backdrop click and top-right X button close; dragging/clicking scrollbar does not close.
  * - Box mode (evidence only, when onToggleBoxSelect is given): dragging on the image draws a red box,
  *   in pixels of the image file. Backdrop click does not close while it is on, so a drag released
- *   off the picture cannot close the lightbox.
+ *   off the picture cannot close the lightbox. A click (no drag) on a box selects it, Delete or
+ *   Backspace removes it, Ctrl/Cmd+Z undoes the last stroke or delete on this image.
  */
 export function Lightbox({
   src,
@@ -98,7 +127,7 @@ export function Lightbox({
   boxes,
   boxSelectActive = false,
   onToggleBoxSelect,
-  onAddBox,
+  onChangeBoxes,
   error,
 }: LightboxProps) {
   const { t } = useI18n();
@@ -110,22 +139,66 @@ export function Lightbox({
   const [draftBox, setDraftBox] = useState<Box | null>(null);
   const isDraggingRef = useRef(false);
   const startPosRef = useRef<{ clientX: number; clientY: number } | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
+  // The sets this image's boxes had before each change made here, newest last.
+  // Only for this image and this opening: undoing across images would have to
+  // step back to the image too, which is more surprise than help.
+  const historyRef = useRef<Box[][]>([]);
+  const currentBoxes = boxes ?? [];
 
-  // A drag in progress belongs to the image it started on.
+  // A drag in progress, a selection and the undo steps all belong to the
+  // image they were made on.
   useEffect(() => {
     setDraftBox(null);
+    setSelected(null);
+    historyRef.current = [];
     isDraggingRef.current = false;
     startPosRef.current = null;
   }, [src]);
 
+  function changeBoxes(next: Box[]) {
+    const before = currentBoxes;
+    setSelected(null);
+    void onChangeBoxes?.(next).then((kept) => {
+      if (kept) historyRef.current.push(before);
+    });
+  }
+
   // Esc key stays on document-level so closing works even if focus moved
   // (see design.md §6 F1).
+  // Re-attached on every render, here and for the drag listeners below: the
+  // handlers read the boxes, the pick and the undo steps as they are now,
+  // and a dependency list naming all of them would change every render anyway.
   // ArrowLeft / ArrowRight step through images when stepping is enabled.
   useEffect(() => {
     function handleKeyDown(event: globalThis.KeyboardEvent) {
       if (event.key === "Escape") {
         onClose();
         return;
+      }
+      if (boxSelectActive) {
+        if ((event.key === "Delete" || event.key === "Backspace") && selected !== null) {
+          event.preventDefault();
+          changeBoxes(currentBoxes.filter((_, index) => index !== selected));
+          return;
+        }
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          !event.shiftKey &&
+          event.key.toLowerCase() === "z"
+        ) {
+          event.preventDefault();
+          // Not through `changeBoxes`: an undo must not become a step to undo,
+          // and one that is refused stays available to try again.
+          const previous = historyRef.current.pop();
+          if (previous) {
+            setSelected(null);
+            void onChangeBoxes?.(previous).then((kept) => {
+              if (!kept) historyRef.current.push(previous);
+            });
+          }
+          return;
+        }
       }
       if (event.key === "ArrowLeft" || event.key === "Left") {
         if (onPrev) {
@@ -147,7 +220,7 @@ export function Lightbox({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose, onPrev, onNext, hasPrev, hasNext]);
+  });
 
   // Focus the scroll container and reset scroll position to top on open or when stepped.
   useEffect(() => {
@@ -199,6 +272,7 @@ export function Lightbox({
       isDraggingRef.current = false;
       startPosRef.current = null;
       setDraftBox(null);
+      setSelected(null);
       return;
     }
 
@@ -233,9 +307,14 @@ export function Lightbox({
       const rect = img.getBoundingClientRect();
       const screenW = (box.w / naturalSize.w) * rect.width;
       const screenH = (box.h / naturalSize.h) * rect.height;
-      if (screenW < MIN_DRAG_PX || screenH < MIN_DRAG_PX) return;
+      if (screenW < MIN_DRAG_PX || screenH < MIN_DRAG_PX) {
+        // A click picks the box under it, or clears the pick.
+        const at = toImagePoint(e.clientX, e.clientY, rect, naturalSize);
+        setSelected(boxAt(at, currentBoxes, (HIT_SLACK_PX / rect.width) * naturalSize.w));
+        return;
+      }
 
-      onAddBox?.(box);
+      changeBoxes([...currentBoxes, box]);
     }
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -244,7 +323,7 @@ export function Lightbox({
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [boxSelectActive, naturalSize, onAddBox]);
+  });
 
   return (
     <div
@@ -367,7 +446,8 @@ export function Lightbox({
           }}
         />
         <BoxOverlay
-          boxes={draftBox ? [...(boxes ?? []), draftBox] : (boxes ?? [])}
+          boxes={draftBox ? [...currentBoxes, draftBox] : currentBoxes}
+          selected={selected}
           naturalSize={naturalSize}
           strokeWidth={2}
         />

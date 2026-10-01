@@ -41,6 +41,8 @@ export function useNaturalSize(src: string | null): {
 
 interface BoxOverlayProps {
   boxes: Box[];
+  /** The index of the box picked in the lightbox, drawn with a white halo. */
+  selected?: number | null;
   naturalSize: NaturalSize | null;
   strokeWidth: number;
 }
@@ -54,7 +56,7 @@ interface BoxOverlayProps {
  * stroke does not scale — on a long screenshot shrunk into a card, a stroke
  * scaled with it would thin out to nothing.
  */
-export function BoxOverlay({ boxes, naturalSize, strokeWidth }: BoxOverlayProps) {
+export function BoxOverlay({ boxes, selected, naturalSize, strokeWidth }: BoxOverlayProps) {
   if (!naturalSize || boxes.length === 0) {
     return null;
   }
@@ -64,19 +66,30 @@ export function BoxOverlay({ boxes, naturalSize, strokeWidth }: BoxOverlayProps)
       viewBox={`0 0 ${naturalSize.w} ${naturalSize.h}`}
       className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
     >
-      {boxes.map((box, index) => (
-        <rect
-          key={index}
-          x={box.x}
-          y={box.y}
-          width={box.w}
-          height={box.h}
-          fill="none"
-          stroke="#FF0000"
-          strokeWidth={strokeWidth}
-          vectorEffect="non-scaling-stroke"
-        />
-      ))}
+      {boxes.map((box, index) => {
+        const isSelected = index === selected;
+        const shape = {
+          x: box.x,
+          y: box.y,
+          width: box.w,
+          height: box.h,
+          fill: "none",
+          vectorEffect: "non-scaling-stroke",
+        } as const;
+        return (
+          <g key={index}>
+            {/* White under the red, so the pick shows against a screenshot of
+                any colour — red alone is lost on a red error message. */}
+            {isSelected && <rect {...shape} stroke="#FFFFFF" strokeWidth={strokeWidth + 4} />}
+            <rect
+              {...shape}
+              stroke="#FF0000"
+              strokeWidth={isSelected ? strokeWidth + 1 : strokeWidth}
+              strokeDasharray={isSelected ? "6 3" : undefined}
+            />
+          </g>
+        );
+      })}
     </svg>
   );
 }
