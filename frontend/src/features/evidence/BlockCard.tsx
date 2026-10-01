@@ -309,9 +309,18 @@ export function BlockCard({
           onDeleteColumn={table.onDeleteColumn}
         />
       ) : block.kind === "image" ? (
-        /* Shown whole, scaled down to the card. The file on disk is the
-           original — the only resizing this tool does happens on the copy
-           inside an exported workbook (design.md §6 F5).
+        /* Shown whole, scaled down to fit both width and height within one screen
+           (design.md §6 F5).
+
+           Width is capped by the card (`max-w-full`) and height is capped by
+           the scroll container's visible height (`calc(100cqh - 5.5rem)`),
+           where 5.5rem covers card chrome (borders, py-3 padding, gap-2, and
+           the header row) plus container breathing room so the card top and
+           bottom edges both stay in view. The two limits act together: proportional,
+           never upscaled, never cropped.
+
+           The disk file remains the untouched original — scaling down for
+           workbook export is separate (design.md §6 F5).
 
            No `src` fallback: an empty one asks the server for this page again
            and draws the answer as a broken image. */
@@ -327,7 +336,10 @@ export function BlockCard({
               }}
               onError={() => setImageError(true)}
               className={`max-w-full self-start rounded-md${imageError ? "" : " cursor-pointer"}`}
-              style={{ border: "1px solid var(--border)" }}
+              style={{
+                maxHeight: "calc(100cqh - 5.5rem)",
+                border: "1px solid var(--border)",
+              }}
             />
             {lightboxOpen && !imageError && (
               <Lightbox

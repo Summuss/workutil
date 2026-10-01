@@ -334,9 +334,14 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
+      {/* Scroll container configured as a size query container so block card
+          images can scale relative to its visible height (100cqh). Its own height
+          is determined by the flex parent (`flex-1 min-h-0`), satisfying size
+          containment without JavaScript (design.md §6 F5). */}
       <div
         ref={scrollContainerRef}
         className="flex-1 min-h-0 overflow-y-auto"
+        style={{ containerType: "size" }}
       >
         <div className="flex w-full flex-col gap-3.5 px-8 pt-1 pb-4 min-h-[300px]">
           {loading ? (
