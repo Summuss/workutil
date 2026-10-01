@@ -338,7 +338,7 @@ image Block 带一组红框 `boxes: [{x, y, w, h}]`,单位是**原图像素** �
 - **每一步立刻保存,不是草稿。** 草稿防「写到一半」,而一个框画完就是完整的。失败退回服务器上的样子
 - 屏幕上用一层 SVG(`viewBox` = 原图尺寸)叠在 `<img>` 上,线宽 `non-scaling-stroke` —— 否则长图缩成窄条时框细到看不见
 - **导出成 Excel 原生四边形**(无填充、`FF0000`、2.25pt,在 `LayoutSettings` 里),因为交付后要能在 Excel 里拖。**openpyxl 写不出形状**(`SpreadsheetDrawing._write` 只遍历 charts + images),所以 `wb.save` 之后改写 `xl/drawings/drawingN.xml` 补进去。这和 [ADR-0004](./adr/0004-table-is-a-first-class-block.md)「压掉绿色三角要拆 zip 手改 XML,不值得」不矛盾:那里是代价对不上收益,这里是交付形态本身的要求。sheet → drawing 的对应从 sheet 的 rels 里读,不按序号猜
-- **框与截图怎么摆:待验证。** 编组(组内坐标,格式上不会错位,但在 Excel 里要多点一下才选得中单个框)还是单独摆(`colOff` 超出 `A` 列宽,取决于 Excel 是否接受)。不按列宽拆成「第几列 + 偏移」:列宽换算成像素会随显示缩放变,和预留行在 125% 下变矮是同一类坑。结论见 `.scratch/evidence-box/issues/03`
+- **框和截图编成一组**(`xdr:grpSp`):框用组内坐标,也就是截图自己的坐标系,不经过行高和列宽,对齐由格式保证;在 Excel 里挪截图,框跟着走。代价是要多点一下才能选中单个框。考虑过每个框单独摆(`colOff` 超出 `A` 列宽,macOS 和网页版 Excel 实测也能对齐),但它的对齐要看 Excel 怎么解读超出单元格的偏移,而 Windows 桌面版没验证过。也不按列宽拆成「第几列 + 偏移」:列宽换算成像素会随显示缩放变,和预留行在 125% 下变矮是同一类坑
 
 #### 表格
 
