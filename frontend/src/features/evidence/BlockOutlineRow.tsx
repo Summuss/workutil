@@ -12,6 +12,7 @@ import { InlineEdit } from "../../shared/InlineEdit";
 import { DragHandle, useSortableItem } from "../../shared/sortable";
 import { BoxOverlay, useNaturalSize } from "../../shared/BoxOverlay";
 import { forgetDraft } from "../../shared/useDraft";
+import { BlockNumber } from "./BlockNumber";
 import { MOVES, TOOL_BUTTON, type MoveLabels } from "./toolbar";
 import type { Block, Move } from "./types";
 
@@ -110,7 +111,9 @@ export function BlockOutlineRow({
       onClick={handleClickRow}
       className="card flex h-14 items-center gap-2 px-3 py-1 cursor-pointer select-none transition-colors hover:bg-[var(--hover-wash)]"
     >
-      {/* Left: Drag handle & Move buttons */}
+      {/* Left: position, drag handle & move buttons. The number gets a fixed
+          width so the rows line up once there are ten or more. */}
+      <BlockNumber at={at} className="w-7 text-right" />
       <div
         className="flex shrink-0 items-center gap-0.5"
         onClick={(e) => e.stopPropagation()}

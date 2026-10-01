@@ -11,6 +11,7 @@ import {
 import { DragHandle, useSortableItem } from "../../shared/sortable";
 import { BoxOverlay, useNaturalSize } from "../../shared/BoxOverlay";
 import { useDraft } from "../../shared/useDraft";
+import { BlockNumber } from "./BlockNumber";
 import { BlockTextArea } from "./BlockTextArea";
 import { hasTableMarkings } from "./clipboard";
 import { TableBlockView } from "./TableBlockView";
@@ -156,6 +157,7 @@ export function BlockCard({
       className="card flex flex-col gap-2 px-4 py-3"
     >
       <div className="flex items-center gap-1">
+        <BlockNumber at={at} />
         {editingLabel ? (
           <InlineEdit
             initial={block.label ?? ""}

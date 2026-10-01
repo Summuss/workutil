@@ -26,6 +26,7 @@ import {
   turnBlockIntoText,
 } from "./api";
 import { BlockCard } from "./BlockCard";
+import { blockNumber } from "./BlockNumber";
 import { BlockOutlineRow } from "./BlockOutlineRow";
 import { BlockTextArea } from "./BlockTextArea";
 import type { Box } from "../../shared/BoxOverlay";
@@ -628,6 +629,7 @@ export function CaseBlocks({
           src={activeImageBlock.image_url ?? ""}
           alt={activeImageBlock.label ?? t("evidence.screenshot_alt")}
           position={`${activeImageIndex + 1} / ${imageBlocks.length}`}
+          number={blockNumber(blocks.indexOf(activeImageBlock))}
           label={activeImageBlock.label}
           onClose={handleCloseLightbox}
           onPrev={handlePrevImage}

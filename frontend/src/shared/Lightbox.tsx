@@ -13,6 +13,9 @@ interface LightboxProps {
   hasPrev?: boolean;
   hasNext?: boolean;
   position?: string;
+  /** Where this image's block stands in its case, shown as `#7` after the
+      position. Evidence passes it; memo has no such thing. */
+  number?: string;
   label?: string | null;
   boxes?: Box[];
   boxSelectActive?: boolean;
@@ -123,6 +126,7 @@ export function Lightbox({
   hasPrev = false,
   hasNext = false,
   position,
+  number,
   label,
   boxes,
   boxSelectActive = false,
@@ -334,13 +338,21 @@ export function Lightbox({
       onMouseDown={handleMouseDown}
       onClick={handleClick}
     >
-      {/* Position counter and label (evidence only) */}
+      {/* Position counter, block number and label (evidence only) */}
       {position && (
         <div
           className="fixed top-4 left-1/2 -translate-x-1/2 z-10 flex max-w-[70vw] items-center gap-2 rounded-full px-3.5 py-1.5 text-xs text-white shadow pointer-events-none select-none"
           style={{ background: "rgba(0, 0, 0, 0.5)" }}
         >
           <span className="shrink-0 font-medium">{position}</span>
+          {number && (
+            <>
+              <span className="shrink-0 opacity-50">·</span>
+              <span className="shrink-0 tabular-nums" style={{ fontFamily: "var(--mono)" }}>
+                {number}
+              </span>
+            </>
+          )}
           {label && label.trim() !== "" && (
             <>
               <span className="shrink-0 opacity-50">·</span>
