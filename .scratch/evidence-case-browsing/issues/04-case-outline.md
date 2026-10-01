@@ -56,3 +56,5 @@
 - **这个窗口里 block 列表的可视高度只有 290px,13 行装不进一屏**(820px)。大纲把「一张图好几屏」变成「一段一行」,但在笔记本上,十几段仍然要滚两三下。
 
 未在浏览器里点过:大纲里拖动排序、改小标题、删除、开着大纲粘贴。它们走的都是卡片已有的 handler(`handleMove` / `handleReorderBlock` / `handleLabel` / `handleDelete`)。
+
+**后续(用后反馈):** 大纲里点图片缩略图应直接开灯箱,而不是跳回卡片 —— 缩略图够认不够读,为看一眼图退出大纲正是大纲要省的那一趟。缩略图 `onClick` 停止冒泡并调 `CaseBlocks` 的 `handleOpenLightbox`,`←` `→` 与「关掉停在最后那张」照旧成立(行与卡片共用 `evidence-block-<id>`)。

@@ -23,6 +23,10 @@ interface BlockOutlineRowProps {
   onMove: (to: Move) => Promise<void>;
   onDelete: () => Promise<void>;
   onJump: (blockId: number) => void;
+  /** The thumbnail opens the picture itself rather than jumping to its card:
+      a 40px thumbnail is enough to tell which screenshot this is, not to read
+      it, and reading it is the lightbox's job (design.md §6 F5). */
+  onOpenLightbox: () => void;
   onImageError?: () => void;
 }
 
@@ -36,7 +40,8 @@ function getFirstLine(text: string): string {
  *
  * Content editing and formatting controls are omitted deliberately: those
  * are done while looking at the content, which a row does not show.
- * Clicking the row returns to normal view and scrolls to this block.
+ * Clicking the row returns to normal view and scrolls to this block; clicking
+ * an image's thumbnail opens it in the lightbox instead, staying in the outline.
  */
 export function BlockOutlineRow({
   block,
@@ -47,6 +52,7 @@ export function BlockOutlineRow({
   onMove,
   onDelete,
   onJump,
+  onOpenLightbox,
   onImageError,
 }: BlockOutlineRowProps) {
   const { t } = useI18n();
@@ -204,11 +210,15 @@ export function BlockOutlineRow({
           <img
             src={block.image_url}
             alt={block.label ?? t("evidence.screenshot_alt")}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenLightbox();
+            }}
             onError={() => {
               setImageError(true);
               onImageError?.();
             }}
-            className="h-10 w-auto max-w-[120px] shrink-0 rounded object-contain"
+            className="h-10 w-auto max-w-[120px] shrink-0 cursor-zoom-in rounded object-contain"
             style={{ border: "1px solid var(--border)" }}
           />
         )}

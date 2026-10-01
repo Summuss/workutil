@@ -539,6 +539,7 @@ export function CaseBlocks({
                     onMove={(to) => handleMove(block.id, to)}
                     onDelete={() => handleDelete(block.id)}
                     onJump={handleJump}
+                    onOpenLightbox={() => handleOpenLightbox(block.id)}
                     onImageError={() => handleImageError(block.id)}
                   />
                 ) : (
