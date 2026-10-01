@@ -26,6 +26,7 @@ import {
 } from "./api";
 import { BlockCard } from "./BlockCard";
 import { BlockTextArea } from "./BlockTextArea";
+import { Lightbox } from "../../shared/Lightbox";
 import { guardDuplicateImagePaste } from "../../shared/pasteDuplicateImage";
 import { SortableList } from "../../shared/sortable";
 import type { PastedText } from "./clipboard";
@@ -89,6 +90,63 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
   const blocks = content?.blocks ?? [];
 
   const [scrollToBlockId, setScrollToBlockId] = useState<number | null>(null);
+  const [failedImageIds, setFailedImageIds] = useState<ReadonlySet<number>>(new Set());
+  const [activeImageBlockId, setActiveImageBlockId] = useState<number | null>(null);
+  const hasPagedRef = useRef(false);
+
+  const imageBlocks = blocks.filter(
+    (b) => b.kind === "image" && b.image_url !== null && !failedImageIds.has(b.id),
+  );
+
+  const activeImageIndex =
+    activeImageBlockId !== null
+      ? imageBlocks.findIndex((b) => b.id === activeImageBlockId)
+      : -1;
+  const activeImageBlock =
+    activeImageIndex !== -1 ? imageBlocks[activeImageIndex] : null;
+
+  function handleImageError(blockId: number) {
+    setFailedImageIds((prev) => {
+      if (prev.has(blockId)) return prev;
+      const next = new Set(prev);
+      next.add(blockId);
+      return next;
+    });
+  }
+
+  function handleOpenLightbox(blockId: number) {
+    hasPagedRef.current = false;
+    setActiveImageBlockId(blockId);
+  }
+
+  function handleCloseLightbox() {
+    if (hasPagedRef.current && activeImageBlockId !== null) {
+      const el = document.getElementById(`evidence-block-${activeImageBlockId}`);
+      el?.scrollIntoView({ block: "nearest" });
+    }
+    setActiveImageBlockId(null);
+    hasPagedRef.current = false;
+  }
+
+  function handlePrevImage() {
+    if (activeImageIndex > 0) {
+      const target = imageBlocks[activeImageIndex - 1];
+      if (target) {
+        hasPagedRef.current = true;
+        setActiveImageBlockId(target.id);
+      }
+    }
+  }
+
+  function handleNextImage() {
+    if (activeImageIndex < imageBlocks.length - 1) {
+      const target = imageBlocks[activeImageIndex + 1];
+      if (target) {
+        hasPagedRef.current = true;
+        setActiveImageBlockId(target.id);
+      }
+    }
+  }
 
   // The box at the bottom is a draft too, and per case: a paragraph typed
   // against case 3 belongs to case 3, not to whichever one is open when you
@@ -102,6 +160,8 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0 });
     setScrollToBlockId(null);
+    setActiveImageBlockId(null);
+    hasPagedRef.current = false;
   }, [caseId]);
 
   /**
@@ -390,6 +450,8 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
                     onDeleteColumn: (column) => handleDeleteColumn(block.id, column),
                     onAsText: () => handleAsText(block.id),
                   }}
+                  onOpenLightbox={() => handleOpenLightbox(block.id)}
+                  onImageError={() => handleImageError(block.id)}
                 />
               ))}
             </SortableList>
@@ -418,6 +480,20 @@ export function CaseBlocks({ evidenceId, caseId }: CaseBlocksProps) {
           />
         </div>
       </div>
+
+      {activeImageBlock && (
+        <Lightbox
+          src={activeImageBlock.image_url ?? ""}
+          alt={activeImageBlock.label ?? t("evidence.screenshot_alt")}
+          position={`${activeImageIndex + 1} / ${imageBlocks.length}`}
+          label={activeImageBlock.label}
+          onClose={handleCloseLightbox}
+          onPrev={handlePrevImage}
+          onNext={handleNextImage}
+          hasPrev={activeImageIndex > 0}
+          hasNext={activeImageIndex < imageBlocks.length - 1}
+        />
+      )}
     </div>
   );
 }
