@@ -244,6 +244,18 @@ export function setBlockLabel(
   });
 }
 
+/** Sets the note, or clears it — a blank one is no note. Never exported. */
+export function setBlockNote(
+  evidenceId: number,
+  caseId: number,
+  blockId: number,
+  note: string,
+): Promise<Block> {
+  return put<Block>(`${blocksAt(evidenceId, caseId)}/${blockId}/note`, {
+    note,
+  });
+}
+
 export function deleteBlock(
   evidenceId: number,
   caseId: number,

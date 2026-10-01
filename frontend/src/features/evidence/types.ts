@@ -47,6 +47,9 @@ export interface Block {
   kind: BlockKind;
   order: number;
   label: string | null;
+  /** A line for the person recording, never exported — the one thing that
+      separates it from `label`. */
+  note: string | null;
   text: string;
   image_url: string | null;
   /** The cells of a table, cut when it was pasted and never cut again. */

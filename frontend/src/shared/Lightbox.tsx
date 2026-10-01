@@ -17,6 +17,10 @@ interface LightboxProps {
       position. Evidence passes it; memo has no such thing. */
   number?: string;
   label?: string | null;
+  /** The image block's note (evidence only), shown along the bottom. Read
+      here, written on the card: it is not exported, so it is not drawn in
+      the colours of what will be. */
+  note?: string | null;
   boxes?: Box[];
   boxSelectActive?: boolean;
   onToggleBoxSelect?: (active: boolean) => void;
@@ -112,6 +116,7 @@ function isEventOnScrollbar(e: React.MouseEvent<HTMLElement>, el: HTMLElement): 
  * - Esc key closes via document-level listener.
  * - ArrowLeft / ArrowRight step through images when onPrev/onNext are provided.
  * - Backdrop click and top-right X button close; dragging/clicking scrollbar does not close.
+ * - A note (evidence only) sits along the bottom and lets the pointer through.
  * - Box mode (evidence only, when onToggleBoxSelect is given): dragging on the image draws a red box,
  *   in pixels of the image file. Backdrop click does not close while it is on, so a drag released
  *   off the picture cannot close the lightbox. A click (no drag) on a box selects it, Delete or
@@ -128,6 +133,7 @@ export function Lightbox({
   position,
   number,
   label,
+  note,
   boxes,
   boxSelectActive = false,
   onToggleBoxSelect,
@@ -437,6 +443,17 @@ export function Lightbox({
           style={{ background: "var(--danger)" }}
         >
           {error}
+        </div>
+      )}
+
+      {/* Lets the pointer through, so a box can still be drawn under it. */}
+      {note && note.trim() !== "" && (
+        <div
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-10 flex max-w-[70vw] items-baseline gap-2 rounded-2xl px-3.5 py-1.5 text-xs text-white shadow pointer-events-none select-none"
+          style={{ background: "rgba(0, 0, 0, 0.65)" }}
+        >
+          <span className="shrink-0 font-medium text-amber-300">{t("lightbox.note")}</span>
+          <span className="break-words">{note.trim()}</span>
         </div>
       )}
 

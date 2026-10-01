@@ -464,6 +464,7 @@ def duplicate_case(
             case_id=new_case.id,
             kind=block.kind,
             label=block.label,
+            note=block.note,
             text=block.text,
             image_name=new_image_name,
             rows=new_rows,
@@ -832,6 +833,25 @@ def set_block_label(
     """
     block = get_block(session, evidence_id, case_id, block_id)
     block.label = _clean_label(label)
+    session.commit()
+    return block
+
+
+def set_block_note(
+    session: Session,
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    note: str | None,
+) -> EvidenceBlock:
+    """Give a block its note, or take it away.
+
+    Cleaned like a label, and for the same reason a blank one is none — but
+    nothing on the way out reads it: the exported sheet is for whoever the
+    evidence is delivered to, and a note is for whoever is recording it.
+    """
+    block = get_block(session, evidence_id, case_id, block_id)
+    block.note = _clean_label(note)
     session.commit()
     return block
 

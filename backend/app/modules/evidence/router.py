@@ -16,6 +16,7 @@ from app.modules.evidence.schemas import (
     BlockBoxesEdit,
     BlockCreate,
     BlockLabelEdit,
+    BlockNoteEdit,
     BlockRead,
     BlockTextEdit,
     CaseCreate,
@@ -281,6 +282,24 @@ def set_block_label(
     with _as_http_error():
         block = service.set_block_label(
             session, evidence_id, case_id, block_id, payload.label
+        )
+    return BlockRead.of(block, evidence_id)
+
+
+@router.put(
+    "/{evidence_id}/cases/{case_id}/blocks/{block_id}/note", response_model=BlockRead
+)
+def set_block_note(
+    evidence_id: int,
+    case_id: int,
+    block_id: int,
+    payload: BlockNoteEdit,
+    session: SessionDep,
+) -> BlockRead:
+    """Set or clear a block's note — the label's shape, never exported."""
+    with _as_http_error():
+        block = service.set_block_note(
+            session, evidence_id, case_id, block_id, payload.note
         )
     return BlockRead.of(block, evidence_id)
 

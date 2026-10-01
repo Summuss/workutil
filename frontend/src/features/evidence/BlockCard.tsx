@@ -46,6 +46,7 @@ interface BlockCardProps {
   guessed: boolean;
   onEditText: (text: string) => Promise<boolean>;
   onLabel: (label: string) => Promise<boolean>;
+  onNote: (note: string) => Promise<boolean>;
   onMove: (to: Move) => Promise<void>;
   onDelete: () => Promise<void>;
   onSplitLines?: (splitLines: boolean) => Promise<void>;
@@ -57,6 +58,7 @@ interface BlockCardProps {
 }
 
 const LABEL_FIELD = "field-input min-w-0 flex-1";
+const NOTE_FIELD = "field-input w-full text-xs";
 
 /**
  * One block: its heading, its content, and what can be done to it.
@@ -78,6 +80,7 @@ export function BlockCard({
   guessed,
   onEditText,
   onLabel,
+  onNote,
   onMove,
   onDelete,
   onSplitLines,
@@ -90,6 +93,7 @@ export function BlockCard({
   const { t } = useI18n();
   const [editingText, setEditingText] = useState(false);
   const [editingLabel, setEditingLabel] = useState(false);
+  const [editingNote, setEditingNote] = useState(false);
   const [editingTable, setEditingTable] = useState(false);
   const [imageError, setImageError] = useState(false);
   const { naturalSize, onLoad } = useNaturalSize(block.image_url);
@@ -126,6 +130,12 @@ export function BlockCard({
   async function commitLabel(label: string): Promise<void> {
     if (await onLabel(label)) {
       setEditingLabel(false);
+    }
+  }
+
+  async function commitNote(note: string): Promise<void> {
+    if (await onNote(note)) {
+      setEditingNote(false);
     }
   }
 
@@ -304,6 +314,19 @@ export function BlockCard({
               {t("evidence.box_select")}
             </button>
           )}
+          {/* Only while there is no note: once there is one, the note's own
+              line is where it is changed, and a second door would be noise. */}
+          {block.note === null && !editingNote && (
+            <button
+              type="button"
+              title={t("evidence.add_note_title")}
+              disabled={busy}
+              onClick={() => setEditingNote(true)}
+              className={TOOL_BUTTON}
+            >
+              {t("evidence.note_button")}
+            </button>
+          )}
           <button
             type="button"
             disabled={busy}
@@ -315,6 +338,33 @@ export function BlockCard({
           </button>
         </div>
       </div>
+
+      {/* The note: for whoever is recording, never exported (CONTEXT.md 备注).
+          Drawn in the warning colours rather than the text's, so it is never
+          read as part of what will be delivered. A one-line rename like the
+          label, so no draft. */}
+      {editingNote ? (
+        <InlineEdit
+          initial={block.note ?? ""}
+          busy={busy}
+          className={NOTE_FIELD}
+          placeholder={t("evidence.note_placeholder")}
+          onCommit={commitNote}
+          onCancel={() => setEditingNote(false)}
+        />
+      ) : (
+        block.note !== null && (
+          <button
+            type="button"
+            title={t("evidence.edit_note_title")}
+            onClick={() => setEditingNote(true)}
+            className="max-w-full cursor-pointer self-start break-words rounded px-1.5 py-0.5 text-left text-xs"
+            style={{ color: "var(--warn)", background: "var(--warn-tint)" }}
+          >
+            {block.note}
+          </button>
+        )
+      )}
 
       {/* The body is the one part that belongs to a kind; everything above
           this line belongs to all of them. */}

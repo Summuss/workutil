@@ -19,6 +19,7 @@ import {
   moveBlock,
   setBlockBoxes,
   setBlockLabel,
+  setBlockNote,
   setTableCell,
   setTableHeader,
   setTextBlockSplitLines,
@@ -421,6 +422,12 @@ export function CaseBlocks({
     });
   }
 
+  function handleNote(blockId: number, note: string): Promise<boolean> {
+    return run(async () => {
+      replace(await setBlockNote(evidenceId, caseId, blockId, note));
+    });
+  }
+
   async function handleReorderBlock(
     activeId: number | string,
     targetIndex: number,
@@ -577,6 +584,7 @@ export function CaseBlocks({
                     guessed={guessed.has(block.id)}
                     onEditText={(text) => handleEditText(block.id, text)}
                     onLabel={(label) => handleLabel(block.id, label)}
+                    onNote={(note) => handleNote(block.id, note)}
                     onMove={(to) => handleMove(block.id, to)}
                     onDelete={() => handleDelete(block.id)}
                     onSplitLines={(splitLines) =>
@@ -631,6 +639,7 @@ export function CaseBlocks({
           position={`${activeImageIndex + 1} / ${imageBlocks.length}`}
           number={blockNumber(blocks.indexOf(activeImageBlock))}
           label={activeImageBlock.label}
+          note={activeImageBlock.note}
           onClose={handleCloseLightbox}
           onPrev={handlePrevImage}
           onNext={handleNextImage}

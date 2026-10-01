@@ -98,6 +98,12 @@ class BlockLabelEdit(BaseModel):
     label: str | None = None
 
 
+class BlockNoteEdit(BaseModel):
+    """A block's note. Absent, null and blank all mean "no note", as for a label."""
+
+    note: str | None = None
+
+
 class TableCellEdit(BaseModel):
     """A new value for one cell, stored exactly as it is typed."""
 
@@ -165,6 +171,7 @@ class BlockRead(BaseModel):
     kind: BlockKind
     order: int
     label: str | None
+    note: str | None = None
     text: str
     image_url: str | None = None
     rows: list[list[str]] = []
@@ -179,6 +186,7 @@ class BlockRead(BaseModel):
             kind=block.kind,
             order=block.order,
             label=block.label,
+            note=block.note,
             text=block.text,
             image_url=(
                 f"{evidence_images_url(evidence_id)}/{block.image_name}"

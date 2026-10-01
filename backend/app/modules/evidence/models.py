@@ -85,6 +85,8 @@ class EvidenceBlock(Ordered, Base):
     would mean renumbering everything below the one you insert, and a case is
     not a procedure (ADR-0003). `label` is the optional small heading that says
     what a piece is ("事前準備の DB データ"); most blocks do without one.
+    `note` is a line for the person recording and nobody else: it is never
+    exported, which is the whole of what separates it from the label.
 
     One table holds all three kinds, each carrying the payload its own kind
     needs and leaving the others empty: `text` for `TEXT`, `image_name` for
@@ -111,6 +113,7 @@ class EvidenceBlock(Ordered, Base):
         )
     )
     label: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
     text: Mapped[str] = mapped_column(Text, default="")
     #: The file this block *is*, named within its evidence's image directory —
     #: a name and not a path, so the whole data directory stays movable
