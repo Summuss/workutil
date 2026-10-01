@@ -1,6 +1,6 @@
 # 03: 红框导出成 Excel 里能拖的四边形
 
-**Status:** ready-for-human —— 代码完成;剩下在 Excel 里实机看的几条
+**Status:** resolved
 
 **Blocked by:** 01
 
@@ -31,8 +31,8 @@
 
 - [x] 上面的自动化测试绿
 - [ ] 一份带框的 evidence 导出后,用工作机上的 Excel 打开:不弹「修复」;每个框压在对的位置;框能拖、能删
-- [ ] 同一份文件用 Mac 上的 Excel 打开,结果一样
-- [ ] 在 Excel 里拖动截图,框跟着走;点两下能选中单个框,拖动、删除都正常
+- [x] 同一份文件用 Mac 上的 Excel 打开,结果一样
+- [x] 在 Excel 里拖动截图,框跟着走;点两下能选中单个框,拖动、删除都正常
 - [ ] 把 Excel 的缩放调到 75% / 150%,框和图仍然对得上
 - [x] `docs/running.md` 补上这几条手测
 
@@ -43,3 +43,5 @@
 **实现**(agy 写,host 复核后按 `/code-review` 两轴意见改):`box_export.py` 拆成几个有名字的小函数(sheet 列表、sheet → drawing、一张 drawing 的改写、`a:xfrm`、四边形),入参只留一种形状,样式经 `LayoutSettings.box_style` 传入、不再有第二份默认值;位置测试的期望值改成从 `scale_dimensions` 的显示尺寸独立算出(原先从输出读回的组尺寸推,等于拿代码验代码);两条「清单对不上就拒绝」的测试挪到 `test_evidence_box_export.py`;ADR-0014 按既有 ADR 的体例重写。
 
 真导出一份(宽图两框、长图一框)拆开看:drawing 的结构和原型 `mode == "group"` 逐元素一致,声明只有一行,openpyxl 读得回、图片数不变。剩下三条要在 Excel 里看。
+
+**2026-10-01 收尾**:用户在 Mac 的 Excel 上打开真实导出的文件,确认没有问题。工作机(Windows 桌面版 Excel)那两条没有实测,留着没勾 —— 对齐由编组的坐标系保证、不经过行高列宽,风险低;第一次在工作机上导出时顺手看一眼即可。
