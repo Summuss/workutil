@@ -20,6 +20,10 @@ Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agent
 
 Keep the split: requirements describe observable behavior, design describes implementation. When a change affects both, update both. If a change alters how the thing is started, tested by hand, or where its data lives, update `docs/running.md` too.
 
+## Delegating implementation
+
+When an `/implement` ticket is complex, delegate the coding to the `agy:implementer` skill instead of writing it yourself. Review its result against the ticket's acceptance criteria before committing.
+
 ## Git workflow
 
 Commit granularity depends on the phase:
