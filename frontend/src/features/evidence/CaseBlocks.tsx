@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { arrayMove } from "@dnd-kit/sortable";
 
@@ -40,6 +40,27 @@ import type { Block, CaseDetail, Move } from "./types";
 /** Where the bottom composer of one case keeps what has been typed into it. */
 export function caseComposerDraftKey(caseId: number): string {
   return `draft:case:${caseId}:new`;
+}
+
+/**
+ * Which block you are reading: the first one still showing at the top of the list.
+ *
+ * Not "the one filling most of the viewport" — a full-page screenshot is
+ * several screens tall, so halfway down one the block you are reading started
+ * well above the top edge, and the first one still showing is exactly it.
+ *
+ * Returns `null` when the list has nothing in view (no blocks, or none of them
+ * mounted yet), which callers read as "leave the scroll alone".
+ */
+function blockAtTopOf(container: HTMLElement, blocks: Block[]): number | null {
+  const top = container.getBoundingClientRect().top;
+  for (const block of blocks) {
+    const el = document.getElementById(`evidence-block-${block.id}`);
+    if (el !== null && el.getBoundingClientRect().bottom > top) {
+      return block.id;
+    }
+  }
+  return null;
 }
 
 interface CaseBlocksProps {
@@ -107,6 +128,9 @@ export function CaseBlocks({
   const [activeImageBlockId, setActiveImageBlockId] = useState<number | null>(null);
   const [boxSelectActive, setBoxSelectActive] = useState(false);
   const hasPagedRef = useRef(false);
+  const anchorBlockIdRef = useRef<number | null>(null);
+  const anchorFrameRef = useRef<number | null>(null);
+  const prevOutlineRef = useRef(outline);
 
   const imageBlocks = blocks.filter(
     (b) => b.kind === "image" && b.image_url !== null && !failedImageIds.has(b.id),
@@ -127,6 +151,34 @@ export function CaseBlocks({
       return next;
     });
   }
+
+  /**
+   * Remember what you are reading, so switching views can land on it.
+   *
+   * Read off the DOM while you scroll rather than measured at the moment you
+   * press the button: by the time an effect could run, React has already
+   * swapped cards for rows and the geometry it would measure is the new
+   * view's. One pass per frame, and only while the list is actually moving.
+   */
+  function handleScroll() {
+    if (anchorFrameRef.current !== null) return;
+    anchorFrameRef.current = requestAnimationFrame(() => {
+      anchorFrameRef.current = null;
+      const container = scrollContainerRef.current;
+      if (container !== null) {
+        anchorBlockIdRef.current = blockAtTopOf(container, blocks);
+      }
+    });
+  }
+
+  useEffect(
+    () => () => {
+      if (anchorFrameRef.current !== null) {
+        cancelAnimationFrame(anchorFrameRef.current);
+      }
+    },
+    [],
+  );
 
   function handleOpenLightbox(blockId: number, boxSelect: boolean = false) {
     hasPagedRef.current = false;
@@ -182,6 +234,10 @@ export function CaseBlocks({
   }
 
   function handleJump(blockId: number) {
+    // Clicking a row is itself a statement about which block you are on, so it
+    // moves the anchor too — otherwise the switch this is about to trigger
+    // would overwrite the jump with whatever row happened to be at the top.
+    anchorBlockIdRef.current = blockId;
     setJumpToBlockId(blockId);
     onToggleOutline(false);
   }
@@ -197,6 +253,7 @@ export function CaseBlocks({
 
   useEffect(() => {
     scrollContainerRef.current?.scrollTo({ top: 0 });
+    anchorBlockIdRef.current = null;
     setScrollToBlockId(null);
     setJumpToBlockId(null);
     setActiveImageBlockId(null);
@@ -209,6 +266,38 @@ export function CaseBlocks({
       setActiveImageBlockId(null);
       setBoxSelectActive(false);
       hasPagedRef.current = false;
+    }
+  }, [outline]);
+
+  /**
+   * Switching views lands on the block you were reading, not back at the top.
+   *
+   * A case of thirty blocks is thirty screens of cards and still several
+   * screens of rows, so a switch that keeps the raw `scrollTop` keeps nothing:
+   * the number means a different place in each view, and the browser clamps it
+   * to the shorter list's end. Carrying the block across is what "the same
+   * place" can mean when the two views agree on nothing but their order.
+   *
+   * Cards → rows happens in this layout effect, before the paint: a row is a
+   * fixed 56px and so is its thumbnail, so the outline's geometry is final the
+   * moment it mounts. Rows → cards cannot be, because a card is a few pixels
+   * tall until its screenshot arrives — that direction is handed to
+   * `jumpToBlockId`, which waits for the bytes.
+   */
+  useLayoutEffect(() => {
+    const was = prevOutlineRef.current;
+    prevOutlineRef.current = outline;
+    if (was === outline) return;
+
+    const anchorId = anchorBlockIdRef.current;
+    if (anchorId === null) return;
+
+    if (outline) {
+      document
+        .getElementById(`evidence-block-${anchorId}`)
+        ?.scrollIntoView({ block: "start" });
+    } else {
+      setJumpToBlockId(anchorId);
     }
   }, [outline]);
 
@@ -533,6 +622,7 @@ export function CaseBlocks({
           containment without JavaScript (design.md §6 F5). */}
       <div
         ref={scrollContainerRef}
+        onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-y-auto"
         style={{ containerType: "size" }}
       >
